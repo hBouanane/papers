@@ -16,6 +16,7 @@ def no_network(monkeypatch):
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PAPERS_DB", str(tmp_path / "test.db"))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)  # never call the real API from tests
+    monkeypatch.setenv("PAPERS_INBOX_POLL", "0")  # tests call import_inbox() themselves
     from app.main import app
 
     with TestClient(app) as c:

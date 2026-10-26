@@ -1,4 +1,6 @@
+import asyncio
 import json
+import os
 from typing import Literal
 import re
 import mimetypes
@@ -11,14 +13,27 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from app import db, index, llm, pdf, scholar
+from app import db, index, library, llm, pdf, scholar
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.init()
     index.backfill()
+    poll = float(os.environ.get("PAPERS_INBOX_POLL", "10"))
+    watcher = asyncio.create_task(watch_inbox(poll)) if poll > 0 else None
     yield
+    if watcher:
+        watcher.cancel()
+
+
+async def watch_inbox(every: float):
+    while True:
+        await asyncio.sleep(every)
+        try:
+            await asyncio.to_thread(import_inbox)
+        except Exception as e:  # keep watching even if one import fails
+            print(f"Inbox import failed: {e}")
 
 
 app = FastAPI(title="Papers", lifespan=lifespan)
@@ -86,9 +101,9 @@ def update_paper(paper_id: int, **fields) -> dict:
             f"update papers set {sets}, updated_at = current_timestamp where id = ?",
             (*fields.values(), paper_id),
         )
-    paper = get_paper(paper_id)
-    index.index_paper(paper)
-    return paper
+    index.index_paper(get_paper(paper_id))
+    library.sync_paper(paper_id)
+    return get_paper(paper_id)
 
 
 @app.get("/api/health")
@@ -132,6 +147,7 @@ def save_pdf(paper_id: int, data: bytes):
     path = db.pdf_path(paper_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
+    library.sync_paper(paper_id)
 
 
 def read_pdf(data: bytes) -> str:
@@ -166,6 +182,7 @@ def insert_paper(fields: dict) -> int:
             tuple(fields.values()),
         )
     index.index_paper(get_paper(cur.lastrowid))
+    library.sync_paper(cur.lastrowid)
     return cur.lastrowid
 
 
@@ -307,7 +324,78 @@ def skim_paper(paper_id: int):
 
 @app.post("/api/papers/{paper_id}/explain")
 def explain_passage(paper_id: int, body: ExplainIn):
-    return {"explanation": llm.explain(get_paper(paper_id), body.passage, body.question)}
+    answer = llm.explain(get_paper(paper_id), body.passage, body.question)
+    with db.connect() as conn:
+        conn.execute("insert into explanations (paper_id, passage, question, answer) values (?, ?, ?, ?)",
+                     (paper_id, body.passage, body.question, answer))
+    library.sync_paper(paper_id)
+    return {"explanation": answer}
+
+
+@app.get("/api/papers/{paper_id}/explanations")
+def list_explanations(paper_id: int):
+    with db.connect() as conn:
+        return [dict(r) for r in conn.execute(
+            "select id, passage, question, answer, created_at from explanations where paper_id = ? order by id desc",
+            (paper_id,))]
+
+
+class SettingsIn(BaseModel):
+    library_dir: str
+
+
+def settings() -> dict:
+    folder = library.root()
+    return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
+            "suggested": str(Path.home() / "Documents" / "Papers")}
+
+
+@app.get("/api/settings")
+def read_settings():
+    return settings()
+
+
+@app.put("/api/settings")
+def save_settings(body: SettingsIn):
+    try:
+        library.set_root(body.library_dir)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except OSError as e:
+        raise HTTPException(400, f"Couldn't use that folder: {e}")
+    return settings()
+
+
+_inbox_skipped: set[tuple] = set()  # files that aren't importable; don't retry until they change
+
+
+def import_inbox() -> int:
+    """Import PDFs dropped into the library's Inbox folder; returns how many were added."""
+    base = library.root()
+    inbox = base / library.INBOX if base else None
+    if not inbox or not inbox.is_dir():
+        return 0
+    added = 0
+    for f in sorted(inbox.iterdir()):
+        key = (f.name, f.stat().st_size, f.stat().st_mtime)
+        if f.suffix.lower() != ".pdf" or key in _inbox_skipped:
+            continue
+        data = f.read_bytes()
+        if not pdf.is_pdf(data):
+            _inbox_skipped.add(key)
+            continue
+        text = read_pdf(data)
+        fields = describe_pdf(data, text, f.name)
+        existing = find_existing({"external_id": "", **fields})
+        if existing is None:
+            existing = insert_paper({**fields, "text": text})
+        elif not get_paper(existing)["text"]:
+            update_paper(existing, text=text)
+        if not db.pdf_path(existing).exists():
+            save_pdf(existing, data)
+        f.unlink()  # its content now lives in the library (and its folder)
+        added += 1
+    return added
 
 
 @app.post("/api/papers/{paper_id}/quiz")
