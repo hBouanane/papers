@@ -9,13 +9,11 @@ def put(client, pid, position):
     return client.put(f"/api/papers/{pid}/progress", json={"position": position}).json()
 
 
-def test_progress_tracks_position_and_furthest_point(client):
+def test_moving_without_reading_updates_position_only(client):
     p = make_paper(client)
     r = put(client, p["id"], 0.6)
-    assert (r["position"], r["progress"], r["status"]) == (0.6, 0.6, "reading")
-    r = put(client, p["id"], 0.2)
-    assert (r["position"], r["progress"]) == (0.2, 0.6)
-    assert put(client, p["id"], 5)["progress"] == 1
+    assert (r["position"], r["progress"], r["status"]) == (0.6, 0, "reading")
+    assert put(client, p["id"], 5)["position"] == 1
 
 
 def test_finish_marks_read_and_generates_quiz(client, monkeypatch):

@@ -1,3 +1,5 @@
+import { stripBackground } from "./tracker.js";
+
 export const app = document.getElementById("app");
 
 export const esc = (s) =>
@@ -47,8 +49,11 @@ export function cite(p) {
   return esc([who, p.year && `(${p.year})`].filter(Boolean).join(" "));
 }
 
+// Shows which parts were read when the paper has slice tracking, else a plain bar.
 export function progressBar(p) {
-  return `<span class="bar" role="img" aria-label="${pct(p.progress)} read"><span style="width:${pct(p.progress)}"></span></span>`;
+  const label = `role="img" aria-label="${pct(p.progress)} read"`;
+  if (p.read_slices) return `<span class="bar" ${label} style="background:${stripBackground(p.read_slices.split(""))}"></span>`;
+  return `<span class="bar" ${label}><span style="width:${pct(p.progress)}"></span></span>`;
 }
 
 // Search snippets come back with matches wrapped in [brackets].

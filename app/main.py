@@ -1,4 +1,5 @@
 import json
+from typing import Literal
 import re
 import mimetypes
 from contextlib import asynccontextmanager
@@ -244,7 +245,7 @@ def resume_text(text: str, position: float) -> str:
 
 @app.get("/api/papers")
 def list_papers(topic_id: int | None = None):
-    cols = "id, topic_id, title, authors, year, external_id, status, progress, position, understanding, source_paper_id, updated_at, text"
+    cols = "id, topic_id, title, authors, year, external_id, status, progress, position, understanding, source_paper_id, read_slices, updated_at, text"
     with db.connect() as conn:
         if topic_id is None:
             rows = conn.execute(f"select {cols} from papers order by updated_at desc")
@@ -326,18 +327,32 @@ def grade_quiz(paper_id: int, body: AnswersIn):
     return result
 
 
+SLICES = 100  # a paper is tracked as 100 equal slices, each read or not
+
+
 class ProgressIn(BaseModel):
     position: float
+    slices: list[int] = []  # slices the reader actually spent time on
+    mode: Literal["read", "skim"] = "read"
 
 
 @app.put("/api/papers/{paper_id}/progress")
 def save_progress(paper_id: int, body: ProgressIn):
     paper = get_paper(paper_id)
-    position = min(max(body.position, 0.0), 1.0)
+    if body.mode == "skim":
+        return update_paper(paper_id, status="skimmed") if paper["status"] == "new" else paper
+    bits = list(paper["read_slices"] or "0" * SLICES)
+    for i in body.slices:
+        if 0 <= i < SLICES:
+            bits[i] = "1"
+    read = bits.count("1") / SLICES
+    # Papers tracked the old way keep their percentage until real reading overtakes it.
+    progress = read if paper["read_slices"] else max(paper["progress"], read)
     return update_paper(
         paper_id,
-        position=position,
-        progress=max(paper["progress"], position),
+        position=min(max(body.position, 0.0), 1.0),
+        progress=progress,
+        read_slices="".join(bits),
         status="read" if paper["status"] == "read" else "reading",
     )
 
@@ -345,8 +360,11 @@ def save_progress(paper_id: int, body: ProgressIn):
 @app.post("/api/papers/{paper_id}/finish")
 def finish_paper(paper_id: int):
     paper = get_paper(paper_id)
-    questions = llm.quiz(paper)
-    return update_paper(paper_id, status="read", progress=1.0, quiz=json.dumps(questions))
+    try:
+        questions = json.dumps(llm.quiz(paper))
+    except llm.AIError:
+        questions = None  # still mark it read; the quiz can be written later
+    return update_paper(paper_id, status="read", progress=1.0, read_slices="1" * SLICES, quiz=questions)
 
 
 @app.get("/api/search")
