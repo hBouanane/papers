@@ -8,3 +8,7 @@ def test_serves_ui(client):
 def test_paper_list_includes_external_id(client):
     client.post("/api/papers", json={"title": "P", "external_id": "x1"})
     assert client.get("/api/papers").json()[0]["external_id"] == "x1"
+
+
+def test_static_files_are_revalidated(client):
+    assert client.get("/js/core.js").headers["cache-control"] == "no-cache"

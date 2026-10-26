@@ -1,4 +1,4 @@
-import { api, app, busy, cite, empty, esc, icon, loading, paperRow, pct, statusTag, STATUS, tableHead } from "./core.js";
+import { api, app, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -15,7 +15,7 @@ export async function libraryPage(stale) {
     app.innerHTML = `<div class="container page">
       <h1>Library</h1>
       ${empty("Nothing here yet. Tell us what you're working on and we'll find papers for it.",
-        `<a class="button" href="#/goals">${icon("target")}Set a goal</a>`)}</div>`;
+        `<a class="button" href="#/goals">Set a goal</a>`)}</div>`;
     return;
   }
 
@@ -26,11 +26,11 @@ export async function libraryPage(stale) {
       <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p>
     </div>
     ${current ? `<a class="resume sheet" href="#/papers/${current.id}/read">
-        <span class="resume-label">${icon("book-open")}Pick up where you left off</span>
+        <span class="resume-label">Pick up where you left off</span>
         <span class="resume-title">${esc(current.title)}</span>
         <span class="resume-cite">${cite(current)}</span>
-        ${current.resume_text ? `<span class="resume-quote"><mark>${esc(current.resume_text)}</mark></span>` : ""}
-        <span class="resume-foot">${icon("play")}Continue at ${pct(current.position)}</span>
+        ${current.resume_text ? `<span class="resume-quote">“${esc(current.resume_text)}”</span>` : ""}
+        <span class="resume-foot">Continue at ${pct(current.position)}</span>
       </a>
       ${others.length ? `<p class="also">Also in progress: ${others.map((p) =>
         `<a href="#/papers/${p.id}/read">${esc(p.title)}</a>`).join(", ")}</p>` : ""}` : ""}
@@ -39,7 +39,7 @@ export async function libraryPage(stale) {
         <h2>All papers</h2>
         <div class="segmented" role="group" aria-label="Filter by status">
           ${["all", "new", "skimmed", "reading", "read"].map((s) =>
-            `<button class="${s === "all" ? "active" : ""}" data-filter="${s}">${s === "all" ? "All" : STATUS[s][0]}
+            `<button class="${s === "all" ? "active" : ""}" data-filter="${s}">${s === "all" ? "All" : STATUS[s]}
               <span class="num">${s === "all" ? papers.length : count(s)}</span></button>`).join("")}
         </div>
       </div>
@@ -73,7 +73,7 @@ export async function goalsPage(stale) {
     <form class="sheet form" id="goal-form">
       <label for="goal">What are you working on?</label>
       <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
-      <div class="form-foot"><button class="button">${icon("plus")}Create goal</button></div>
+      <div class="form-foot"><button class="button">Create goal</button></div>
     </form>
     ${goals.length ? `<div class="sheet list">${goals.map((g) => {
       const ps = papers.filter((p) => p.topic_id === g.id);
@@ -112,7 +112,7 @@ export async function goalPage(id, stale) {
     <section class="section">
       <div class="section-bar">
         <h2>Find more</h2>
-        <button class="button" id="find">${icon("magnifying-glass")}Search papers</button>
+        <button class="button" id="find">Search papers</button>
       </div>
       <div id="suggestions"><p class="faint">Searches Semantic Scholar and arXiv using this goal.</p></div>
     </section></div>`;
@@ -128,18 +128,18 @@ export async function goalPage(id, stale) {
       <div class="result">
         <div class="result-body">
           <h3 class="paper-name">${esc(p.title)}</h3>
-          <p class="result-cite">${cite(p)}${p.pdf_url ? `<span class="has-pdf">${icon("file-text")}Full text</span>` : ""}</p>
+          <p class="result-cite">${cite(p)}${p.pdf_url ? `<span class="has-pdf">Full text</span>` : ""}</p>
           ${p.abstract ? `<details><summary>Abstract</summary><p>${esc(p.abstract)}</p></details>` : ""}
         </div>
-        ${known.has(p.external_id) ? `<span class="in-library">${icon("check")}In library</span>`
-          : `<button class="button secondary" data-add="${i}">${icon("plus")}Add</button>`}
+        ${known.has(p.external_id) ? `<span class="in-library">In library</span>`
+          : `<button class="button secondary" data-add="${i}">Add</button>`}
       </div>`).join("")}</div>` : `<p class="faint">No results. Try rewording the goal.</p>`;
     box.onclick = (ev) => {
       const b = ev.target.closest("[data-add]");
       if (b) busy(b, "Adding…", async () => {
         await api("/papers", { method: "POST", json: { ...found[b.dataset.add], topic_id: id } });
         known.add(found[b.dataset.add].external_id);
-        b.outerHTML = `<span class="in-library">${icon("check")}In library</span>`;
+        b.outerHTML = `<span class="in-library">In library</span>`;
         const list = await api(`/papers?topic_id=${id}`);
         app.querySelector("#mine").innerHTML = mine(list);
         app.querySelector("#count").textContent = list.length;
@@ -158,7 +158,7 @@ export async function recallPage() {
     <form id="recall" class="sheet form">
       <label for="idea" class="visually-hidden">The idea</label>
       <textarea id="idea" rows="3" required placeholder="Adding noise step by step, then learning to undo it"></textarea>
-      <div class="form-foot"><button class="button">${icon("magnifying-glass")}Search my papers</button></div>
+      <div class="form-foot"><button class="button">Search my papers</button></div>
     </form>
     <div id="results"></div></div>`;
   const input = app.querySelector("#idea");

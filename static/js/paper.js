@@ -1,4 +1,4 @@
-import { api, app, busy, cite, esc, icon, loading, pct, progressBar, statusTag, toast } from "./core.js";
+import { api, app, busy, cite, esc, loading, pct, progressBar, statusTag, toast } from "./core.js";
 
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
@@ -17,10 +17,10 @@ export async function paperPage(id, stale) {
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       <p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>
       <div class="actions">
-        ${p.text ? `<a class="button" href="#/papers/${id}/read">${icon("book-open")}${readLabel}</a>` : ""}
-        ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${icon("exam")}${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
-        ${!p.text ? `<label class="button">${icon("upload-simple")}Upload the PDF<input type="file" id="pdf" accept="application/pdf" hidden></label>` : ""}
-        ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">${icon("globe-simple")}Source</a>` : ""}
+        ${p.text ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>` : ""}
+        ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
+        ${!p.text ? `<label class="button">Upload the PDF<input type="file" id="pdf" accept="application/pdf" hidden></label>` : ""}
+        ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
       </div>
       ${!p.text ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
     </header>
@@ -31,7 +31,7 @@ export async function paperPage(id, stale) {
         <section class="section">
           <div class="section-bar">
             <h2>References</h2>
-            ${p.external_id ? `<button class="button secondary" id="refs-btn">${icon("list-bullets")}Show references</button>` : ""}
+            ${p.external_id ? `<button class="button secondary" id="refs-btn">Show references</button>` : ""}
           </div>
           <div id="refs"><p class="faint">${p.external_id
             ? "Follow a reference to go deeper. The map remembers which paper led you where."
@@ -47,9 +47,9 @@ export async function paperPage(id, stale) {
           <div><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span></div>
           ${p.text ? `<div><span>Length</span><span>${minutes(p.text)} min</span></div>` : ""}
         </div>
-        ${ancestors.length ? `<div class="sheet trail"><h3>${icon("git-branch")}Found through</h3>
+        ${ancestors.length ? `<div class="sheet trail"><h3>Found through</h3>
           ${ancestors.map((a) => `<a href="#/papers/${a.id}">${esc(a.title)}</a>`).join("")}</div>` : ""}
-        ${chain.children.length ? `<div class="sheet trail"><h3>${icon("git-fork")}Led you to</h3>
+        ${chain.children.length ? `<div class="sheet trail"><h3>Led you to</h3>
           ${chain.children.map((c) => `<a href="#/papers/${c.id}">${esc(c.title)}</a>`).join("")}</div>` : ""}
       </aside>
     </div></div>`;
@@ -77,11 +77,11 @@ function renderSkim(p) {
     box.innerHTML = `<h2>Skim before you read</h2>
       <p class="skim-intro">A first pass in the style Andrew Ng recommends: what problem it tackles, what's new,
       how it works, what it shows, where it falls short, and which sections deserve a close read.</p>
-      <button class="button" id="skim-btn">${icon("eye")}Skim this paper</button>`;
+      <button class="button" id="skim-btn">Skim this paper</button>`;
   } else {
     box.innerHTML = `<div class="section-bar"><h2>Key points</h2>
-        <button class="button quiet" id="skim-btn">${icon("arrow-clockwise")}Redo</button></div>
-      <p class="verdict"><mark>${esc(s.verdict)}</mark></p>
+        <button class="button quiet" id="skim-btn">Redo</button></div>
+      <p class="verdict">${esc(s.verdict)}</p>
       <div class="skim">
         <h3>Problem</h3><p>${esc(s.problem)}</p>
         <h3>Contributions</h3>${list(s.contributions)}
@@ -106,7 +106,7 @@ async function loadRefs(p) {
   box.innerHTML = refs.length ? `<div class="sheet list">${refs.map((r, i) => `<div class="ref">
       <span><span class="ref-title">${esc(r.title)}</span><span class="result-cite">${cite(r)}</span></span>
       ${r.library_id ? `<a class="button quiet" href="#/papers/${r.library_id}">Open</a>`
-        : `<button class="button secondary" data-ref="${i}">${icon("book-open")}Read this</button>`}</div>`).join("")}</div>`
+        : `<button class="button secondary" data-ref="${i}">Read this</button>`}</div>`).join("")}</div>`
     : `<p class="faint">No references found.</p>`;
   box.onclick = (e) => {
     const b = e.target.closest("[data-ref]");
@@ -128,10 +128,10 @@ export async function readerPage(id, stale) {
   app.innerHTML = `
     <div class="reader-bar">
       <div class="reader-bar-inner">
-        <a href="#/papers/${id}" class="reader-back" title="Back to paper overview">${icon("caret-left")}<span>${esc(p.title)}</span></a>
+        <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
         <span class="reader-pct num" id="pct">${pct(p.progress)} read</span>
-        <button class="button secondary small" id="toggle-notes">${icon("highlighter")}<span>Explanations</span></button>
-        <button class="button small" id="finish">${icon("check")}<span>${p.status === "read" ? "Done" : "Finish"}</span></button>
+        <button class="button secondary small" id="toggle-notes">Explanations</button>
+        <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
       </div>
       <div class="reader-progress"><span id="bar" style="width:${pct(p.position)}"></span></div>
     </div>
@@ -142,21 +142,21 @@ export async function readerPage(id, stale) {
         <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}</div>
         <div class="article-end">
           <p>That's the end of the paper.</p>
-          <button class="button" id="finish-end">${icon("exam")}I've finished, quiz me</button>
+          <button class="button" id="finish-end">I've finished, quiz me</button>
         </div>
       </article>
     </div>
     <aside class="notes" id="notes" aria-label="Explanations">
-      <div class="notes-head"><h2>Explanations</h2><button class="icon-button" id="close-notes" aria-label="Close">${icon("x")}</button></div>
+      <div class="notes-head"><h2>Explanations</h2><button class="button quiet small" id="close-notes">Close</button></div>
       <p class="hint">Select a passage in the paper to have it explained with the whole paper in mind, or paste one here.</p>
       <form id="ask" class="ask">
         <textarea id="passage" rows="4" placeholder="Paste a passage"></textarea>
         <input id="question" placeholder="What's confusing about it? (optional)">
-        <button class="button small">${icon("highlighter")}Explain</button>
+        <button class="button small">Explain</button>
       </form>
       <div id="answers"></div>
     </aside>
-    <button class="explain-pop" id="pop" hidden>${icon("highlighter")}Explain this</button>`;
+    <button class="explain-pop" id="pop" hidden>Explain this</button>`;
 
   const article = app.querySelector("#article");
   const pop = app.querySelector("#pop");
@@ -187,7 +187,7 @@ export async function readerPage(id, stale) {
     setOpen(true);
     const item = document.createElement("div");
     item.className = "answer";
-    item.innerHTML = `<p class="answer-quote"><mark>${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</mark></p>
+    item.innerHTML = `<p class="answer-quote">${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</p>
       ${question ? `<p class="answer-q">${esc(question)}</p>` : ""}<div class="answer-body">${loading("Explaining")}</div>`;
     app.querySelector("#answers").prepend(item);
     try {
@@ -254,7 +254,7 @@ export async function quizPage(id, stale) {
 
   if (!p.quiz?.length) {
     app.innerHTML = `<div class="container page narrow">${head}
-      <div class="empty"><p>No quiz for this paper yet.</p><button class="button" id="gen">${icon("exam")}Write a quiz</button></div></div>`;
+      <div class="empty"><p>No quiz for this paper yet.</p><button class="button" id="gen">Write a quiz</button></div></div>`;
     app.querySelector("#gen").onclick = (e) => busy(e.currentTarget, "Writing questions…", async () => {
       await api(`/papers/${id}/quiz`, { method: "POST" });
       quizPage(id, stale);
@@ -267,7 +267,7 @@ export async function quizPage(id, stale) {
       <label for="a${i}"><span class="q-num">Question ${i + 1} of ${p.quiz.length}</span>${esc(q.question)}</label>
       <textarea id="a${i}" rows="3"></textarea>
       <div class="feedback" id="fb${i}"></div></div>`).join("")}
-      <div class="quiz-foot"><button class="button">${icon("check")}Grade my answers</button><span id="score" class="score"></span></div>
+      <div class="quiz-foot"><button class="button">Grade my answers</button><span id="score" class="score"></span></div>
     </form></div>`;
 
   app.querySelector("#quiz").onsubmit = (e) => {
@@ -276,8 +276,8 @@ export async function quizPage(id, stale) {
       const answers = p.quiz.map((_, i) => app.querySelector(`#a${i}`).value);
       const r = await api(`/papers/${id}/quiz/grade`, { method: "POST", json: { answers } });
       r.results.forEach((res, i) => {
-        const [level, ic] = res.score >= 0.8 ? ["good", "check-circle"] : res.score >= 0.4 ? ["partial", "circle-half"] : ["miss", "x-circle"];
-        app.querySelector(`#fb${i}`).innerHTML = `<p class="grade grade-${level}">${icon(ic)}<span><strong class="num">${pct(res.score)}</strong> ${esc(res.feedback)}</span></p>
+        const level = res.score >= 0.8 ? "good" : res.score >= 0.4 ? "partial" : "miss";
+        app.querySelector(`#fb${i}`).innerHTML = `<p class="grade"><span class="score-pill score-${level} num">${pct(res.score)}</span><span>${esc(res.feedback)}</span></p>
           <details><summary>Reference answer</summary><p>${esc(p.quiz[i].answer)}</p></details>`;
       });
       app.querySelector("#score").innerHTML = `You understood <strong class="num">${pct(r.score)}</strong> of this paper`;

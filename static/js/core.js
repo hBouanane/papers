@@ -5,8 +5,6 @@ export const esc = (s) =>
 
 export const pct = (x) => `${Math.round((x || 0) * 100)}%`;
 
-export const icon = (name) => `<i class="ph-bold ph-${name}" aria-hidden="true"></i>`;
-
 export function toast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -36,14 +34,9 @@ export async function busy(button, label, fn) {
   finally { if (button && button.isConnected) { button.disabled = false; button.innerHTML = original; } }
 }
 
-export const STATUS = {
-  new: ["To read", "bookmark-simple"],
-  skimmed: ["Skimmed", "eye"],
-  reading: ["Reading", "book-open"],
-  read: ["Read", "check-circle"],
-};
+export const STATUS = { new: "To read", skimmed: "Skimmed", reading: "Reading", read: "Read" };
 
-export const statusTag = (p) => `<span class="chip chip-${p.status}">${icon(STATUS[p.status][1])}${STATUS[p.status][0]}</span>`;
+export const statusTag = (p) => `<span class="chip chip-${p.status}">${STATUS[p.status]}</span>`;
 
 // Citation style: "Vaswani et al. (2017)".
 export function cite(p) {
@@ -63,7 +56,7 @@ export function paperRow(p, goals = {}) {
   return `<a class="row" href="#/papers/${p.id}">
     <span class="row-main">
       <span class="row-title">${esc(p.title)}</span>
-      <span class="row-meta">${cite(p)}${goal ? `<span class="row-goal">${icon("target")}${esc(goal)}</span>` : ""}</span>
+      <span class="row-meta">${cite(p)}${goal ? `<span class="row-goal">Goal: ${esc(goal)}</span>` : ""}</span>
     </span>
     <span class="row-cell">${statusTag(p)}</span>
     <span class="row-cell">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span>

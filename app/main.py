@@ -21,6 +21,14 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Papers", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def revalidate_static(request: Request, call_next):
+    response = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-cache"  # pick up UI changes without a hard refresh
+    return response
+
+
 @app.exception_handler(llm.AIError)
 def ai_error(_: Request, exc: llm.AIError):
     return JSONResponse({"detail": str(exc)}, status_code=503)
