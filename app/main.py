@@ -183,6 +183,43 @@ def create_paper(body: PaperIn):
     return get_paper(paper_id)
 
 
+class LinkIn(BaseModel):
+    link: str
+    topic_id: int | None = None
+
+
+def find_existing(meta: dict) -> int | None:
+    with db.connect() as conn:
+        rows = conn.execute("select id, external_id, title from papers").fetchall()
+    return next((r["id"] for r in rows if (meta["external_id"] and r["external_id"] == meta["external_id"])
+                 or scholar.norm_title(r["title"]) == scholar.norm_title(meta["title"])), None)
+
+
+@app.post("/api/papers/from-link")
+def add_from_link(body: LinkIn):
+    if identifier := scholar.parse_link(body.link):
+        meta = scholar.lookup(identifier)
+        if not meta:
+            raise HTTPException(404, "Couldn't find a paper for that link. Check it, or upload the PDF instead.")
+        if existing := find_existing(meta):
+            return get_paper(existing)
+        return create_paper(PaperIn(**meta, topic_id=body.topic_id))
+    url = body.link.strip()
+    if not re.match(r"https?://", url):
+        raise HTTPException(400, "Paste an arXiv, DOI or Semantic Scholar link, or a link to a PDF.")
+    try:
+        data = scholar.fetch_pdf(url)
+    except httpx.HTTPError:
+        raise HTTPException(400, "Couldn't download that link. Check it, or upload the PDF instead.")
+    if not pdf.is_pdf(data):
+        raise HTTPException(400, "That link isn't a paper. Paste an arXiv, DOI or Semantic Scholar link, or a link to a PDF.")
+    text = read_pdf(data)
+    fields = describe_pdf(data, text, url.rsplit("/", 1)[-1])
+    paper_id = insert_paper({**fields, "url": url, "topic_id": body.topic_id, "text": text})
+    save_pdf(paper_id, data)
+    return get_paper(paper_id)
+
+
 @app.post("/api/papers/upload")
 async def upload_paper(file: UploadFile, topic_id: int | None = Form(None)):
     data = await file.read()

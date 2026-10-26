@@ -86,6 +86,23 @@ def lookup(identifier: str) -> dict | None:
         return None
 
 
+ARXIV_ID = r"(\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?/\d{7})"
+
+
+def parse_link(link: str) -> str | None:
+    """Turn an arXiv/DOI/Semantic Scholar link or bare ID into a lookup key, or None."""
+    s = link.strip()
+    if m := re.search(rf"arxiv\.org/(?:abs|pdf)/{ARXIV_ID}", s, re.IGNORECASE):
+        return f"arXiv:{m[1]}"
+    if m := re.fullmatch(rf"(?:arxiv:)?{ARXIV_ID}(?:v\d+)?", s, re.IGNORECASE):
+        return f"arXiv:{m[1]}"
+    if m := re.search(r"(10\.\d{4,9}/[^\s?#]+)", s):
+        return f"DOI:{m[1]}"
+    if m := re.search(r"semanticscholar\.org/paper/(?:[^/]+/)?([0-9a-f]{40})", s):
+        return m[1]
+    return None
+
+
 def norm_title(title: str) -> str:
     return re.sub(r"[^a-z0-9]", "", title.lower())
 

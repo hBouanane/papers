@@ -71,28 +71,48 @@ export const empty = (text, action = "") => `<div class="empty"><p>${text}</p>${
 
 export const loading = (text = "Loading") => `<p class="loading">${text}…</p>`;
 
-// "Upload a paper" control; pair with bindUploads() after rendering.
-export const uploadControl = (topicId = "") => `<label class="button secondary upload">
-  <span>Upload a paper</span><input type="file" accept="application/pdf,.pdf" data-upload="${topicId}" hidden></label>`;
+// "Add paper" control: paste a link or upload a PDF. Pair with bindAddPaper() after rendering.
+export const addPaperControl = (topicId = "") => `<details class="add-paper" data-topic="${topicId}">
+  <summary class="button">Add paper</summary>
+  <div class="add-panel sheet">
+    <form class="add-link">
+      <label>Paste a link
+        <input name="link" required placeholder="arxiv.org/abs/1706.03762, a DOI, or a PDF link"></label>
+      <button class="button">Add</button>
+    </form>
+    <p class="add-or">or</p>
+    <label class="button secondary add-file"><span>Upload a PDF</span><input type="file" accept="application/pdf,.pdf" hidden></label>
+    <p class="add-status" role="status"></p>
+  </div>
+</details>`;
 
-export function bindUploads() {
-  app.querySelectorAll("[data-upload]").forEach((input) => {
-    input.onchange = async () => {
-      const file = input.files[0];
+export function bindAddPaper() {
+  app.querySelectorAll(".add-paper").forEach((box) => {
+    const topic = box.dataset.topic;
+    const status = box.querySelector(".add-status");
+    const open = (paper) => (location.hash = `#/papers/${paper.id}`);
+    const fail = (e) => { status.textContent = e.message; status.classList.add("error"); };
+    box.addEventListener("toggle", () => box.open && box.querySelector("input[name=link]").focus());
+    box.querySelector(".add-link").onsubmit = (e) => {
+      e.preventDefault();
+      status.classList.remove("error");
+      const link = e.target.link.value.trim();
+      busy(e.submitter, "Adding…", async () => {
+        status.textContent = "Finding the paper and downloading its PDF…";
+        try { open(await api("/papers/from-link", { method: "POST", json: { link, topic_id: topic ? Number(topic) : null } })); }
+        catch (err) { fail(err); }
+      });
+    };
+    box.querySelector(".add-file input").onchange = async (e) => {
+      const file = e.target.files[0];
       if (!file) return;
-      const label = input.closest("label").querySelector("span");
       const form = new FormData();
       form.append("file", file);
-      if (input.dataset.upload) form.append("topic_id", input.dataset.upload);
-      label.textContent = "Uploading…";
-      try {
-        const paper = await api("/papers/upload", { method: "POST", body: form });
-        location.hash = `#/papers/${paper.id}`;
-      } catch (e) {
-        toast(e.message);
-        label.textContent = "Upload a paper";
-        input.value = "";
-      }
+      if (topic) form.append("topic_id", topic);
+      status.classList.remove("error");
+      status.textContent = `Uploading ${file.name}…`;
+      try { open(await api("/papers/upload", { method: "POST", body: form })); }
+      catch (err) { fail(err); e.target.value = ""; }
     };
   });
 }
