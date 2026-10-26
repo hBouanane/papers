@@ -24,3 +24,14 @@ def test_finish_marks_read_and_generates_quiz(client, monkeypatch):
     r = client.post(f"/api/papers/{p['id']}/finish").json()
     assert r["status"] == "read" and r["progress"] == 1 and r["quiz"] == [{"question": "Q", "answer": "A"}]
     assert put(client, p["id"], 0.1)["status"] == "read"
+
+
+def test_list_shows_where_reading_stopped(client):
+    text = "First sentence here. " * 20 + "The resume point is right here and continues. " + "Tail text. " * 20
+    p = client.post("/api/papers", json={"title": "P"}).json()
+    from app.main import update_paper
+    update_paper(p["id"], text=text)
+    put(client, p["id"], text.index("The resume") / len(text))
+    row = client.get("/api/papers").json()[0]
+    assert row["resume_text"].startswith("The resume point")
+    assert len(row["resume_text"]) <= 200
