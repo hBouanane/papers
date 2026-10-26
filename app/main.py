@@ -1,4 +1,5 @@
 import json
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -120,7 +121,7 @@ def create_paper(body: PaperIn):
 
 @app.get("/api/papers")
 def list_papers(topic_id: int | None = None):
-    cols = "id, topic_id, title, authors, year, status, progress, position, understanding, source_paper_id, updated_at"
+    cols = "id, topic_id, title, authors, year, external_id, status, progress, position, understanding, source_paper_id, updated_at"
     with db.connect() as conn:
         if topic_id is None:
             rows = conn.execute(f"select {cols} from papers order by updated_at desc")
@@ -253,4 +254,5 @@ def paper_chain(paper_id: int):
     return {"path": path, "children": children}
 
 
+mimetypes.add_type("text/javascript", ".js")  # Windows registry can map .js to text/plain
 app.mount("/", StaticFiles(directory=Path(__file__).parent.parent / "static", html=True), name="static")

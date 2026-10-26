@@ -4,28 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Papers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header>
-    <h1>Papers</h1>
-    <form id="recall-form">
-      <input id="recall-input" placeholder="Where did I read this idea?" required>
-      <button>Find</button>
-    </form>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#/" class="wordmark">Papers</a>
+      <nav class="nav">
+        <a href="#/" data-nav="library">Library</a>
+        <a href="#/goals" data-nav="goals">Goals</a>
+        <a href="#/map" data-nav="map">Map</a>
+        <a href="#/recall" data-nav="recall">Recall</a>
+      </nav>
+    </div>
   </header>
-  <div class="layout">
-    <aside>
-      <form id="topic-form">
-        <textarea id="topic-goal" rows="3" placeholder="What do you need to work on?" required></textarea>
-        <button>Add goal</button>
-      </form>
-      <button class="link" id="all-papers">All papers</button>
-      <ul id="topics"></ul>
-    </aside>
-    <main id="main"><p class="muted">Add a goal to start finding papers.</p></main>
-  </div>
-  <div id="toast" hidden></div>
-  <script src="/app.js"></script>
+  <main id="app"></main>
+  <div id="toast" role="status" hidden></div>
+  <script type="module" src="/js/main.js"></script>
 </body>
 </html>
