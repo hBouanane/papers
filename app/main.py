@@ -1,3 +1,4 @@
+import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, UploadFile
@@ -119,3 +120,43 @@ def read_paper(paper_id: int):
 async def upload_pdf(paper_id: int, file: UploadFile):
     get_paper(paper_id)
     return update_paper(paper_id, text=pdf.extract_text(await file.read()))
+
+
+class ExplainIn(BaseModel):
+    passage: str
+    question: str = ""
+
+
+class AnswersIn(BaseModel):
+    answers: list[str]
+
+
+@app.post("/api/papers/{paper_id}/skim")
+def skim_paper(paper_id: int):
+    paper = get_paper(paper_id)
+    result = llm.skim(paper)
+    status = "skimmed" if paper["status"] == "new" else paper["status"]
+    update_paper(paper_id, skim=json.dumps(result), status=status)
+    return result
+
+
+@app.post("/api/papers/{paper_id}/explain")
+def explain_passage(paper_id: int, body: ExplainIn):
+    return {"explanation": llm.explain(get_paper(paper_id), body.passage, body.question)}
+
+
+@app.post("/api/papers/{paper_id}/quiz")
+def make_quiz(paper_id: int):
+    questions = llm.quiz(get_paper(paper_id))
+    update_paper(paper_id, quiz=json.dumps(questions))
+    return questions
+
+
+@app.post("/api/papers/{paper_id}/quiz/grade")
+def grade_quiz(paper_id: int, body: AnswersIn):
+    paper = get_paper(paper_id)
+    if not paper["quiz"]:
+        raise HTTPException(400, "Generate a quiz first")
+    result = llm.grade(paper, paper["quiz"], body.answers)
+    update_paper(paper_id, understanding=result["score"])
+    return result
