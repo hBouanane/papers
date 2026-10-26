@@ -39,6 +39,7 @@ export async function libraryPage(stale) {
     <section class="section">
       <div class="section-bar">
         <h2>All papers</h2>
+        <input type="search" id="q" class="search" placeholder="Search titles, authors and full text" aria-label="Search your papers">
         <div class="segmented" role="group" aria-label="Filter by status">
           ${["all", "new", "skimmed", "reading", "read"].map((s) =>
             `<button class="${s === "all" ? "active" : ""}" data-filter="${s}">${s === "all" ? "All" : STATUS[s]}
@@ -50,16 +51,30 @@ export async function libraryPage(stale) {
 
   bindAddPaper();
   const rows = app.querySelector("#rows");
-  const show = (f) => {
-    const list = papers.filter((p) => f === "all" || p.status === f);
-    rows.innerHTML = list.map((p) => paperRow(p, names)).join("") || `<p class="faint pad">No papers with this status.</p>`;
+  let filter = "all";
+  let hits = null; // search results, or null when the search box is empty
+  const show = () => {
+    const list = (hits ?? papers.map((paper) => ({ paper, snippet: "" })))
+      .filter(({ paper }) => filter === "all" || paper.status === filter);
+    rows.innerHTML = list.map(({ paper, snippet }) => paperRow(paper, names, snippet)).join("")
+      || `<p class="faint pad">${hits ? "No papers match that search." : "No papers with this status."}</p>`;
   };
-  show("all");
+  show();
   app.querySelector(".segmented").onclick = (e) => {
     const b = e.target.closest("[data-filter]");
     if (!b) return;
     app.querySelectorAll(".segmented button").forEach((x) => x.classList.toggle("active", x === b));
-    show(b.dataset.filter);
+    filter = b.dataset.filter;
+    show();
+  };
+  let timer;
+  app.querySelector("#q").oninput = (e) => {
+    clearTimeout(timer);
+    const q = e.target.value.trim();
+    timer = setTimeout(async () => {
+      hits = q ? await api(`/search?q=${encodeURIComponent(q)}`).catch(() => []) : null;
+      if (e.target.value.trim() === q) show();
+    }, 200);
   };
 }
 

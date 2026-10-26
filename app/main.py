@@ -16,6 +16,7 @@ from app import db, index, llm, pdf, scholar
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.init()
+    index.backfill()
     yield
 
 
@@ -84,7 +85,9 @@ def update_paper(paper_id: int, **fields) -> dict:
             f"update papers set {sets}, updated_at = current_timestamp where id = ?",
             (*fields.values(), paper_id),
         )
-    return get_paper(paper_id)
+    paper = get_paper(paper_id)
+    index.index_paper(paper)
+    return paper
 
 
 @app.get("/api/health")
@@ -161,6 +164,7 @@ def insert_paper(fields: dict) -> int:
             f"insert into papers ({', '.join(fields)}) values ({', '.join('?' * len(fields))})",
             tuple(fields.values()),
         )
+    index.index_paper(get_paper(cur.lastrowid))
     return cur.lastrowid
 
 
@@ -342,8 +346,12 @@ def save_progress(paper_id: int, body: ProgressIn):
 def finish_paper(paper_id: int):
     paper = get_paper(paper_id)
     questions = llm.quiz(paper)
-    index.index_paper(paper)
     return update_paper(paper_id, status="read", progress=1.0, quiz=json.dumps(questions))
+
+
+@app.get("/api/search")
+def search_library(q: str = ""):
+    return index.search(q)
 
 
 class RecallIn(BaseModel):

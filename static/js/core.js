@@ -51,12 +51,16 @@ export function progressBar(p) {
   return `<span class="bar" role="img" aria-label="${pct(p.progress)} read"><span style="width:${pct(p.progress)}"></span></span>`;
 }
 
-export function paperRow(p, goals = {}) {
+// Search snippets come back with matches wrapped in [brackets].
+const snippetHtml = (s) => esc(s).replace(/\[([^\]]*)\]/g, "<b>$1</b>");
+
+export function paperRow(p, goals = {}, snippet = "") {
   const goal = p.topic_id && goals[p.topic_id];
   return `<a class="row" href="#/papers/${p.id}">
     <span class="row-main">
       <span class="row-title">${esc(p.title)}</span>
       <span class="row-meta">${cite(p)}${goal ? `<span class="row-goal">Goal: ${esc(goal)}</span>` : ""}</span>
+      ${snippet ? `<span class="row-snippet">${snippetHtml(snippet)}</span>` : ""}
     </span>
     <span class="row-cell">${statusTag(p)}</span>
     <span class="row-cell">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span>
