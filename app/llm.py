@@ -13,18 +13,30 @@ def _client() -> anthropic.Anthropic:
     return anthropic.Anthropic()
 
 
+class AIError(Exception):
+    pass
+
+
+def _request(method: str, **kwargs):
+    try:
+        response = getattr(_client().messages, method)(model=MODEL, max_tokens=16000, **kwargs)
+    except TypeError as e:
+        raise AIError("Claude is not configured: set ANTHROPIC_API_KEY and restart the server.") from e
+    except anthropic.APIError as e:
+        raise AIError(f"Claude request failed: {e}") from e
+    if response.stop_reason == "refusal":
+        raise AIError("The model declined this request.")
+    return response
+
+
 def _parse(prompt: str, schema: type[BaseModel], system: str = "", effort: str = "medium") -> BaseModel:
-    response = _client().messages.parse(
-        model=MODEL,
-        max_tokens=16000,
+    return _request(
+        "parse",
         system=system,
         output_config={"effort": effort},
         messages=[{"role": "user", "content": prompt}],
         output_format=schema,
-    )
-    if response.stop_reason == "refusal":
-        raise RuntimeError("The model declined this request.")
-    return response.parsed_output
+    ).parsed_output
 
 
 class Queries(BaseModel):
@@ -81,15 +93,12 @@ def explain(paper: dict, passage: str, question: str = "") -> str:
     content = f"<passage>\n{passage}\n</passage>"
     if question:
         content += f"\n\nMy question: {question}"
-    response = _client().messages.create(
-        model=MODEL,
-        max_tokens=16000,
+    response = _request(
+        "create",
         system=system,
         output_config={"effort": "medium"},
         messages=[{"role": "user", "content": content}],
     )
-    if response.stop_reason == "refusal":
-        raise RuntimeError("The model declined this request.")
     return "".join(b.text for b in response.content if b.type == "text")
 
 
