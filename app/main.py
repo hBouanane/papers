@@ -160,3 +160,26 @@ def grade_quiz(paper_id: int, body: AnswersIn):
     result = llm.grade(paper, paper["quiz"], body.answers)
     update_paper(paper_id, understanding=result["score"])
     return result
+
+
+class ProgressIn(BaseModel):
+    position: float
+
+
+@app.put("/api/papers/{paper_id}/progress")
+def save_progress(paper_id: int, body: ProgressIn):
+    paper = get_paper(paper_id)
+    position = min(max(body.position, 0.0), 1.0)
+    return update_paper(
+        paper_id,
+        position=position,
+        progress=max(paper["progress"], position),
+        status="read" if paper["status"] == "read" else "reading",
+    )
+
+
+@app.post("/api/papers/{paper_id}/finish")
+def finish_paper(paper_id: int):
+    paper = get_paper(paper_id)
+    questions = llm.quiz(paper)
+    return update_paper(paper_id, status="read", progress=1.0, quiz=json.dumps(questions))
