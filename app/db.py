@@ -32,7 +32,6 @@ create table if not exists papers (
 create virtual table if not exists papers_fts using fts5(title, abstract, text, summary);
 """
 
-JSON_FIELDS = ("skim", "quiz")
 
 
 def connect() -> sqlite3.Connection:
@@ -47,9 +46,18 @@ def pdf_path(paper_id: int) -> Path:
     return Path(os.environ.get("PAPERS_DB", "data/papers.db")).parent / "pdfs" / f"{paper_id}.pdf"
 
 
+# Columns added after the first release; created on startup when missing.
+NEW_COLUMNS = {"refs": "text"}
+JSON_FIELDS = ("skim", "quiz", "refs")
+
+
 def init():
     with connect() as conn:
         conn.executescript(SCHEMA)
+        have = {r["name"] for r in conn.execute("pragma table_info(papers)")}
+        for name, kind in NEW_COLUMNS.items():
+            if name not in have:
+                conn.execute(f"alter table papers add column {name} {kind}")
 
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:

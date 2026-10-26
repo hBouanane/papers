@@ -1,5 +1,15 @@
+import httpx
 import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Tests must never reach Semantic Scholar, arXiv or PDF hosts; fake what you need."""
+    def blocked(*args, **kwargs):
+        raise httpx.ConnectError("network disabled in tests")
+
+    monkeypatch.setattr(httpx, "get", blocked)
 
 
 @pytest.fixture
