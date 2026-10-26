@@ -18,7 +18,7 @@ Open http://localhost:8000.
 
 Optional env vars: `S2_API_KEY` (Semantic Scholar key; without it search often falls back to
 arXiv because of rate limits), `PAPERS_MODEL` (default `claude-opus-5-5`), `PAPERS_DB`
-(default `data/papers.db`).
+(default `data/papers.db`; uploaded and downloaded PDFs are kept next to it in `pdfs/`).
 
 ## Test
 

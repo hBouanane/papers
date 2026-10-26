@@ -1,4 +1,4 @@
-import { api, app, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead } from "./core.js";
+import { api, app, bindUploads, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, uploadControl } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -14,16 +14,18 @@ export async function libraryPage(stale) {
   if (!papers.length) {
     app.innerHTML = `<div class="container page">
       <h1>Library</h1>
-      ${empty("Nothing here yet. Tell us what you're working on and we'll find papers for it.",
-        `<a class="button" href="#/goals">Set a goal</a>`)}</div>`;
+      ${empty("Nothing here yet. Tell us what you're working on and we'll find papers for it, or upload a PDF you already have.",
+        `<div class="empty-actions"><a class="button" href="#/goals">Set a goal</a>${uploadControl()}</div>`)}</div>`;
+    bindUploads();
     return;
   }
 
   const [current, ...others] = papers.filter((p) => p.status === "reading");
   app.innerHTML = `<div class="container page">
-    <div class="page-head">
-      <h1>Library</h1>
-      <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p>
+    <div class="page-head page-head-split">
+      <div><h1>Library</h1>
+      <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p></div>
+      ${uploadControl()}
     </div>
     ${current ? `<a class="resume sheet" href="#/papers/${current.id}/read">
         <span class="resume-label">Pick up where you left off</span>
@@ -46,6 +48,7 @@ export async function libraryPage(stale) {
       <div class="sheet table">${tableHead}<div id="rows"></div></div>
     </section></div>`;
 
+  bindUploads();
   const rows = app.querySelector("#rows");
   const show = (f) => {
     const list = papers.filter((p) => f === "all" || p.status === f);
@@ -106,7 +109,7 @@ export async function goalPage(id, stale) {
     <nav class="crumbs"><a href="#/goals">Goals</a></nav>
     <h1 class="goal-title">${esc(goal.goal)}</h1>
     <section class="section">
-      <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2></div>
+      <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2>${uploadControl(id)}</div>
       <div class="sheet table" id="mine">${mine(papers)}</div>
     </section>
     <section class="section">
@@ -117,6 +120,7 @@ export async function goalPage(id, stale) {
       <div id="suggestions"><p class="faint">Searches Semantic Scholar and arXiv using this goal.</p></div>
     </section></div>`;
 
+  bindUploads();
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
     const box = app.querySelector("#suggestions");

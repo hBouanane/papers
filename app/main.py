@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -60,6 +60,7 @@ def get_paper(paper_id: int) -> dict:
         paper = db.row_to_dict(conn.execute("select * from papers where id = ?", (paper_id,)).fetchone())
     if not paper:
         raise HTTPException(404, "Paper not found")
+    paper["has_pdf"] = db.pdf_path(paper_id).exists()
     return paper
 
 
@@ -110,21 +111,60 @@ def search_topic(topic_id: int):
     return found
 
 
-@app.post("/api/papers")
-def create_paper(body: PaperIn):
-    text = ""
-    if body.pdf_url:
-        try:
-            text = scholar.fetch_pdf_text(body.pdf_url)
-        except Exception:
-            pass  # user can upload the PDF instead
-    fields = {**body.model_dump(), "text": text}
+def save_pdf(paper_id: int, data: bytes):
+    path = db.pdf_path(paper_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def read_pdf(data: bytes) -> str:
+    if not pdf.is_pdf(data):
+        raise HTTPException(400, "That file isn't a PDF. Choose a .pdf file.")
+    try:
+        return pdf.extract_text(data)
+    except Exception:
+        return ""  # unreadable text layer (e.g. scanned); the PDF can still be viewed
+
+
+def insert_paper(fields: dict) -> int:
     with db.connect() as conn:
         cur = conn.execute(
             f"insert into papers ({', '.join(fields)}) values ({', '.join('?' * len(fields))})",
             tuple(fields.values()),
         )
-    return get_paper(cur.lastrowid)
+    return cur.lastrowid
+
+
+@app.post("/api/papers")
+def create_paper(body: PaperIn):
+    data = b""
+    if body.pdf_url:
+        try:
+            data = scholar.fetch_pdf(body.pdf_url)
+        except Exception:
+            pass  # user can upload the PDF instead
+    text = pdf.extract_text(data) if pdf.is_pdf(data) else ""
+    paper_id = insert_paper({**body.model_dump(), "text": text})
+    if pdf.is_pdf(data):
+        save_pdf(paper_id, data)
+    return get_paper(paper_id)
+
+
+@app.post("/api/papers/upload")
+async def upload_paper(file: UploadFile, topic_id: int | None = Form(None)):
+    data = await file.read()
+    text = read_pdf(data)
+    fallback = (file.filename or "Untitled paper").removesuffix(".pdf")
+    fields = {"title": pdf.guess_title(pdf.metadata(data), text, fallback)}
+    if text:
+        try:
+            meta = llm.paper_metadata(text[:3000])
+            fields = {k: v for k, v in meta.items() if v} or fields
+        except llm.AIError:
+            pass  # no AI configured: keep the guessed title
+    paper_id = insert_paper({**fields, "topic_id": topic_id, "text": text})
+    save_pdf(paper_id, data)
+    return get_paper(paper_id)
 
 
 def resume_text(text: str, position: float) -> str:
@@ -159,7 +199,18 @@ def read_paper(paper_id: int):
 @app.post("/api/papers/{paper_id}/pdf")
 async def upload_pdf(paper_id: int, file: UploadFile):
     get_paper(paper_id)
-    return update_paper(paper_id, text=pdf.extract_text(await file.read()))
+    data = await file.read()
+    text = read_pdf(data)
+    save_pdf(paper_id, data)
+    return update_paper(paper_id, text=text)
+
+
+@app.get("/api/papers/{paper_id}/file")
+def paper_file(paper_id: int):
+    path = db.pdf_path(paper_id)
+    if not path.exists():
+        raise HTTPException(404, "No PDF stored for this paper")
+    return FileResponse(path, media_type="application/pdf")
 
 
 class ExplainIn(BaseModel):

@@ -43,6 +43,10 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
+def pdf_path(paper_id: int) -> Path:
+    return Path(os.environ.get("PAPERS_DB", "data/papers.db")).parent / "pdfs" / f"{paper_id}.pdf"
+
+
 def init():
     with connect() as conn:
         conn.executescript(SCHEMA)

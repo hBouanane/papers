@@ -70,3 +70,29 @@ export const tableHead = `<div class="row row-head" aria-hidden="true">
 export const empty = (text, action = "") => `<div class="empty"><p>${text}</p>${action}</div>`;
 
 export const loading = (text = "Loading") => `<p class="loading">${text}…</p>`;
+
+// "Upload a paper" control; pair with bindUploads() after rendering.
+export const uploadControl = (topicId = "") => `<label class="button secondary upload">
+  <span>Upload a paper</span><input type="file" accept="application/pdf,.pdf" data-upload="${topicId}" hidden></label>`;
+
+export function bindUploads() {
+  app.querySelectorAll("[data-upload]").forEach((input) => {
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      const label = input.closest("label").querySelector("span");
+      const form = new FormData();
+      form.append("file", file);
+      if (input.dataset.upload) form.append("topic_id", input.dataset.upload);
+      label.textContent = "Uploading…";
+      try {
+        const paper = await api("/papers/upload", { method: "POST", body: form });
+        location.hash = `#/papers/${paper.id}`;
+      } catch (e) {
+        toast(e.message);
+        label.textContent = "Upload a paper";
+        input.value = "";
+      }
+    };
+  });
+}

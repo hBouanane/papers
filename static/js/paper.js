@@ -1,4 +1,5 @@
 import { api, app, busy, cite, esc, loading, pct, progressBar, statusTag, toast } from "./core.js";
+import { renderPdf } from "./pdfview.js";
 
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
@@ -10,19 +11,22 @@ export async function paperPage(id, stale) {
   const goal = goals.find((g) => g.id === p.topic_id);
   const readLabel = { new: "Start reading", skimmed: "Start reading", reading: `Continue at ${pct(p.position)}`, read: "Read again" }[p.status];
   const ancestors = chain.path.slice(0, -1);
+  const readable = p.text || p.has_pdf;
 
   app.innerHTML = `<div class="container page">
     <nav class="crumbs">${goal ? `<a href="#/goals">Goals</a><span>/</span><a href="#/goals/${goal.id}">${esc(goal.goal)}</a>` : `<a href="#/">Library</a>`}</nav>
     <header class="paper-header">
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
-      <p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>
+      ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
       <div class="actions">
-        ${p.text ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>` : ""}
+        ${readable ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>` : ""}
         ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
-        ${!p.text ? `<label class="button">Upload the PDF<input type="file" id="pdf" accept="application/pdf" hidden></label>` : ""}
+        <label class="button ${readable ? "quiet" : ""}"><span>${p.has_pdf ? "Replace PDF" : "Upload the PDF"}</span><input type="file" id="pdf" accept="application/pdf,.pdf" hidden></label>
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
       </div>
-      ${!p.text ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
+      ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
+      ${p.has_pdf && !p.text ? `<p class="hint">This PDF has no selectable text, so it's probably a scan. You can read it,
+        but skimming, explanations and the quiz need text.</p>` : ""}
     </header>
 
     <div class="paper-layout">
@@ -63,6 +67,7 @@ async function uploadPdf(id, file) {
   if (!file) return;
   const form = new FormData();
   form.append("file", file);
+  app.querySelector("#pdf").closest("label").querySelector("span").textContent = "Uploading…";
   try {
     await api(`/papers/${id}/pdf`, { method: "POST", body: form });
     location.hash = `#/papers/${id}/read`;
@@ -122,13 +127,17 @@ export async function readerPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const p = await api(`/papers/${id}`);
   if (stale()) return;
-  if (!p.text) { location.replace(`#/papers/${id}`); return; }
+  if (!p.text && !p.has_pdf) { location.replace(`#/papers/${id}`); return; }
+  // The original PDF is the default; small screens get the reflowed text when there is some.
+  let mode = p.has_pdf && (innerWidth >= 700 || !p.text) ? "pdf" : "text";
   document.body.classList.add("reading");
 
   app.innerHTML = `
     <div class="reader-bar">
       <div class="reader-bar-inner">
         <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
+        ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View">
+          <button data-mode="pdf">Original</button><button data-mode="text">Text</button></div>` : ""}
         <span class="reader-pct num" id="pct">${pct(p.progress)} read</span>
         <button class="button secondary small" id="toggle-notes">Explanations</button>
         <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
@@ -136,10 +145,8 @@ export async function readerPage(id, stale) {
       <div class="reader-progress"><span id="bar" style="width:${pct(p.position)}"></span></div>
     </div>
     <div class="reader">
-      <article class="page-sheet" id="article">
-        <h1 class="paper-name">${esc(p.title)}</h1>
-        <p class="article-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>
-        <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}</div>
+      <article id="article">
+        <div id="content"></div>
         <div class="article-end">
           <p>That's the end of the paper.</p>
           <button class="button" id="finish-end">I've finished, quiz me</button>
@@ -162,18 +169,51 @@ export async function readerPage(id, stale) {
   const pop = app.querySelector("#pop");
   const setOpen = (open) => document.body.classList.toggle("notes-open", open);
 
-  // Resume where the reader stopped.
-  requestAnimationFrame(() => {
-    if (p.position > 0.01 && p.position < 0.99) {
-      window.scrollTo(0, article.offsetTop + p.position * (article.offsetHeight - innerHeight));
-      toast(`Back where you stopped, ${pct(p.position)} in`);
+  const content = app.querySelector("#content");
+  const positionNow = () => Math.min(1, Math.max(0, (scrollY - article.offsetTop) / Math.max(1, article.offsetHeight - innerHeight)));
+  const scrollToPosition = (position) => window.scrollTo(0, article.offsetTop + position * (article.offsetHeight - innerHeight));
+  let closePdf = null;
+
+  const show = async (next) => {
+    mode = next;
+    closePdf?.();
+    closePdf = null;
+    app.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+    article.className = mode === "pdf" ? "pdf-sheet" : "page-sheet";
+    if (mode === "text") {
+      content.innerHTML = `<h1 class="paper-name">${esc(p.title)}</h1>
+        ${p.authors || p.year ? `<p class="article-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
+        <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}</div>`;
+      return;
     }
+    content.innerHTML = `<div class="pdf-pages" id="pages">${loading("Opening the PDF")}</div>`;
+    try {
+      closePdf = await renderPdf(`/api/papers/${id}/file`, content.querySelector("#pages"));
+    } catch (e) {
+      content.innerHTML = `<p class="error pad">Couldn't open the PDF: ${esc(e.message)}</p>`;
+    }
+  };
+
+  // Open the paper, then go back to where the reader stopped.
+  await show(mode);
+  if (stale()) { closePdf?.(); return; }
+  if (p.position > 0.01 && p.position < 0.99) {
+    scrollToPosition(p.position);
+    toast(`Back where you stopped, ${pct(p.position)} in`);
+  }
+
+  app.querySelector(".reader-bar .segmented")?.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-mode]");
+    if (!b || b.dataset.mode === mode) return;
+    const position = positionNow();
+    await show(b.dataset.mode);
+    scrollToPosition(position);
   });
 
   let timer;
   let progress = p.progress;
   const onScroll = () => {
-    const position = Math.min(1, Math.max(0, (scrollY - article.offsetTop) / Math.max(1, article.offsetHeight - innerHeight)));
+    const position = positionNow();
     app.querySelector("#bar").style.width = pct(position);
     progress = Math.max(progress, position);
     app.querySelector("#pct").textContent = `${pct(progress)} read`;
@@ -198,8 +238,9 @@ export async function readerPage(id, stale) {
     }
   };
 
-  // Keep explained passages highlighted in the text, like a real highlighter.
+  // Mark explained passages in the reflowed text; the PDF text layer is absolutely positioned, so leave it alone.
   const highlight = (range) => {
+    if (mode !== "text") return;
     try {
       const mark = document.createElement("mark");
       mark.className = "explained";
@@ -239,6 +280,7 @@ export async function readerPage(id, stale) {
   return () => {
     removeEventListener("scroll", onScroll);
     clearTimeout(timer);
+    closePdf?.();
     document.body.classList.remove("notes-open");
   };
 }
