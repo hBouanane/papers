@@ -31,13 +31,13 @@ def test_search_needs_every_word_and_handles_punctuation(client):
     assert search(client, "   ") == []
 
 
-def test_unfinished_papers_are_searchable_but_not_recalled(client, monkeypatch):
+def test_unfinished_papers_are_searchable_and_recalled(client, monkeypatch):
     seen = {}
     monkeypatch.setattr(llm, "recall", lambda idea, cands: seen.setdefault("c", cands) and [])
-    make(client, "Unread", text="diffusion models add noise")
+    p = make(client, "Unread", text="diffusion models add noise")
     assert len(search(client, "diffusion")) == 1
     client.post("/api/recall", json={"idea": "diffusion noise"})
-    assert "c" not in seen  # no finished papers, so nothing to rank
+    assert [c["id"] for c in seen["c"]] == [p["id"]]
 
 
 def test_backfill_indexes_existing_papers(client):

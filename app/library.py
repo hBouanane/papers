@@ -5,7 +5,7 @@ import re
 import shutil
 from pathlib import Path
 
-from app import db
+from app import db, index
 
 INBOX = "Inbox"
 UNSORTED = "Unsorted"
@@ -60,6 +60,7 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
         lines.append(f"Goal: {goal}")
     if p.get("url"):
         lines.append(f"Source: {p['url']}")
+    lines += ["", "## My notes", "", p.get("notes") or ""]
     if s := p.get("skim"):
         lines += ["", "## Key points", "", s["verdict"], "", "**Problem.** " + s["problem"], "", "**Method.** " + s["method"], ""]
         for heading, key in (("Contributions", "contributions"), ("Results", "results"),
@@ -68,7 +69,8 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
     if explanations:
         lines += ["", "## Explanations", ""]
         for e in explanations:
-            lines += [*[f"> {line}" for line in e["passage"].splitlines()], ""]
+            if e["passage"]:
+                lines += [*[f"> {line}" for line in e["passage"].splitlines()], ""]
             if e["question"]:
                 lines += [f"*{e['question']}*", ""]
             lines += [e["answer"], ""]
@@ -82,6 +84,37 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
             lines.append(f"Found through [[{link_name(parent)}]]")
         lines += [f"Led to [[{link_name(c)}]]" for c in children]
     return "\n".join(lines).rstrip() + "\n"
+
+
+def notes_section(md: str) -> str | None:
+    """The text under '## My notes' in a notes file, or None if the section is missing."""
+    m = re.search(r"^## My notes[ \t]*\n(.*?)(?=^## |\Z)", md, re.MULTILINE | re.DOTALL)
+    return m[1].strip() if m else None
+
+
+def pull_notes(base: Path, p: dict) -> bool:
+    """If 'My notes' was edited in the file since the app last wrote it, take the file's version."""
+    md = base / f"{p['mirror_path']}.md" if p.get("mirror_path") else None
+    if not md or not md.exists():
+        return False
+    section = notes_section(md.read_text(encoding="utf-8"))
+    if section is None or section == (p.get("notes_mirror") or "").strip():
+        return False
+    p["notes"] = p["notes_mirror"] = section
+    with db.connect() as conn:
+        conn.execute("update papers set notes = ?, notes_mirror = ? where id = ?", (section, section, p["id"]))
+    index.index_paper(p)
+    return True
+
+
+def import_notes() -> int:
+    """Bring in notes edited in the folder (Obsidian, VS Code, ...); returns how many papers changed."""
+    base = root()
+    if not base:
+        return 0
+    with db.connect() as conn:
+        papers = [db.row_to_dict(r) for r in conn.execute("select * from papers where mirror_path is not null")]
+    return sum(pull_notes(base, p) for p in papers)
 
 
 def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
@@ -109,6 +142,7 @@ def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
             if (src := base / f"{old}{ext}").exists():
                 (base / rel).parent.mkdir(parents=True, exist_ok=True)
                 src.replace(base / f"{rel}{ext}")
+    pull_notes(base, {**p, "mirror_path": rel})  # never overwrite notes edited in the file
     (base / rel).parent.mkdir(parents=True, exist_ok=True)
     stored = db.pdf_path(paper_id)
     target = base / f"{rel}.pdf"
@@ -118,9 +152,8 @@ def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
     md = base / f"{rel}.md"
     if not md.exists() or md.read_text(encoding="utf-8") != text:
         md.write_text(text, encoding="utf-8")
-    if old != rel:
-        with db.connect() as conn:
-            conn.execute("update papers set mirror_path = ? where id = ?", (rel, paper_id))
+    with db.connect() as conn:
+        conn.execute("update papers set mirror_path = ?, notes_mirror = ? where id = ?", (rel, p.get("notes") or "", paper_id))
     if follow_parent and parent:
         sync_paper(parent["id"], follow_parent=False)  # its notes list this paper under "Led to"
 

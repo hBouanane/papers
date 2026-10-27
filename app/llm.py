@@ -125,12 +125,13 @@ def explain(paper: dict, passage: str, question: str = "") -> str:
             "You help a researcher understand a paper they are reading. You have the full paper. "
             "When they paste a passage, reformulate it in simpler terms, define jargon, connect it "
             "to the rest of the paper (earlier definitions, the method, the results), and give an "
-            "intuition or small example when it helps. Keep it short and plain.")},
+            "intuition or small example when it helps. When they ask about the paper as a whole, "
+            "answer from the paper and say where in it the answer comes from. Keep it short and plain.")},
         {"type": "text", "text": _paper_context(paper), "cache_control": {"type": "ephemeral"}},
     ]
-    content = f"<passage>\n{passage}\n</passage>"
+    content = f"<passage>\n{passage}\n</passage>" if passage else ""
     if question:
-        content += f"\n\nMy question: {question}"
+        content += f"\n\nMy question: {question}" if passage else question
     response = _request(
         "create",
         system=system,

@@ -1,4 +1,4 @@
-import { api, app, busy, cite, esc, loading, pct, progressBar, statusTag, toast } from "./core.js";
+import { api, app, bindNotes, busy, cite, esc, loading, notesBox, pct, progressBar, quote, showShortcuts, statusTag, toast } from "./core.js";
 import { renderPdf } from "./pdfview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
 
@@ -45,6 +45,7 @@ export async function paperPage(id, stale) {
     <div class="paper-layout">
       <div class="paper-main">
         ${p.abstract ? `<section class="sheet pad-lg abstract"><h2>Abstract</h2><p>${esc(p.abstract)}</p></section>` : ""}
+        <section class="sheet pad-lg my-notes-section"><h2>My notes</h2>${notesBox(p, 4)}</section>
         <section class="sheet pad-lg" id="skim"></section>
         <section class="section">
           <div class="section-bar">
@@ -73,6 +74,7 @@ export async function paperPage(id, stale) {
     </div></div>`;
 
   renderSkim(p);
+  bindNotes(p);
   const menu = app.querySelector(".menu");
   app.querySelector("#edit").onclick = () => { menu.open = false; editDetails(p, goals); };
   app.querySelector("#mark-read")?.addEventListener("click", (e) => busy(e.currentTarget, "Marking…", async () => {
@@ -214,7 +216,7 @@ export async function readerPage(id, stale) {
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
         <span class="reader-pct num" id="pct"></span>
-        <button class="button secondary small" id="toggle-notes">Explanations</button>
+        <button class="button secondary small" id="toggle-notes" title="Notes and questions (n)">Notes &amp; questions</button>
         <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
       </div>
       <div class="strip" id="strip" title="Read parts of the paper. Click to jump."><span class="strip-view" id="strip-view"></span></div>
@@ -233,13 +235,15 @@ export async function readerPage(id, stale) {
         </div>
       </article>
     </div>
-    <aside class="notes" id="notes" aria-label="Explanations">
-      <div class="notes-head"><h2>Explanations</h2><button class="button quiet small" id="close-notes">Close</button></div>
-      <p class="hint">Select a passage in the paper to have it explained with the whole paper in mind, or paste one here.</p>
+    <aside class="notes" id="notes" aria-label="Notes and questions">
+      <div class="notes-head"><h2>My notes</h2><button class="button quiet small" id="close-notes">Close</button></div>
+      ${notesBox(p, 5)}
+      <h2 class="ask-title">Ask about this paper</h2>
+      <p class="hint">Select a passage in the paper and press <kbd>e</kbd>, or ask anything here. Claude answers with the whole paper in mind.</p>
       <form id="ask" class="ask">
-        <textarea id="passage" rows="4" placeholder="Paste a passage"></textarea>
-        <input id="question" placeholder="What's confusing about it? (optional)">
-        <button class="button small">Explain</button>
+        <input id="question" placeholder="How does this differ from earlier work?">
+        <textarea id="passage" rows="3" placeholder="Passage to explain (optional)"></textarea>
+        <button class="button small">Ask</button>
       </form>
       <div id="answers"></div>
     </aside>
@@ -370,8 +374,8 @@ export async function readerPage(id, stale) {
     setOpen(true);
     const item = document.createElement("div");
     item.className = "answer";
-    item.innerHTML = `<p class="answer-quote">${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</p>
-      ${question ? `<p class="answer-q">${esc(question)}</p>` : ""}<div class="answer-body">${loading("Explaining")}</div>`;
+    item.innerHTML = `${quote(passage)}
+      ${question ? `<p class="answer-q">${esc(question)}</p>` : ""}<div class="answer-body">${loading("Thinking")}</div>`;
     $("#answers").prepend(item);
     try {
       const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question } });
@@ -384,7 +388,7 @@ export async function readerPage(id, stale) {
   // Earlier explanations for this paper, newest first.
   api(`/papers/${id}/explanations`).then((items) => {
     $("#answers").innerHTML = items.map((e) => `<div class="answer">
-      <p class="answer-quote">${esc(e.passage.length > 400 ? e.passage.slice(0, 400) + "…" : e.passage)}</p>
+      ${quote(e.passage)}
       ${e.question ? `<p class="answer-q">${esc(e.question)}</p>` : ""}<div class="answer-body">${esc(e.answer)}</div></div>`).join("");
   }).catch(() => {});
 
@@ -413,8 +417,9 @@ export async function readerPage(id, stale) {
   $("#ask").onsubmit = (e) => {
     e.preventDefault();
     const passage = $("#passage").value.trim();
-    if (!passage) return;
-    explain(passage, $("#question").value.trim());
+    const question = $("#question").value.trim();
+    if (!passage && !question) return $("#question").focus();
+    explain(passage, question);
     $("#passage").value = $("#question").value = "";
   };
   $("#toggle-notes").onclick = () => setOpen(!document.body.classList.contains("notes-open"));
@@ -430,7 +435,23 @@ export async function readerPage(id, stale) {
   $("#finish").onclick = p.status === "read" ? () => (location.hash = `#/papers/${id}`) : finish;
   $("#finish-end").onclick = finish;
 
+  bindNotes(p, $("#notes"));
+
+  // Keyboard: s = skim/read, n = notes panel, e = explain the selection, ? = help.
+  const onKey = (e) => {
+    if (e.target.closest?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "s") app.querySelector(`[data-track=${tracker.mode === "read" ? "skim" : "read"}]`).click();
+    else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
+    else if (e.key === "e" && !pop.hidden) pop.click();
+    else if (e.key === "?") showShortcuts([["s", "Switch between reading and skimming"], ["n", "Open or close notes and questions"],
+      ["e", "Explain the selected passage"]]);
+    else return;
+    e.preventDefault();
+  };
+  addEventListener("keydown", onKey);
+
   return () => {
+    removeEventListener("keydown", onKey);
     flush(true);
     tracker.stop();
     clearInterval(flushTimer);

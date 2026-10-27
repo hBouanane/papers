@@ -1,4 +1,4 @@
-import { addFromLink, app, currentGoal, esc, looksLikePaperLink, toast, uploadPdfs } from "./core.js";
+import { addFromLink, app, currentGoal, esc, looksLikePaperLink, showShortcuts, toast, uploadPdfs } from "./core.js";
 import { goalPage, goalsPage, libraryPage, mapPage, recallPage, settingsPage } from "./pages.js";
 import { paperPage, quizPage, readerPage } from "./paper.js";
 
@@ -59,6 +59,20 @@ document.addEventListener("paste", async (e) => {
     const paper = files.length ? (await uploadPdfs(files, currentGoal())).added[0] : await addFromLink(text, currentGoal());
     if (paper) location.hash = `#/papers/${paper.id}`;
   } catch (err) { toast(err.message); }
+});
+
+// "/" searches the library from anywhere; "?" lists shortcuts; Escape closes the list.
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.getElementById("shortcuts")?.remove();
+  if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "/") {
+    e.preventDefault();
+    const focusSearch = () => document.getElementById("q")?.focus();
+    if (document.getElementById("q")) focusSearch();
+    else { location.hash = "#/"; setTimeout(focusSearch, 400); }
+  } else if (e.key === "?" && !document.body.classList.contains("reading")) {
+    showShortcuts();
+  }
 });
 
 // Drop PDFs anywhere on the window.
