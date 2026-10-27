@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -186,8 +186,37 @@ def insert_paper(fields: dict) -> int:
     return cur.lastrowid
 
 
+def auto_skim(paper_id: int):
+    """Skim new papers in the background so key points are ready for triage."""
+    if not llm.configured():
+        return
+    paper = get_paper(paper_id)
+    if paper["skim"] or not paper["text"]:
+        return
+    try:
+        update_paper(paper_id, skim=json.dumps(llm.skim(paper)))
+    except llm.AIError:
+        pass  # the user can still skim from the paper page
+
+
+def store_pdf_paper(data: bytes, text: str, fields: dict, topic_id: int | None) -> int:
+    """Add a paper from a PDF, or attach the PDF to the matching paper already in the library."""
+    existing = find_existing(fields)
+    if existing is None:
+        paper_id = insert_paper({**fields, "topic_id": topic_id, "text": text})
+        save_pdf(paper_id, data)
+        return paper_id
+    paper = get_paper(existing)
+    updates = {k: v for k, v in (("text", text), ("topic_id", topic_id)) if v and not paper[k]}
+    if updates:
+        update_paper(existing, **updates)
+    if not paper["has_pdf"]:
+        save_pdf(existing, data)
+    return existing
+
+
 @app.post("/api/papers")
-def create_paper(body: PaperIn):
+def create_paper(body: PaperIn, background: BackgroundTasks):
     if not body.external_id and not body.pdf_url:
         # A reference read from a PDF: find the real paper so it gets an abstract, PDF and references.
         if match := scholar.resolve(body.title):
@@ -202,6 +231,7 @@ def create_paper(body: PaperIn):
     paper_id = insert_paper({**body.model_dump(), "text": text})
     if pdf.is_pdf(data):
         save_pdf(paper_id, data)
+    background.add_task(auto_skim, paper_id)
     return get_paper(paper_id)
 
 
@@ -213,19 +243,19 @@ class LinkIn(BaseModel):
 def find_existing(meta: dict) -> int | None:
     with db.connect() as conn:
         rows = conn.execute("select id, external_id, title from papers").fetchall()
-    return next((r["id"] for r in rows if (meta["external_id"] and r["external_id"] == meta["external_id"])
+    return next((r["id"] for r in rows if (meta.get("external_id") and r["external_id"] == meta["external_id"])
                  or scholar.norm_title(r["title"]) == scholar.norm_title(meta["title"])), None)
 
 
 @app.post("/api/papers/from-link")
-def add_from_link(body: LinkIn):
+def add_from_link(body: LinkIn, background: BackgroundTasks):
     if identifier := scholar.parse_link(body.link):
         meta = scholar.lookup(identifier)
         if not meta:
             raise HTTPException(404, "Couldn't find a paper for that link. Check it, or upload the PDF instead.")
         if existing := find_existing(meta):
             return get_paper(existing)
-        return create_paper(PaperIn(**meta, topic_id=body.topic_id))
+        return create_paper(PaperIn(**meta, topic_id=body.topic_id), background)
     url = body.link.strip()
     if not re.match(r"https?://", url):
         raise HTTPException(400, "Paste an arXiv, DOI or Semantic Scholar link, or a link to a PDF.")
@@ -237,17 +267,17 @@ def add_from_link(body: LinkIn):
         raise HTTPException(400, "That link isn't a paper. Paste an arXiv, DOI or Semantic Scholar link, or a link to a PDF.")
     text = read_pdf(data)
     fields = describe_pdf(data, text, url.rsplit("/", 1)[-1])
-    paper_id = insert_paper({**fields, "url": url, "topic_id": body.topic_id, "text": text})
-    save_pdf(paper_id, data)
+    paper_id = store_pdf_paper(data, text, {**fields, "url": url}, body.topic_id)
+    background.add_task(auto_skim, paper_id)
     return get_paper(paper_id)
 
 
 @app.post("/api/papers/upload")
-async def upload_paper(file: UploadFile, topic_id: int | None = Form(None)):
+async def upload_paper(background: BackgroundTasks, file: UploadFile, topic_id: int | None = Form(None)):
     data = await file.read()
     text = read_pdf(data)
-    paper_id = insert_paper({**describe_pdf(data, text, file.filename), "topic_id": topic_id, "text": text})
-    save_pdf(paper_id, data)
+    paper_id = store_pdf_paper(data, text, describe_pdf(data, text, file.filename), topic_id)
+    background.add_task(auto_skim, paper_id)
     return get_paper(paper_id)
 
 
@@ -385,14 +415,7 @@ def import_inbox() -> int:
             _inbox_skipped.add(key)
             continue
         text = read_pdf(data)
-        fields = describe_pdf(data, text, f.name)
-        existing = find_existing({"external_id": "", **fields})
-        if existing is None:
-            existing = insert_paper({**fields, "text": text})
-        elif not get_paper(existing)["text"]:
-            update_paper(existing, text=text)
-        if not db.pdf_path(existing).exists():
-            save_pdf(existing, data)
+        auto_skim(store_pdf_paper(data, text, describe_pdf(data, text, f.name), None))
         f.unlink()  # its content now lives in the library (and its folder)
         added += 1
     return added
