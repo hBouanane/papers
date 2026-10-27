@@ -1,4 +1,4 @@
-import { api, app, bindAddPaper, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl } from "./core.js";
+import { api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -62,6 +62,8 @@ export async function libraryPage(stale) {
 
   bindAddPaper();
   const rows = app.querySelector("#rows");
+  // Archiving or deleting from the list refreshes the counts.
+  bindRows(rows, () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   let filter = "all";
   let hits = null; // search results, or null when the search box is empty
   let archived = []; // loaded when the Archived filter is opened
@@ -153,6 +155,7 @@ export async function goalPage(id, stale) {
     </section></div>`;
 
   bindAddPaper();
+  bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
     const box = app.querySelector("#suggestions");

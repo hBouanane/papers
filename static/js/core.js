@@ -61,20 +61,51 @@ const snippetHtml = (s) => esc(s).replace(/\[([^\]]*)\]/g, "<b>$1</b>");
 
 export function paperRow(p, goals = {}, snippet = "") {
   const goal = p.topic_id && goals[p.topic_id];
-  return `<a class="row" href="#/papers/${p.id}">
+  const actions = p.archived
+    ? `<button class="button quiet small" data-act="restore">Restore</button>
+       <button class="button quiet small danger" data-act="delete">Delete</button>`
+    : `<button class="button quiet small" data-act="archive" title="Hide it from your lists. You can restore it from Archived.">Archive</button>`;
+  return `<div class="row paper" data-id="${p.id}" data-title="${esc(p.title)}">
     <span class="row-main">
-      <span class="row-title">${esc(p.title)}</span>
+      <a class="row-title" href="#/papers/${p.id}">${esc(p.title)}</a>
       <span class="row-meta">${cite(p)}${goal ? `<span class="row-goal">Goal: ${esc(goal)}</span>` : ""}</span>
       ${snippet ? `<span class="row-snippet">${snippetHtml(snippet)}</span>` : ""}
     </span>
     <span class="row-cell">${statusTag(p)}</span>
     <span class="row-cell">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span>
     <span class="row-cell num row-score">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span>
-  </a>`;
+    <span class="row-actions">${actions}</span>
+  </div>`;
+}
+
+// Clicking a row opens the paper; its buttons archive, restore or delete it, then call onChange.
+export function bindRows(container, onChange) {
+  container.addEventListener("click", async (e) => {
+    const row = e.target.closest(".row.paper");
+    if (!row) return;
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (!act) {
+      if (!e.target.closest("a")) location.hash = `#/papers/${row.dataset.id}`;
+      return;
+    }
+    const id = row.dataset.id;
+    try {
+      if (act === "delete") {
+        if (!confirm(`Delete "${row.dataset.title}"? Its PDF, notes and explanations are removed too. This can't be undone.`)) return;
+        await fetch(`/api/papers/${id}`, { method: "DELETE" });
+        toast("Paper deleted.");
+      } else {
+        await api(`/papers/${id}`, { method: "PATCH", json: { archived: act === "archive" } });
+        toast(act === "archive" ? "Archived. Find it under Archived." : "Restored to your library.");
+      }
+      row.remove();
+      onChange?.();
+    } catch (err) { toast(err.message); }
+  });
 }
 
 export const tableHead = `<div class="row row-head" aria-hidden="true">
-  <span>Paper</span><span>Status</span><span>Read</span><span class="row-score">Understood</span></div>`;
+  <span>Paper</span><span>Status</span><span>Read</span><span class="row-score">Understood</span><span></span></div>`;
 
 export const empty = (text, action = "") => `<div class="empty"><p>${text}</p>${action}</div>`;
 
