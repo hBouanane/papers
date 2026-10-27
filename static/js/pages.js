@@ -47,7 +47,9 @@ export async function libraryPage(stale) {
           ${["all", "new", "skimmed", "reading", "read"].map((s) =>
             `<button class="${s === "all" ? "active" : ""}" data-filter="${s}">${s === "all" ? "All" : STATUS[s]}
               <span class="num">${s === "all" ? papers.length : count(s)}</span></button>`).join("")}
+          <button data-filter="archived">Archived</button>
         </div>
+        <a class="button quiet" href="/api/bibtex" download>Export BibTeX</a>
       </div>
       <div class="sheet table">${tableHead}<div id="rows"></div></div>
     </section></div>`;
@@ -56,18 +58,23 @@ export async function libraryPage(stale) {
   const rows = app.querySelector("#rows");
   let filter = "all";
   let hits = null; // search results, or null when the search box is empty
+  let archived = []; // loaded when the Archived filter is opened
   const show = () => {
-    const list = (hits ?? papers.map((paper) => ({ paper, snippet: "" })))
-      .filter(({ paper }) => filter === "all" || paper.status === filter);
+    const pool = hits ?? (filter === "archived" ? archived : papers).map((paper) => ({ paper, snippet: "" }));
+    const list = pool.filter(({ paper }) => filter === "all" || paper.status === filter
+      || (filter === "archived" && paper.archived));
     rows.innerHTML = list.map(({ paper, snippet }) => paperRow(paper, names, snippet)).join("")
-      || `<p class="faint pad">${hits ? "No papers match that search." : "No papers with this status."}</p>`;
+      || `<p class="faint pad">${hits ? "No papers match that search."
+        : filter === "archived" ? "Nothing archived. Archive papers that turn out not to be relevant from their More menu."
+        : "No papers with this status."}</p>`;
   };
   show();
-  app.querySelector(".segmented").onclick = (e) => {
+  app.querySelector(".segmented").onclick = async (e) => {
     const b = e.target.closest("[data-filter]");
     if (!b) return;
     app.querySelectorAll(".segmented button").forEach((x) => x.classList.toggle("active", x === b));
     filter = b.dataset.filter;
+    if (filter === "archived") archived = await api("/papers?archived=1");
     show();
   };
   let timer;
@@ -127,7 +134,8 @@ export async function goalPage(id, stale) {
     <nav class="crumbs"><a href="#/goals">Goals</a></nav>
     <h1 class="goal-title">${esc(goal.goal)}</h1>
     <section class="section">
-      <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2>${addPaperControl(id)}</div>
+      <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2>
+        <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span></div>
       <div class="sheet table" id="mine">${mine(papers)}</div>
     </section>
     <section class="section">

@@ -20,13 +20,23 @@ export async function paperPage(id, stale) {
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
       <div class="actions">
-        ${readable ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>` : ""}
-        ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
-        <label class="button ${readable ? "quiet" : ""}"><span>${p.has_pdf ? "Replace PDF" : "Upload the PDF"}</span><input type="file" id="pdf" accept="application/pdf,.pdf" hidden></label>
+        ${readable ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>`
+          : `<label class="button"><span>Upload the PDF</span><input type="file" class="pdf-input" accept="application/pdf,.pdf" hidden></label>`}
+        ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
-        ${p.status !== "read" ? `<button class="button quiet" id="mark-read" title="For papers you read somewhere else">Mark as read</button>` : ""}
-        <button class="button quiet" id="edit">Edit details</button>
+        <details class="menu">
+          <summary class="button quiet">More</summary>
+          <div class="menu-list sheet" role="menu">
+            <button role="menuitem" id="edit">Edit details</button>
+            ${readable ? `<label role="menuitem"><span>${p.has_pdf ? "Replace PDF" : "Upload the PDF"}</span><input type="file" class="pdf-input" accept="application/pdf,.pdf" hidden></label>` : ""}
+            <button role="menuitem" id="copy-bib">Copy BibTeX</button>
+            ${p.status !== "read" ? `<button role="menuitem" id="mark-read">Mark as read</button>` : ""}
+            <button role="menuitem" id="archive">${p.archived ? "Restore from archive" : "Archive (not relevant)"}</button>
+            <button role="menuitem" id="delete" class="danger">Delete paper</button>
+          </div>
+        </details>
       </div>
+      ${p.archived ? `<p class="hint">This paper is archived: it's hidden from your lists but still searchable.</p>` : ""}
       ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
       ${p.has_pdf && !p.text ? `<p class="hint">This PDF has no selectable text, so it's probably a scan. You can read it,
         but skimming, explanations and the quiz need text.</p>` : ""}
@@ -34,6 +44,7 @@ export async function paperPage(id, stale) {
 
     <div class="paper-layout">
       <div class="paper-main">
+        ${p.abstract ? `<section class="sheet pad-lg abstract"><h2>Abstract</h2><p>${esc(p.abstract)}</p></section>` : ""}
         <section class="sheet pad-lg" id="skim"></section>
         <section class="section">
           <div class="section-bar">
@@ -62,12 +73,32 @@ export async function paperPage(id, stale) {
     </div></div>`;
 
   renderSkim(p);
-  app.querySelector("#edit").onclick = () => editDetails(p, goals);
+  const menu = app.querySelector(".menu");
+  app.querySelector("#edit").onclick = () => { menu.open = false; editDetails(p, goals); };
   app.querySelector("#mark-read")?.addEventListener("click", (e) => busy(e.currentTarget, "Marking…", async () => {
     await api(`/papers/${id}/finish`, { method: "POST" });
     paperPage(id, stale);
   }));
-  app.querySelector("#pdf")?.addEventListener("change", (e) => uploadPdf(id, e.target.files[0]));
+  app.querySelector("#copy-bib").onclick = async () => {
+    menu.open = false;
+    const bib = await (await fetch(`/api/papers/${id}/bibtex`)).text();
+    try { await navigator.clipboard.writeText(bib); toast("BibTeX copied."); }
+    catch { toast("Couldn't reach the clipboard. Use Export BibTeX on the Library page instead."); }
+  };
+  app.querySelector("#archive").onclick = (e) => busy(e.currentTarget, "Saving…", async () => {
+    await api(`/papers/${id}`, { method: "PATCH", json: { archived: !p.archived } });
+    toast(p.archived ? "Restored to your library." : "Archived. Find it under Archived in the Library.");
+    paperPage(id, stale);
+  });
+  app.querySelector("#delete").onclick = (e) => {
+    if (!confirm(`Delete "${p.title}"? Its PDF, notes and explanations are removed too. This can't be undone.`)) return;
+    busy(e.currentTarget, "Deleting…", async () => {
+      await fetch(`/api/papers/${id}`, { method: "DELETE" });
+      toast("Paper deleted.");
+      location.hash = goal ? `#/goals/${goal.id}` : "#/";
+    });
+  };
+  app.querySelectorAll(".pdf-input").forEach((input) => input.addEventListener("change", (e) => uploadPdf(id, e.target.files[0])));
   app.querySelector("#refs-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Loading…", () => loadRefs(p)));
 }
 
@@ -104,7 +135,7 @@ async function uploadPdf(id, file) {
   if (!file) return;
   const form = new FormData();
   form.append("file", file);
-  app.querySelector("#pdf").closest("label").querySelector("span").textContent = "Uploading…";
+  app.querySelectorAll(".pdf-input").forEach((input) => (input.closest("label").querySelector("span").textContent = "Uploading…"));
   try {
     await api(`/papers/${id}/pdf`, { method: "POST", body: form });
     location.hash = `#/papers/${id}/read`;

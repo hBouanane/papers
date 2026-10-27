@@ -9,11 +9,11 @@ from pathlib import Path
 
 import httpx
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from app import db, index, library, llm, pdf, scholar
+from app import bibtex, db, index, library, llm, pdf, scholar
 
 
 @asynccontextmanager
@@ -66,6 +66,7 @@ class PaperEdit(BaseModel):
     authors: str | None = None
     year: int | None = None
     topic_id: int | None = None
+    archived: bool | None = None
 
     @field_validator("title", "authors", mode="before")
     @classmethod
@@ -291,13 +292,16 @@ def resume_text(text: str, position: float) -> str:
 
 
 @app.get("/api/papers")
-def list_papers(topic_id: int | None = None):
-    cols = "id, topic_id, title, authors, year, external_id, status, progress, position, understanding, source_paper_id, read_slices, updated_at, text"
+def list_papers(topic_id: int | None = None, archived: bool = False):
+    """Papers in the library (archived ones only when asked for)."""
+    cols = ("id, topic_id, title, authors, year, external_id, status, progress, position, understanding,"
+            " source_paper_id, read_slices, archived, updated_at, text")
+    where, args = ["coalesce(archived, 0) = ?"], [int(archived)]
+    if topic_id is not None:
+        where.append("topic_id = ?")
+        args.append(topic_id)
     with db.connect() as conn:
-        if topic_id is None:
-            rows = conn.execute(f"select {cols} from papers order by updated_at desc")
-        else:
-            rows = conn.execute(f"select {cols} from papers where topic_id = ? order by updated_at desc", (topic_id,))
+        rows = conn.execute(f"select {cols} from papers where {' and '.join(where)} order by updated_at desc", args)
         papers = [dict(r) for r in rows]
     for p in papers:
         text = p.pop("text")
@@ -308,6 +312,39 @@ def list_papers(topic_id: int | None = None):
 @app.get("/api/papers/{paper_id}")
 def read_paper(paper_id: int):
     return get_paper(paper_id)
+
+
+@app.delete("/api/papers/{paper_id}", status_code=204)
+def delete_paper(paper_id: int):
+    paper = get_paper(paper_id)
+    library.remove(paper)
+    index.remove(paper_id)
+    db.pdf_path(paper_id).unlink(missing_ok=True)
+    with db.connect() as conn:
+        conn.execute("delete from explanations where paper_id = ?", (paper_id,))
+        conn.execute("update papers set source_paper_id = null where source_paper_id = ?", (paper_id,))
+        conn.execute("delete from papers where id = ?", (paper_id,))
+    if paper["source_paper_id"]:
+        library.sync_paper(paper["source_paper_id"], follow_parent=False)  # drop it from "Led to"
+    return Response(status_code=204)
+
+
+@app.get("/api/papers/{paper_id}/bibtex", response_class=PlainTextResponse)
+def paper_bibtex(paper_id: int):
+    return bibtex.entry(get_paper(paper_id))
+
+
+@app.get("/api/bibtex")
+def bibtex_file(topic_id: int | None = None):
+    with db.connect() as conn:
+        if topic_id is None:
+            rows, name = conn.execute("select * from papers order by year, title").fetchall(), "library"
+        else:
+            rows = conn.execute("select * from papers where topic_id = ? order by year, title", (topic_id,)).fetchall()
+            goal = conn.execute("select goal from topics where id = ?", (topic_id,)).fetchone()
+            name = library.safe_name(goal["goal"]) if goal else "goal"
+    return PlainTextResponse("\n".join(bibtex.entry(dict(r)) for r in rows),
+                             headers={"Content-Disposition": f'attachment; filename="{name}.bib"'})
 
 
 @app.patch("/api/papers/{paper_id}")

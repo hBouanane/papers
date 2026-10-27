@@ -45,6 +45,11 @@ def candidates(idea: str, limit: int = 10) -> list[dict]:
     return [db.row_to_dict(r) for r in rows]
 
 
+def remove(paper_id: int):
+    with db.connect() as conn:
+        conn.execute("delete from papers_fts where rowid = ?", (paper_id,))
+
+
 def backfill():
     """Index papers added before every paper was indexed."""
     with db.connect() as conn:
@@ -55,7 +60,7 @@ def backfill():
 
 
 LIST_COLUMNS = ("p.id, p.topic_id, p.title, p.authors, p.year, p.external_id, p.status, p.progress,"
-                " p.position, p.understanding, p.source_paper_id, p.read_slices, p.updated_at")
+                " p.position, p.understanding, p.source_paper_id, p.read_slices, p.archived, p.updated_at")
 
 
 def search(q: str, limit: int = 30) -> list[dict]:
