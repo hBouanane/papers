@@ -40,7 +40,7 @@ def test_changing_goal_or_title_moves_the_files(client, tmp_path, monkeypatch):
 def test_notes_include_key_points_explanations_quiz_and_links(client, tmp_path, monkeypatch):
     monkeypatch.setattr(llm, "skim", lambda paper: {"problem": "P", "contributions": ["C"], "method": "M", "results": ["R"],
                                                    "limitations": ["L"], "read_closely": ["S3"], "verdict": "Read it."})
-    monkeypatch.setattr(llm, "explain", lambda paper, passage, question: "Plainly put.")
+    monkeypatch.setattr(llm, "explain", lambda paper, passage, question, **kw: "Plainly put.")
     monkeypatch.setattr(llm, "quiz", lambda paper: [{"question": "Why?", "answer": "Because."}])
     root = tmp_path / "Papers"
     set_folder(client, root)
@@ -56,7 +56,7 @@ def test_notes_include_key_points_explanations_quiz_and_links(client, tmp_path, 
 
 
 def test_explanations_are_stored_and_listed(client, monkeypatch):
-    monkeypatch.setattr(llm, "explain", lambda paper, passage, question: "Plainly put.")
+    monkeypatch.setattr(llm, "explain", lambda paper, passage, question, **kw: "Plainly put.")
     p = client.post("/api/papers", json={"title": "P"}).json()
     client.post(f"/api/papers/{p['id']}/explain", json={"passage": "x"})
     items = client.get(f"/api/papers/{p['id']}/explanations").json()

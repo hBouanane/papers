@@ -32,7 +32,7 @@ def test_notes_edited_in_the_file_come_back_into_the_app(client, tmp_path):
 
 def test_ask_about_the_paper_without_a_passage(client, monkeypatch):
     seen = {}
-    monkeypatch.setattr(llm, "explain", lambda paper, passage, question: seen.update(p=passage, q=question) or "answer")
+    monkeypatch.setattr(llm, "explain", lambda paper, passage, question, **kw: seen.update(p=passage, q=question) or "answer")
     p = make(client)
     r = client.post(f"/api/papers/{p['id']}/explain", json={"question": "How does it differ from DDPM?"})
     assert r.json() == {"explanation": "answer"} and seen == {"p": "", "q": "How does it differ from DDPM?"}
@@ -41,7 +41,7 @@ def test_ask_about_the_paper_without_a_passage(client, monkeypatch):
 
 def test_recall_searches_unfinished_papers_notes_and_explanations(client, monkeypatch):
     monkeypatch.setattr(llm, "recall", lambda idea, cands: [{"paper_id": c["id"], "reason": "r"} for c in cands])
-    monkeypatch.setattr(llm, "explain", lambda paper, passage, question: "it is about contrastive pretraining")
+    monkeypatch.setattr(llm, "explain", lambda paper, passage, question, **kw: "it is about contrastive pretraining")
     skimmed = make(client, title="Unread One")
     noted = make(client, title="Noted One")
     explained = make(client, title="Explained One")

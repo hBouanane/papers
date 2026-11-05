@@ -14,7 +14,7 @@ def make(client, **kw):
 
 def test_vocabulary_is_generated_once_and_kept(client, monkeypatch):
     calls = []
-    monkeypatch.setattr(llm, "glossary", lambda paper: calls.append(1) or WORDS)
+    monkeypatch.setattr(llm, "glossary", lambda paper, **kw: calls.append(1) or WORDS)
     p = make(client)
     from app.main import update_paper
     update_paper(p["id"], text="An attention function ... albeit at the cost of reduced resolution")
@@ -30,7 +30,7 @@ def test_vocabulary_needs_text(client):
 
 
 def test_vocabulary_goes_into_the_notes_file(client, tmp_path, monkeypatch):
-    monkeypatch.setattr(llm, "glossary", lambda paper: WORDS)
+    monkeypatch.setattr(llm, "glossary", lambda paper, **kw: WORDS)
     root = tmp_path / "Papers"
     client.put("/api/settings", json={"library_dir": str(root)})
     p = make(client, title="Words")

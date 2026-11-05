@@ -400,7 +400,26 @@ def make_glossary(paper_id: int):
     paper = get_paper(paper_id)
     if not paper["text"]:
         raise HTTPException(400, "This paper has no text yet. Upload its PDF first.")
-    words = llm.glossary(paper)
+    language = setting("language")
+    words = llm.glossary(paper, language=language)
+    update_paper(paper_id, glossary=json.dumps(words))
+    return words
+
+
+class WordIn(BaseModel):
+    term: str = Field(min_length=1, max_length=80)
+    context: str = ""
+
+
+@app.post("/api/papers/{paper_id}/words")
+def save_word(paper_id: int, body: WordIn):
+    """Add a word the reader picked to this paper's vocabulary (explained in context)."""
+    paper = get_paper(paper_id)
+    words = paper["glossary"] or []
+    if any(w["term"].lower() == body.term.strip().lower() for w in words):
+        return words
+    word = llm.define(paper, body.term.strip(), body.context.strip(), language=setting("language"))
+    words = [*words, word]
     update_paper(paper_id, glossary=json.dumps(words))
     return words
 
@@ -416,6 +435,13 @@ def paper_file(paper_id: int):
 class ExplainIn(BaseModel):
     passage: str = ""
     question: str = ""
+    mode: Literal["explain", "simplify", "translate"] = "explain"
+
+
+def setting(key: str) -> str:
+    with db.connect() as conn:
+        row = conn.execute("select value from settings where key = ?", (key,)).fetchone()
+    return row["value"] if row else ""
 
 
 class AnswersIn(BaseModel):
@@ -436,10 +462,13 @@ def explain_passage(paper_id: int, body: ExplainIn):
     passage, question = body.passage.strip(), body.question.strip()
     if not passage and not question:
         raise HTTPException(400, "Select a passage or ask a question.")
-    answer = llm.explain(get_paper(paper_id), passage, question)
+    language = setting("language")
+    if body.mode == "translate" and not language:
+        raise HTTPException(400, "Set your language in Settings first, so Claude knows what to translate into.")
+    answer = llm.explain(get_paper(paper_id), passage, question, mode=body.mode, language=language)
     with db.connect() as conn:
-        conn.execute("insert into explanations (paper_id, passage, question, answer) values (?, ?, ?, ?)",
-                     (paper_id, passage, question, answer))
+        conn.execute("insert into explanations (paper_id, passage, question, answer, mode) values (?, ?, ?, ?, ?)",
+                     (paper_id, passage, question, answer, body.mode))
     index.index_paper(get_paper(paper_id))
     library.sync_paper(paper_id)
     return {"explanation": answer}
@@ -449,13 +478,14 @@ def explain_passage(paper_id: int, body: ExplainIn):
 def list_explanations(paper_id: int):
     with db.connect() as conn:
         return [dict(r) for r in conn.execute(
-            "select id, passage, question, answer, created_at from explanations where paper_id = ? order by id desc",
+            "select id, passage, question, answer, mode, created_at from explanations where paper_id = ? order by id desc",
             (paper_id,))]
 
 
 class SettingsIn(BaseModel):
     library_dir: str | None = None
     ai_backend: Literal["api", "claude-code"] | None = None
+    language: str | None = None  # the reader's first language, for translations
 
 
 def settings() -> dict:
@@ -463,6 +493,7 @@ def settings() -> dict:
     return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
             "suggested": str(Path.home() / "Documents" / "Papers"),
             "ai_backend": llm.backend(), "ai_ready": llm.configured(), "claude_binary": llm.claude_binary() or "",
+            "language": setting("language"),
             "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))}
 
 
@@ -473,9 +504,11 @@ def read_settings():
 
 @app.put("/api/settings")
 def save_settings(body: SettingsIn):
-    if body.ai_backend:
-        with db.connect() as conn:
+    with db.connect() as conn:
+        if body.ai_backend:
             conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
+        if body.language is not None:
+            conn.execute("insert or replace into settings (key, value) values ('language', ?)", (body.language.strip(),))
     if body.library_dir is None:
         return settings()
     try:

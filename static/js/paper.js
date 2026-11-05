@@ -1,5 +1,8 @@
-import { api, app, bindNotes, busy, cite, esc, knownWords, loading, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { api, app, bindNotes, busy, cite, esc, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { renderPdf } from "./pdfview.js";
+import { bindReadingPrefs, readingPrefsMenu } from "./readprefs.js";
+import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
+import { renderPaperText } from "./textview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
 
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
@@ -205,12 +208,20 @@ function prepareTerms(glossary) {
   const escaped = words.map((w) => esc(w.term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).sort((a, b) => b.length - a.length);
   termPattern = escaped.length ? new RegExp(`\\b(${escaped.join("|")})\\b`, "gi") : null;
 }
-function markTerms(html) {
+// `seen` holds the words already underlined in this section, so each is marked once per section.
+function markTerms(html, seen = new Set()) {
   if (!termPattern) return html;
-  return html.replace(termPattern, (m) => `<abbr class="term" title="${esc(termMeaning[m.toLowerCase()] || "")}">${m}</abbr>`);
+  return html.replace(termPattern, (m) => {
+    const key = m.toLowerCase();
+    if (seen.has(key)) return m;
+    seen.add(key);
+    return `<abbr class="term" title="${esc(termMeaning[key] || "")}">${m}</abbr>`;
+  });
 }
 
-const HEADING = /^(\d+(\.\d+)*\.?\s+\S.{0,70}|abstract|introduction|conclusions?|discussion|references|acknowledg\w*)$/i;
+const ZOOM_KEY = "papers.pdfZoom";
+const savedZoom = () => { try { return Number(localStorage.getItem(ZOOM_KEY)) || 1; } catch { return 1; } };
+const MODE_LABEL = { simplify: "Simplified", translate: "Translated" };
 
 export async function readerPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
@@ -226,6 +237,8 @@ export async function readerPage(id, stale) {
   // The original PDF is the default; small screens get the reflowed text when there is some.
   let view = p.has_pdf && (innerWidth >= 700 || !p.text) ? "pdf" : "text";
   let saved = p.position; // where you stopped, as the server knows it
+  const { language } = await api("/settings").catch(() => ({ language: "" }));
+  if (stale()) return;
   document.body.classList.add("reading");
 
   app.innerHTML = `
@@ -238,6 +251,11 @@ export async function readerPage(id, stale) {
         ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
+        <div class="zoom" id="zoom" role="group" aria-label="Zoom" hidden>
+          <button class="button quiet small" data-zoom="-" title="Zoom out (−)">−</button>
+          <button class="button quiet small zoom-value num" data-zoom="1" title="Fit to width">100%</button>
+          <button class="button quiet small" data-zoom="+" title="Zoom in (+)">+</button></div>
+        ${readingPrefsMenu()}
         <span class="reader-pct num" id="pct"></span>
         <button class="button secondary small" id="toggle-notes" title="Notes and questions (n)">Notes &amp; questions</button>
         <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
@@ -272,7 +290,13 @@ export async function readerPage(id, stale) {
       <h2 class="ask-title">Vocabulary</h2>
       <div id="reader-vocab" class="reader-vocab"></div>
     </aside>
-    <button class="explain-pop" id="pop" hidden>Explain this</button>`;
+    <div class="sel-bar" id="pop" role="toolbar" aria-label="Selected text" hidden>
+      <button data-sel="explain" title="Explain it with the whole paper in mind (e)">Explain</button>
+      <button data-sel="simplify" title="Rewrite it in simple English">Simplify</button>
+      <button data-sel="translate" title="${language ? `Translate into ${esc(language)}` : "Set your language in Settings to translate"}">Translate</button>
+      ${canSpeak() ? `<button data-sel="listen" title="Hear it read aloud (l)">Listen</button>` : ""}
+      <button data-sel="word" title="Add this word to the paper's vocabulary">Save word</button>
+    </div>`;
 
   const $ = (sel) => app.querySelector(sel);
   const article = $("#article");
@@ -294,19 +318,16 @@ export async function readerPage(id, stale) {
     article.className = view === "pdf" ? "pdf-sheet" : "page-sheet";
     if (view === "text") {
       prepareTerms(p.glossary);
-      content.innerHTML = `<h1 class="paper-name">${esc(p.title)}</h1>
-        ${p.authors || p.year ? `<p class="article-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
-        <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${markTerms(esc(t))}</p>`).join("")}</div>`;
-      targets = [...content.querySelectorAll(".article-body p.short")]
-        .filter((el) => HEADING.test(el.textContent.trim()))
-        .map((el) => ({ label: el.textContent.trim(), el, offset: 0 }));
+      const { html, headings } = renderPaperText(p, markTerms);
+      content.innerHTML = html;
+      targets = headings.map((h) => ({ label: `${h.level === 3 ? "  " : ""}${h.label}`, el: content.querySelector(`#${h.id}`), at: 0 }));
     } else {
       content.innerHTML = `<div class="pdf-pages" id="pages">${loading("Opening the PDF")}</div>`;
       try {
-        pdf = await renderPdf(`/api/papers/${id}/file`, content.querySelector("#pages"));
+        pdf = await renderPdf(`/api/papers/${id}/file`, content.querySelector("#pages"), { zoom: savedZoom() });
         targets = [
-          ...pdf.outline.map((o) => ({ label: `${o.depth ? "  " : ""}${o.title}`, el: o.el, offset: o.offset })),
-          ...pdf.pages.map((el, i) => ({ label: `Page ${i + 1} of ${pdf.pages.length}`, el, offset: 0, page: true })),
+          ...pdf.outline.map((o) => ({ label: `${o.depth ? "  " : ""}${o.title}`, el: o.el, at: o.at })),
+          ...pdf.pages.map((el, i) => ({ label: `Page ${i + 1} of ${pdf.pages.length}`, el, at: 0, page: true })),
         ];
       } catch (e) {
         content.innerHTML = `<p class="error pad">Couldn't open the PDF: ${esc(e.message)}</p>`;
@@ -319,6 +340,8 @@ export async function readerPage(id, stale) {
       ${sections.length ? `<optgroup label="Sections">${sections.map((t) => `<option value="${targets.indexOf(t)}">${esc(t.label)}</option>`).join("")}</optgroup>` : ""}
       ${pages.length ? `<optgroup label="Pages">${pages.map((t) => `<option value="${targets.indexOf(t)}">${esc(t.label)}</option>`).join("")}</optgroup>` : ""}`;
     $("#jump").hidden = !targets.length;
+    $("#zoom").hidden = !pdf;
+    if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
   };
 
   // Open the paper, then go back to where the reader stopped.
@@ -370,7 +393,7 @@ export async function readerPage(id, stale) {
   };
   $("#jump").onchange = (e) => {
     const t = targets[e.target.value];
-    if (t) scrollToElement(t.el, t.offset);
+    if (t) scrollToElement(t.el, t.at * t.el.offsetHeight);
     e.target.value = "";
   };
   $("#modes").onclick = (e) => {
@@ -396,16 +419,17 @@ export async function readerPage(id, stale) {
   });
 
   // ----- Explanations -----
-  const explain = async (passage, question = "") => {
+  const answerHtml = (e) => `${MODE_LABEL[e.mode] ? `<p class="answer-mode">${MODE_LABEL[e.mode]}</p>` : ""}${quote(e.passage)}
+    ${e.question ? `<p class="answer-q">${esc(e.question)}</p>` : ""}<div class="answer-body">${e.answer ? markdown(e.answer) : loading("Thinking")}</div>`;
+  const explain = async (passage, question = "", mode = "explain") => {
     setOpen(true);
     const item = document.createElement("div");
     item.className = "answer";
-    item.innerHTML = `${quote(passage)}
-      ${question ? `<p class="answer-q">${esc(question)}</p>` : ""}<div class="answer-body">${loading("Thinking")}</div>`;
+    item.innerHTML = answerHtml({ passage, question, mode, answer: "" });
     $("#answers").prepend(item);
     try {
-      const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question } });
-      item.querySelector(".answer-body").textContent = r.explanation;
+      const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question, mode } });
+      item.innerHTML = answerHtml({ passage, question, mode, answer: r.explanation });
     } catch (e) {
       item.querySelector(".answer-body").innerHTML = `<p class="error">${esc(e.message)}</p>`;
     }
@@ -413,9 +437,7 @@ export async function readerPage(id, stale) {
 
   // Earlier explanations for this paper, newest first.
   api(`/papers/${id}/explanations`).then((items) => {
-    $("#answers").innerHTML = items.map((e) => `<div class="answer">
-      ${quote(e.passage)}
-      ${e.question ? `<p class="answer-q">${esc(e.question)}</p>` : ""}<div class="answer-body">${esc(e.answer)}</div></div>`).join("");
+    $("#answers").innerHTML = items.map((e) => `<div class="answer">${answerHtml(e)}</div>`).join("");
   }).catch(() => {});
 
   // Mark explained passages in the reflowed text; the PDF text layer is absolutely positioned, so leave it alone.
@@ -428,17 +450,60 @@ export async function readerPage(id, stale) {
     } catch { /* selection spans paragraphs; skip the inline highlight */ }
   };
 
-  article.addEventListener("mouseup", () => setTimeout(() => {
+  // Select text in the paper to explain, simplify, translate, hear or save it.
+  let selection = null; // { text, range, sentence }
+  const sentenceAround = (range) => {
+    const block = range.startContainer.parentElement?.closest("p, li, .textLayer");
+    const all = (block?.textContent || "").replace(/\s+/g, " ");
+    const at = all.indexOf(range.toString().trim().split(/\s+/)[0]);
+    if (at < 0) return range.toString();
+    const start = Math.max(all.lastIndexOf(". ", at) + 2, 0);
+    const end = all.indexOf(". ", at);
+    return all.slice(start, end < 0 ? undefined : end + 1).slice(0, 400);
+  };
+  const showSelectionBar = () => {
     const sel = getSelection();
     const text = sel.toString().trim();
-    if (text.length < 3) { pop.hidden = true; return; }
+    if (text.length < 2 || !sel.rangeCount || !article.contains(sel.anchorNode)) { pop.hidden = true; selection = null; return; }
     const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    pop.style.top = `${rect.top + scrollY - 44}px`;
-    pop.style.left = `${Math.min(innerWidth - 140, Math.max(8, rect.left + rect.width / 2 - 60))}px`;
+    selection = { text, range: range.cloneRange(), sentence: sentenceAround(range) };
+    pop.querySelector("[data-sel=word]").hidden = text.split(/\s+/).length > 4;
     pop.hidden = false;
-    pop.onclick = () => { pop.hidden = true; highlight(range.cloneRange()); sel.removeAllRanges(); explain(text); };
-  }));
+    const rect = range.getBoundingClientRect();
+    const width = pop.offsetWidth;
+    pop.style.top = `${Math.max(rect.top + scrollY - pop.offsetHeight - 10, scrollY + barHeight() + 6)}px`;
+    pop.style.left = `${Math.min(innerWidth - width - 8, Math.max(8, rect.left + rect.width / 2 - width / 2))}px`;
+  };
+  article.addEventListener("mouseup", () => setTimeout(showSelectionBar));
+  article.addEventListener("keyup", (e) => e.shiftKey && setTimeout(showSelectionBar));
+  pop.addEventListener("mousedown", (e) => e.preventDefault()); // keep the selection while clicking
+  pop.addEventListener("click", async (e) => {
+    const action = e.target.closest("[data-sel]")?.dataset.sel;
+    if (!action || !selection) return;
+    const { text, range, sentence } = selection;
+    if (action === "listen") {
+      if (speaking()) return stopSpeaking();
+      const button = e.target.closest("button");
+      button.textContent = "Stop";
+      return speak(text, { onEnd: () => (button.textContent = "Listen") });
+    }
+    pop.hidden = true;
+    getSelection().removeAllRanges();
+    if (action === "word") {
+      toast(`Adding "${text}" to the vocabulary…`);
+      try {
+        p.glossary = await api(`/papers/${id}/words`, { method: "POST", json: { term: text, context: sentence } });
+        renderVocab($("#reader-vocab"), p, { compact: true });
+        const w = p.glossary.find((x) => x.term.toLowerCase() === text.toLowerCase());
+        setOpen(true);
+        toast(w ? `${w.term}: ${w.meaning}` : "Added.");
+      } catch (err) { toast(err.message); }
+      return;
+    }
+    if (action === "translate" && !language) return toast("Set your language in Settings first, then Translate works.");
+    highlight(range);
+    explain(text, "", action);
+  });
 
   $("#ask").onsubmit = (e) => {
     e.preventDefault();
@@ -481,15 +546,43 @@ export async function readerPage(id, stale) {
     if (e.target.closest?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "s") app.querySelector(`[data-track=${tracker.mode === "read" ? "skim" : "read"}]`).click();
     else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
-    else if (e.key === "e" && !pop.hidden) pop.click();
+    else if (e.key === "e" && !pop.hidden) pop.querySelector("[data-sel=explain]").click();
+    else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
+    else if ((e.key === "+" || e.key === "=") && pdf) zoomBy(0.25);
+    else if (e.key === "-" && pdf) zoomBy(-0.25);
     else if (e.key === "?") showShortcuts([["s", "Switch between reading and skimming"], ["n", "Open or close notes and questions"],
-      ["e", "Explain the selected passage"]]);
+      ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel)"]]);
     else return;
     e.preventDefault();
   };
   addEventListener("keydown", onKey);
 
+  // ----- Zoom: redraws the PDF at the new size so it stays sharp -----
+  const zoomTo = (z) => {
+    if (!pdf) return;
+    const position = positionNow();
+    const zoom = pdf.setZoom(z);
+    try { localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* not remembered */ }
+    $("#zoom .zoom-value").textContent = pct(zoom);
+    scrollToPosition(position);
+    paintView();
+  };
+  const zoomBy = (step) => pdf && zoomTo(pdf.zoom + step);
+  $("#zoom").onclick = (e) => {
+    const z = e.target.closest("[data-zoom]")?.dataset.zoom;
+    if (z) zoomTo(z === "+" ? pdf.zoom + 0.25 : z === "-" ? pdf.zoom - 0.25 : 1);
+  };
+  // Ctrl + wheel over the PDF zooms the pages (sharp), not the whole browser (blurry).
+  const onWheel = (e) => {
+    if (!pdf || !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
+  };
+  article.addEventListener("wheel", onWheel, { passive: false });
+  bindReadingPrefs(app.querySelector(".reader-bar"));
+
   return () => {
+    stopSpeaking();
     removeEventListener("keydown", onKey);
     flush(true);
     tracker.stop();

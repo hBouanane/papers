@@ -18,7 +18,7 @@ def test_archive_hides_from_lists_but_keeps_searchable(client):
 
 def test_delete_removes_everything(client, tmp_path, monkeypatch):
     monkeypatch.setattr(pdf, "extract_text", lambda data: "Doomed Paper\nbody")
-    monkeypatch.setattr(llm, "explain", lambda paper, passage, question: "a")
+    monkeypatch.setattr(llm, "explain", lambda paper, passage, question, **kw: "a")
     root = tmp_path / "Papers"
     client.put("/api/settings", json={"library_dir": str(root)})
     p = client.post("/api/papers/upload", files={"file": ("f.pdf", blank_pdf(), "application/pdf")}).json()

@@ -1,3 +1,4 @@
+import { speak } from "./speech.js";
 import { stripBackground } from "./tracker.js";
 
 export const app = document.getElementById("app");
@@ -266,8 +267,9 @@ export function renderVocab(box, paper, { compact = false } = {}) {
         </div></div>
       <dl class="vocab">${visible.map((w) => `<div class="word${known.has(w.term.toLowerCase()) ? " known" : ""}">
           <dt><span class="term-name">${esc(w.term)}</span><span class="chip">${w.kind === "english" ? "English" : "Technical"}</span>
-            <button class="link-button" data-vocab-known="${esc(w.term)}">${known.has(w.term.toLowerCase()) ? "Show again" : "I know this"}</button></dt>
-          <dd>${esc(w.meaning)}${w.example ? `<q>${esc(w.example)}</q>` : ""}</dd></div>`).join("")
+            <span class="word-actions"><button class="link-button" data-vocab-listen="${esc(w.term)}" title="Hear how it's pronounced">Listen</button>
+            <button class="link-button" data-vocab-known="${esc(w.term)}">${known.has(w.term.toLowerCase()) ? "Show again" : "I know this"}</button></span></dt>
+          <dd>${w.translation ? `<span class="translation">${esc(w.translation)}</span>` : ""}${esc(w.meaning)}${w.example ? `<q>${esc(w.example)}</q>` : ""}</dd></div>`).join("")
         || `<p class="faint">${hidden ? "You know all of these." : "None of this kind."}</p>`}</dl>
       <div class="vocab-foot">
         ${hidden ? `<button class="link-button" data-vocab="toggle-known">${showKnown ? "Hide words I know" : `Show ${hidden} word${hidden === 1 ? "" : "s"} I know`}</button>` : ""}
@@ -275,8 +277,9 @@ export function renderVocab(box, paper, { compact = false } = {}) {
       </div>`;
   };
   box.onclick = (e) => {
-    const t = e.target.closest("[data-vocab], [data-vocab-filter], [data-vocab-known]");
+    const t = e.target.closest("[data-vocab], [data-vocab-filter], [data-vocab-known], [data-vocab-listen]");
     if (!t) return;
+    if (t.dataset.vocabListen) return speak(t.dataset.vocabListen);
     if (t.dataset.vocabFilter) { filter = t.dataset.vocabFilter; return draw(); }
     if (t.dataset.vocabKnown) {
       const known = knownWords();
@@ -295,4 +298,32 @@ export function renderVocab(box, paper, { compact = false } = {}) {
     }
   };
   draw();
+}
+
+// Claude answers in light Markdown; show it formatted (escaped first, so nothing in it can inject HTML).
+export function markdown(text) {
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+  const out = [];
+  let list = null;
+  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    const bullet = /^[-*•]\s+(.*)$/.exec(line);
+    const numbered = /^\d+[.)]\s+(.*)$/.exec(line);
+    const heading = /^#{1,4}\s+(.*)$/.exec(line);
+    if (bullet || numbered) {
+      const kind = bullet ? "ul" : "ol";
+      if (list !== kind) { closeList(); out.push(`<${kind}>`); list = kind; }
+      out.push(`<li>${inline((bullet || numbered)[1])}</li>`);
+    } else {
+      closeList();
+      if (heading) out.push(`<p class="md-head">${inline(heading[1])}</p>`);
+      else if (line) out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  closeList();
+  return out.join("");
 }

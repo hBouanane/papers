@@ -62,13 +62,17 @@ NEW_COLUMNS = {"refs": "text", "read_slices": "text", "mirror_path": "text", "ar
 JSON_FIELDS = ("skim", "quiz", "refs", "glossary")
 
 
+EXPLANATION_COLUMNS = {"mode": "text default 'explain'"}
+
+
 def init():
     with connect() as conn:
         conn.executescript(SCHEMA)
-        have = {r["name"] for r in conn.execute("pragma table_info(papers)")}
-        for name, kind in NEW_COLUMNS.items():
-            if name not in have:
-                conn.execute(f"alter table papers add column {name} {kind}")
+        for table, columns in (("papers", NEW_COLUMNS), ("explanations", EXPLANATION_COLUMNS)):
+            have = {r["name"] for r in conn.execute(f"pragma table_info({table})")}
+            for name, kind in columns.items():
+                if name not in have:
+                    conn.execute(f"alter table {table} add column {name} {kind}")
 
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:
