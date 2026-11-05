@@ -415,13 +415,16 @@ def list_explanations(paper_id: int):
 
 
 class SettingsIn(BaseModel):
-    library_dir: str
+    library_dir: str | None = None
+    ai_backend: Literal["api", "claude-code"] | None = None
 
 
 def settings() -> dict:
     folder = library.root()
     return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
-            "suggested": str(Path.home() / "Documents" / "Papers")}
+            "suggested": str(Path.home() / "Documents" / "Papers"),
+            "ai_backend": llm.backend(), "ai_ready": llm.configured(), "claude_binary": llm.claude_binary() or "",
+            "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))}
 
 
 @app.get("/api/settings")
@@ -431,6 +434,11 @@ def read_settings():
 
 @app.put("/api/settings")
 def save_settings(body: SettingsIn):
+    if body.ai_backend:
+        with db.connect() as conn:
+            conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
+    if body.library_dir is None:
+        return settings()
     try:
         library.set_root(body.library_dir)
     except ValueError as e:
@@ -438,6 +446,17 @@ def save_settings(body: SettingsIn):
     except OSError as e:
         raise HTTPException(400, f"Couldn't use that folder: {e}")
     return settings()
+
+
+@app.post("/api/ai/test")
+def test_ai():
+    """A tiny real request, so the user knows their choice in Settings works."""
+    try:
+        llm.search_queries("checking the connection")
+    except llm.AIError as e:
+        return {"ok": False, "message": str(e)}
+    via = "Claude Code" if llm.backend() == "claude-code" else "the API"
+    return {"ok": True, "message": f"Claude answered through {via}."}
 
 
 _inbox_skipped: set[tuple] = set()  # files that aren't importable; don't retry until they change

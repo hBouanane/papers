@@ -1,5 +1,18 @@
-"""All Claude calls live here so tests can fake them."""
+"""All Claude calls live here so tests can fake them.
+
+Two ways to reach Claude, chosen in Settings:
+- "api": the Anthropic API with ANTHROPIC_API_KEY (pay per use).
+- "claude-code": the official Claude Code CLI (`claude -p`) on this machine, signed in with the
+  user's own Claude subscription; usage counts against the plan's limits. The app only runs the
+  unmodified CLI and never reads or passes on its credentials.
+"""
+import glob
+import json
 import os
+import re
+import shutil
+import subprocess
+import tempfile
 from functools import cache
 
 import anthropic
@@ -8,8 +21,67 @@ from pydantic import BaseModel
 MODEL = os.environ.get("PAPERS_MODEL", "claude-opus-5-5")
 
 
+def backend() -> str:
+    from app import db  # late import: db doesn't depend on llm
+    with db.connect() as conn:
+        row = conn.execute("select value from settings where key = 'ai_backend'").fetchone()
+    return (row["value"] if row else None) or os.environ.get("PAPERS_AI", "api")
+
+
+def claude_binary() -> str | None:
+    """The Claude Code CLI: PAPERS_CLAUDE_BIN, `claude` on PATH, or the copy the desktop app ships."""
+    if found := os.environ.get("PAPERS_CLAUDE_BIN") or shutil.which("claude"):
+        return found
+    bundled = glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "Claude-Data", "*", "claude-code", "*", "*", "claude.exe"))
+    return max(bundled, key=os.path.getmtime) if bundled else None
+
+
 def configured() -> bool:
+    if backend() == "claude-code":
+        return claude_binary() is not None
     return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+
+def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effort: str = "medium"):
+    """One non-interactive Claude Code turn with no tools; returns parsed JSON (schema) or text."""
+    binary = claude_binary()
+    if not binary:
+        raise AIError("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
+                      "and sign in with your Claude account, then try again.")
+    args = [binary, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
+            "--no-session-persistence", "--model", MODEL, "--effort", effort]
+    if system:
+        args += ["--system-prompt", system]
+    if schema:
+        args += ["--json-schema", json.dumps(schema)]
+    # Without these, Claude Code would bill an API key instead of the subscription.
+    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    try:
+        done = subprocess.run(args, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                              env=env, cwd=tempfile.gettempdir(), timeout=900)
+    except subprocess.TimeoutExpired as e:
+        raise AIError("Claude Code took too long to answer.") from e
+    except OSError as e:
+        raise AIError(f"Couldn't start Claude Code: {e}") from e
+    try:
+        out = json.loads(done.stdout)
+    except json.JSONDecodeError as e:
+        raise AIError(f"Claude Code failed: {(done.stderr or done.stdout).strip()[:300]}") from e
+    if out.get("is_error"):
+        message = out.get("result") or "unknown error"
+        if re.search(r"auth|log ?in|oauth|credential", message, re.IGNORECASE):
+            raise AIError("Claude Code isn't signed in. Open a terminal, run `claude`, type /login and sign in "
+                          f"with your Claude account, then try again. ({message})")
+        raise AIError(f"Claude Code: {message}")
+    if not schema:
+        return out.get("result", "")
+    if out.get("structured_output") is not None:
+        return out["structured_output"]
+    text = out.get("result", "")
+    try:
+        return json.loads(text[text.index("{"): text.rindex("}") + 1])
+    except ValueError as e:
+        raise AIError("Claude Code didn't return the expected format. Try again.") from e
 
 
 @cache
@@ -25,7 +97,7 @@ def _request(method: str, **kwargs):
     try:
         response = getattr(_client().messages, method)(model=MODEL, max_tokens=16000, **kwargs)
     except TypeError as e:
-        raise AIError("Claude is not configured: set ANTHROPIC_API_KEY and restart the server.") from e
+        raise AIError("Claude is not set up. In Settings, choose your Claude subscription, or set ANTHROPIC_API_KEY and restart.") from e
     except anthropic.APIError as e:
         raise AIError(f"Claude request failed: {e}") from e
     if response.stop_reason == "refusal":
@@ -34,6 +106,8 @@ def _request(method: str, **kwargs):
 
 
 def _parse(prompt: str, schema: type[BaseModel], system: str = "", effort: str = "medium") -> BaseModel:
+    if backend() == "claude-code":
+        return schema.model_validate(_claude_code(prompt, system, schema.model_json_schema(), effort))
     return _request(
         "parse",
         system=system,
@@ -132,6 +206,8 @@ def explain(paper: dict, passage: str, question: str = "") -> str:
     content = f"<passage>\n{passage}\n</passage>" if passage else ""
     if question:
         content += f"\n\nMy question: {question}" if passage else question
+    if backend() == "claude-code":
+        return _claude_code(content, "\n\n".join(block["text"] for block in system))
     response = _request(
         "create",
         system=system,
