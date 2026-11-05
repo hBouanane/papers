@@ -395,3 +395,19 @@ kbd { font: 700 11px var(--ui); padding: 1px 5px; border-radius: 3px; border: 1p
 .choice .hint { font-size: 14px; }
 code { font-size: 13px; background: var(--desk); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
 .hint.ok { color: var(--done); font-weight: 700; }
+
+/* Vocabulary */
+.vocab-section { margin-top: 20px; }
+.vocab-section .hint { margin: 8px 0 14px; max-width: 62ch; }
+.vocab { margin: 14px 0 0; display: grid; }
+.vocab .word { padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.vocab .word.known { opacity: .55; }
+.vocab dt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.vocab .term-name { font-family: var(--paper); font-weight: 600; font-size: 18px; }
+.vocab dt .link-button { margin-left: auto; font-size: 13px; }
+.vocab dd { margin: 4px 0 0; line-height: 1.55; }
+.vocab q { display: block; margin-top: 4px; font-family: var(--paper); font-style: italic; color: var(--pencil); quotes: "\201C" "\201D"; }
+.vocab-foot { display: flex; gap: 16px; margin-top: 10px; }
+.reader-vocab .vocab .term-name { font-size: 16px; }
+.reader-vocab .section-bar { margin-bottom: 0; }
+abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset: 3px; text-decoration-thickness: 1.5px; cursor: help; }

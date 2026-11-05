@@ -24,7 +24,8 @@ def reflow(text: str) -> str:
 
 def extract_text(data: bytes) -> str:
     reader = PdfReader(io.BytesIO(data))
-    return reflow("\n".join(page.extract_text() or "" for page in reader.pages))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    return reflow(text.replace("\x00", ""))  # NULs from some PDFs break SQLite text functions
 
 
 def is_pdf(data: bytes) -> bool:

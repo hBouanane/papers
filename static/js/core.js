@@ -227,3 +227,72 @@ export function showShortcuts(extra = []) {
   box.innerHTML = `<h2>Keyboard shortcuts</h2><dl>${keys.map(([k, what]) => `<div><dt><kbd>${k}</kbd></dt><dd>${what}</dd></div>`).join("")}</dl>
     <p class="faint">Click anywhere on this box or press Escape to close.</p>`;
 }
+
+// ---------- Vocabulary ----------
+// Words you mark as known are hidden in every paper (kept in this browser).
+const KNOWN_KEY = "papers.knownWords";
+export function knownWords() {
+  try { return new Set(JSON.parse(localStorage.getItem(KNOWN_KEY) || "[]")); } catch { return new Set(); }
+}
+function saveKnown(set) {
+  try { localStorage.setItem(KNOWN_KEY, JSON.stringify([...set])); } catch { /* private mode: not remembered */ }
+}
+
+// Renders the vocabulary list into `box` and wires its controls. Re-renders itself on changes.
+export function renderVocab(box, paper, { compact = false } = {}) {
+  let filter = box.dataset.filter || "all";
+  let showKnown = box.dataset.showKnown === "1";
+  const draw = () => {
+    box.dataset.filter = filter;
+    box.dataset.showKnown = showKnown ? "1" : "";
+    const words = paper.glossary;
+    if (!words?.length) {
+      box.innerHTML = `${compact ? "" : "<h2>Vocabulary</h2>"}
+        <p class="hint">The words in this paper most likely to slow you down, technical terms and plain English alike,
+        explained in simple words with the sentence where they appear.</p>
+        ${paper.text ? `<button class="button ${compact ? "small" : ""}" data-vocab="make">Find hard words</button>`
+          : `<p class="faint">Needs the paper's text: upload its PDF first.</p>`}`;
+      return;
+    }
+    const known = knownWords();
+    const counts = { all: words.length, technical: 0, english: 0 };
+    words.forEach((w) => counts[w.kind]++);
+    const visible = words.filter((w) => (filter === "all" || w.kind === filter) && (showKnown || !known.has(w.term.toLowerCase())));
+    const hidden = words.filter((w) => (filter === "all" || w.kind === filter) && known.has(w.term.toLowerCase())).length;
+    box.innerHTML = `<div class="section-bar">${compact ? "" : "<h2>Vocabulary</h2>"}
+        <div class="segmented small" role="group" aria-label="Kind of word">
+          ${[["all", "All"], ["technical", "Technical"], ["english", "English"]].map(([k, label]) =>
+            `<button data-vocab-filter="${k}" class="${filter === k ? "active" : ""}">${label} <span class="num">${counts[k]}</span></button>`).join("")}
+        </div></div>
+      <dl class="vocab">${visible.map((w) => `<div class="word${known.has(w.term.toLowerCase()) ? " known" : ""}">
+          <dt><span class="term-name">${esc(w.term)}</span><span class="chip">${w.kind === "english" ? "English" : "Technical"}</span>
+            <button class="link-button" data-vocab-known="${esc(w.term)}">${known.has(w.term.toLowerCase()) ? "Show again" : "I know this"}</button></dt>
+          <dd>${esc(w.meaning)}${w.example ? `<q>${esc(w.example)}</q>` : ""}</dd></div>`).join("")
+        || `<p class="faint">${hidden ? "You know all of these." : "None of this kind."}</p>`}</dl>
+      <div class="vocab-foot">
+        ${hidden ? `<button class="link-button" data-vocab="toggle-known">${showKnown ? "Hide words I know" : `Show ${hidden} word${hidden === 1 ? "" : "s"} I know`}</button>` : ""}
+        ${compact ? "" : `<button class="link-button" data-vocab="make">Find again</button>`}
+      </div>`;
+  };
+  box.onclick = (e) => {
+    const t = e.target.closest("[data-vocab], [data-vocab-filter], [data-vocab-known]");
+    if (!t) return;
+    if (t.dataset.vocabFilter) { filter = t.dataset.vocabFilter; return draw(); }
+    if (t.dataset.vocabKnown) {
+      const known = knownWords();
+      const key = t.dataset.vocabKnown.toLowerCase();
+      known.has(key) ? known.delete(key) : known.add(key);
+      saveKnown(known);
+      box.dispatchEvent(new CustomEvent("known-changed", { bubbles: true }));
+      return draw();
+    }
+    if (t.dataset.vocab === "toggle-known") { showKnown = !showKnown; return draw(); }
+    if (t.dataset.vocab === "make") {
+      busy(t, "Reading the paper for hard words…", async () => {
+        paper.glossary = await api(`/papers/${paper.id}/glossary`, { method: "POST" });
+        draw();
+      });
+    }
+  };
+  draw();
+}

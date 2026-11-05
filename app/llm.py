@@ -16,6 +16,8 @@ import tempfile
 from functools import cache
 
 import anthropic
+from typing import Literal
+
 from pydantic import BaseModel
 
 MODEL = os.environ.get("PAPERS_MODEL", "claude-opus-5-5")
@@ -50,8 +52,14 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
                       "and sign in with your Claude account, then try again.")
     args = [binary, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
             "--no-session-persistence", "--model", MODEL, "--effort", effort]
+    # Long instructions (they contain the whole paper) go through a file: Windows caps a command
+    # line at ~32k characters ([WinError 206]).
+    system_file = None
     if system:
-        args += ["--system-prompt", system]
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as f:
+            f.write(system)
+        system_file = f.name
+        args += ["--system-prompt-file", system_file]
     if schema:
         args += ["--json-schema", json.dumps(schema)]
     # Without these, Claude Code would bill an API key instead of the subscription.
@@ -63,6 +71,9 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
         raise AIError("Claude Code took too long to answer.") from e
     except OSError as e:
         raise AIError(f"Couldn't start Claude Code: {e}") from e
+    finally:
+        if system_file:
+            os.unlink(system_file)
     try:
         out = json.loads(done.stdout)
     except json.JSONDecodeError as e:
@@ -179,6 +190,31 @@ class Skim(BaseModel):
     limitations: list[str]
     read_closely: list[str]
     verdict: str
+
+
+class Word(BaseModel):
+    term: str
+    kind: Literal["technical", "english"]
+    meaning: str
+    example: str
+
+
+class Glossary(BaseModel):
+    words: list[Word]
+
+
+def glossary(paper: dict) -> list[dict]:
+    prompt = (
+        f"{_paper_context(paper)}\n\n"
+        "The reader is a researcher whose first language is not English. List the 25 to 40 words and "
+        "phrases in this paper most likely to stop them, in the order they first appear. Include both: "
+        "technical terms and acronyms (kind 'technical'), and general or academic English words, idioms and "
+        "phrasal verbs a non-native speaker may not know, such as 'albeit', 'hence', 'on par with', 'ablation', "
+        "'notwithstanding' (kind 'english'). Skip words any intermediate English speaker knows. For each, give "
+        "the meaning in simple English (short sentences, everyday words), as it is used in this paper, and a "
+        "short quote from the paper where it appears."
+    )
+    return [w.model_dump() for w in _parse(prompt, Glossary).words]
 
 
 def skim(paper: dict) -> dict:

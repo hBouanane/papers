@@ -1,4 +1,4 @@
-import { api, app, bindNotes, busy, cite, esc, loading, notesBox, pct, progressBar, quote, showShortcuts, statusTag, toast } from "./core.js";
+import { api, app, bindNotes, busy, cite, esc, knownWords, loading, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { renderPdf } from "./pdfview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
 
@@ -47,6 +47,7 @@ export async function paperPage(id, stale) {
         ${p.abstract ? `<section class="sheet pad-lg abstract"><h2>Abstract</h2><p>${esc(p.abstract)}</p></section>` : ""}
         <section class="sheet pad-lg my-notes-section"><h2>My notes</h2>${notesBox(p, 4)}</section>
         <section class="sheet pad-lg" id="skim"></section>
+        <section class="sheet pad-lg vocab-section" id="vocab"></section>
         <section class="section">
           <div class="section-bar">
             <h2>References</h2>
@@ -74,6 +75,7 @@ export async function paperPage(id, stale) {
     </div></div>`;
 
   renderSkim(p);
+  renderVocab(app.querySelector("#vocab"), p);
   bindNotes(p);
   const menu = app.querySelector(".menu");
   app.querySelector("#edit").onclick = () => { menu.open = false; editDetails(p, goals); };
@@ -193,12 +195,33 @@ async function loadRefs(p) {
 }
 
 // ---------- Reader ----------
+// Wraps the paper's hard words (not the ones you know) in an underline that shows their meaning.
+let termPattern = null;
+let termMeaning = {};
+function prepareTerms(glossary) {
+  const known = knownWords();
+  const words = (glossary || []).filter((w) => !known.has(w.term.toLowerCase()));
+  termMeaning = Object.fromEntries(words.map((w) => [w.term.toLowerCase(), w.meaning]));
+  const escaped = words.map((w) => esc(w.term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).sort((a, b) => b.length - a.length);
+  termPattern = escaped.length ? new RegExp(`\\b(${escaped.join("|")})\\b`, "gi") : null;
+}
+function markTerms(html) {
+  if (!termPattern) return html;
+  return html.replace(termPattern, (m) => `<abbr class="term" title="${esc(termMeaning[m.toLowerCase()] || "")}">${m}</abbr>`);
+}
+
 const HEADING = /^(\d+(\.\d+)*\.?\s+\S.{0,70}|abstract|introduction|conclusions?|discussion|references|acknowledg\w*)$/i;
 
 export async function readerPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
-  const p = await api(`/papers/${id}`);
+  let p = await api(`/papers/${id}`);
   if (stale()) return;
+  if (p.can_fetch_pdf) {
+    app.innerHTML = `<div class="container page">${loading("Getting the original PDF (only the first time)")}</div>`;
+    try { p = await api(`/papers/${id}/fetch-pdf`, { method: "POST" }); }
+    catch (e) { toast(`Couldn't get the original PDF, showing the text instead. ${e.message}`); }
+    if (stale()) return;
+  }
   if (!p.text && !p.has_pdf) { location.replace(`#/papers/${id}`); return; }
   // The original PDF is the default; small screens get the reflowed text when there is some.
   let view = p.has_pdf && (innerWidth >= 700 || !p.text) ? "pdf" : "text";
@@ -246,6 +269,8 @@ export async function readerPage(id, stale) {
         <button class="button small">Ask</button>
       </form>
       <div id="answers"></div>
+      <h2 class="ask-title">Vocabulary</h2>
+      <div id="reader-vocab" class="reader-vocab"></div>
     </aside>
     <button class="explain-pop" id="pop" hidden>Explain this</button>`;
 
@@ -268,9 +293,10 @@ export async function readerPage(id, stale) {
     app.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
     article.className = view === "pdf" ? "pdf-sheet" : "page-sheet";
     if (view === "text") {
+      prepareTerms(p.glossary);
       content.innerHTML = `<h1 class="paper-name">${esc(p.title)}</h1>
         ${p.authors || p.year ? `<p class="article-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
-        <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}</div>`;
+        <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${markTerms(esc(t))}</p>`).join("")}</div>`;
       targets = [...content.querySelectorAll(".article-body p.short")]
         .filter((el) => HEADING.test(el.textContent.trim()))
         .map((el) => ({ label: el.textContent.trim(), el, offset: 0 }));
@@ -436,6 +462,19 @@ export async function readerPage(id, stale) {
   $("#finish-end").onclick = finish;
 
   bindNotes(p, $("#notes"));
+  renderVocab($("#reader-vocab"), p, { compact: true });
+  // Tap or click an underlined word to see what it means (hover works too on a computer).
+  article.addEventListener("click", (e) => {
+    const term = e.target.closest(".term");
+    if (term && !getSelection().toString()) toast(`${term.textContent}: ${term.title}`);
+  });
+  // A newly generated vocabulary or a word marked as known changes the underlines in Text view.
+  $("#reader-vocab").addEventListener("click", () => setTimeout(() => view === "text" && refreshTerms(), 0));
+  $("#reader-vocab").addEventListener("known-changed", () => view === "text" && refreshTerms());
+  const refreshTerms = () => {
+    const position = positionNow();
+    show("text").then(() => scrollToPosition(position));
+  };
 
   // Keyboard: s = skim/read, n = notes panel, e = explain the selection, ? = help.
   const onKey = (e) => {
