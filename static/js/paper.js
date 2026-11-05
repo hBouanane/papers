@@ -1,5 +1,5 @@
 import { api, app, bindNotes, busy, cite, esc, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
-import { renderPdf } from "./pdfview.js";
+import { openPdf } from "./pdfview.js";
 import { bindReadingPrefs, readingPrefsMenu } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
 import { renderPaperText } from "./textview.js";
@@ -221,6 +221,7 @@ function markTerms(html, seen = new Set()) {
 
 const ZOOM_KEY = "papers.pdfZoom";
 const savedZoom = () => { try { return Number(localStorage.getItem(ZOOM_KEY)) || 1; } catch { return 1; } };
+const saveZoom = (z) => { try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* not remembered */ } };
 const MODE_LABEL = { simplify: "Simplified", translate: "Translated" };
 
 export async function readerPage(id, stale) {
@@ -242,7 +243,7 @@ export async function readerPage(id, stale) {
   document.body.classList.add("reading");
 
   app.innerHTML = `
-    <div class="reader-bar">
+    <div class="reader-bar" id="bar">
       <div class="reader-bar-inner">
         <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
         <div class="segmented small" role="group" aria-label="Mode" id="modes">
@@ -252,9 +253,9 @@ export async function readerPage(id, stale) {
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
         <div class="zoom" id="zoom" role="group" aria-label="Zoom" hidden>
-          <button class="button quiet small" data-zoom="-" title="Zoom out (−)">−</button>
-          <button class="button quiet small zoom-value num" data-zoom="1" title="Fit to width">100%</button>
-          <button class="button quiet small" data-zoom="+" title="Zoom in (+)">+</button></div>
+          <button class="button quiet small" data-zoom="out" title="Zoom out (−)">−</button>
+          <button class="button quiet small zoom-value num" data-zoom="fit" title="Fit to width">100%</button>
+          <button class="button quiet small" data-zoom="in" title="Zoom in (+)">+</button></div>
         ${readingPrefsMenu()}
         <span class="reader-pct num" id="pct"></span>
         <button class="button secondary small" id="toggle-notes" title="Notes and questions (n)">Notes &amp; questions</button>
@@ -267,15 +268,7 @@ export async function readerPage(id, stale) {
       <div class="skim-note" id="skim-note" hidden>Skimming: nothing you do here counts as reading.
         <button class="button quiet small" id="back-to-saved">Back to where you stopped</button></div>
     </div>
-    <div class="reader">
-      <article id="article">
-        <div id="content"></div>
-        <div class="article-end">
-          <p>That's the end of the paper.</p>
-          <button class="button" id="finish-end">I've finished, quiz me</button>
-        </div>
-      </article>
-    </div>
+    <div class="reader-scroll" id="scroller"></div>
     <aside class="notes" id="notes" aria-label="Notes and questions">
       <div class="notes-head"><h2>My notes</h2><button class="button quiet small" id="close-notes">Close</button></div>
       ${notesBox(p, 5)}
@@ -299,38 +292,54 @@ export async function readerPage(id, stale) {
     </div>`;
 
   const $ = (sel) => app.querySelector(sel);
-  const article = $("#article");
-  const content = $("#content");
+  // The paper scrolls in this panel (both views), below the reader bar.
+  const scroller = $("#scroller");
   const pop = $("#pop");
   const setOpen = (open) => document.body.classList.toggle("notes-open", open);
-  const barHeight = () => $(".reader-bar").offsetHeight;
-  const positionNow = () => Math.min(1, Math.max(0, (scrollY - article.offsetTop) / Math.max(1, article.offsetHeight - innerHeight)));
-  const scrollToPosition = (position) => window.scrollTo(0, article.offsetTop + position * (article.offsetHeight - innerHeight));
-  const scrollToElement = (el, offset = 0) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY + offset - barHeight() - 12);
+  const placeScroller = () => document.body.style.setProperty("--reader-top", `${$("#bar").offsetHeight}px`);
+  const barObserver = new ResizeObserver(placeScroller);
+  barObserver.observe($("#bar"));
+  placeScroller();
+  const maxScroll = () => Math.max(1, scroller.scrollHeight - scroller.clientHeight);
+  const positionNow = () => Math.min(1, Math.max(0, scroller.scrollTop / maxScroll()));
+  const scrollToPosition = (position) => (scroller.scrollTop = position * maxScroll());
+  const scrollToElement = (el) =>
+    (scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16);
+  const endBox = `<div class="article-end">
+      <p>That's the end of the paper.</p>
+      <button class="button" data-finish>I've finished, quiz me</button>
+    </div>`;
   let pdf = null;
-  let targets = []; // "Go to…" destinations for the current view
+  let targets = []; // "Go to…" destinations for the current view: { label, go, page? }
 
   const show = async (next) => {
     view = next;
     pdf?.close();
     pdf = null;
     app.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
-    article.className = view === "pdf" ? "pdf-sheet" : "page-sheet";
+    scroller.className = `reader-scroll view-${view}`;
     if (view === "text") {
       prepareTerms(p.glossary);
       const { html, headings } = renderPaperText(p, markTerms);
-      content.innerHTML = html;
-      targets = headings.map((h) => ({ label: `${h.level === 3 ? "  " : ""}${h.label}`, el: content.querySelector(`#${h.id}`), at: 0 }));
+      scroller.innerHTML = `<article class="page-sheet" id="article">${html}${endBox}</article>`;
+      targets = headings.map((h) => ({
+        label: `${h.level === 3 ? "  " : ""}${h.label}`, go: () => scrollToElement(scroller.querySelector(`#${h.id}`)),
+      }));
     } else {
-      content.innerHTML = `<div class="pdf-pages" id="pages">${loading("Opening the PDF")}</div>`;
+      scroller.innerHTML = loading("Opening the PDF");
       try {
-        pdf = await renderPdf(`/api/papers/${id}/file`, content.querySelector("#pages"), { zoom: savedZoom() });
+        pdf = await openPdf(`/api/papers/${id}/file`, scroller, { zoom: savedZoom(), after: endBox });
+        pdf.onZoom((zoom) => {
+          $("#zoom .zoom-value").textContent = pct(zoom);
+          saveZoom(zoom);
+          paintView();
+        });
         targets = [
-          ...pdf.outline.map((o) => ({ label: `${o.depth ? "  " : ""}${o.title}`, el: o.el, at: o.at })),
-          ...pdf.pages.map((el, i) => ({ label: `Page ${i + 1} of ${pdf.pages.length}`, el, at: 0, page: true })),
+          ...pdf.outline.map((o) => ({ label: `${o.depth ? "  " : ""}${o.title}`, go: () => pdf.goTo(o.dest) })),
+          ...Array.from({ length: pdf.pageCount }, (_, i) => ({ label: `Page ${i + 1} of ${pdf.pageCount}`, go: () => pdf.goToPage(i + 1), page: true })),
         ];
       } catch (e) {
-        content.innerHTML = `<p class="error pad">Couldn't open the PDF: ${esc(e.message)}</p>`;
+        scroller.innerHTML = `<p class="error pad">Couldn't open the PDF: ${esc(e.message)}</p>`;
         targets = [];
       }
     }
@@ -346,15 +355,15 @@ export async function readerPage(id, stale) {
 
   // Open the paper, then go back to where the reader stopped.
   await show(view);
-  if (stale()) { pdf?.close(); return; }
+  if (stale()) { pdf?.close(); barObserver.disconnect(); return; }
   if (saved > 0.01 && saved < 0.99) {
     scrollToPosition(saved);
     toast(`Back where you stopped, ${pct(saved)} in`);
   }
 
   // ----- Tracking -----
-  const words = p.text ? p.text.split(/\s+/).length : (pdf?.pages.length || 10) * 400;
-  const tracker = startTracker({ article, paper: p, words, onRead: () => paintStrip() });
+  const words = p.text ? p.text.split(/\s+/).length : (pdf?.pageCount || 10) * 400;
+  const tracker = startTracker({ scroller, paper: p, words, onRead: () => paintStrip() });
   // Papers tracked the old way keep their percentage until real reading overtakes it (same rule as the server).
   const legacy = p.read_slices ? 0 : p.progress;
   let nudged = p.status === "read"; // offer to finish once, when most of the paper has been read
@@ -365,10 +374,10 @@ export async function readerPage(id, stale) {
     if (!nudged && read >= 0.9) { nudged = true; $("#nudge").hidden = false; }
   };
   const paintView = () => {
-    const height = article.offsetHeight;
+    const height = Math.max(1, scroller.scrollHeight);
     const marker = $("#strip-view");
-    marker.style.left = pct(Math.max(0, (scrollY - article.offsetTop) / height));
-    marker.style.width = pct(Math.min(1, innerHeight / height));
+    marker.style.left = pct(scroller.scrollTop / height);
+    marker.style.width = pct(Math.min(1, scroller.clientHeight / height));
   };
   paintStrip();
   paintView();
@@ -384,16 +393,14 @@ export async function readerPage(id, stale) {
   const onHide = () => flush(true);
   addEventListener("pagehide", onHide);
 
-  const onScroll = () => { paintView(); pop.hidden = true; };
-  addEventListener("scroll", onScroll, { passive: true });
+  scroller.addEventListener("scroll", () => { paintView(); pop.hidden = true; }, { passive: true });
 
   $("#strip").onclick = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
-    window.scrollTo(0, article.offsetTop + ((e.clientX - r.left) / r.width) * article.offsetHeight - barHeight());
+    scroller.scrollTop = ((e.clientX - r.left) / r.width) * scroller.scrollHeight - scroller.clientHeight / 3;
   };
   $("#jump").onchange = (e) => {
-    const t = targets[e.target.value];
-    if (t) scrollToElement(t.el, t.at * t.el.offsetHeight);
+    targets[e.target.value]?.go();
     e.target.value = "";
   };
   $("#modes").onclick = (e) => {
@@ -464,18 +471,19 @@ export async function readerPage(id, stale) {
   const showSelectionBar = () => {
     const sel = getSelection();
     const text = sel.toString().trim();
-    if (text.length < 2 || !sel.rangeCount || !article.contains(sel.anchorNode)) { pop.hidden = true; selection = null; return; }
+    if (text.length < 2 || !sel.rangeCount || !scroller.contains(sel.anchorNode)) { pop.hidden = true; selection = null; return; }
     const range = sel.getRangeAt(0);
     selection = { text, range: range.cloneRange(), sentence: sentenceAround(range) };
     pop.querySelector("[data-sel=word]").hidden = text.split(/\s+/).length > 4;
     pop.hidden = false;
     const rect = range.getBoundingClientRect();
     const width = pop.offsetWidth;
-    pop.style.top = `${Math.max(rect.top + scrollY - pop.offsetHeight - 10, scrollY + barHeight() + 6)}px`;
+    const top = scroller.getBoundingClientRect().top;
+    pop.style.top = `${Math.max(rect.top - pop.offsetHeight - 10, top + 6)}px`;
     pop.style.left = `${Math.min(innerWidth - width - 8, Math.max(8, rect.left + rect.width / 2 - width / 2))}px`;
   };
-  article.addEventListener("mouseup", () => setTimeout(showSelectionBar));
-  article.addEventListener("keyup", (e) => e.shiftKey && setTimeout(showSelectionBar));
+  scroller.addEventListener("mouseup", () => setTimeout(showSelectionBar));
+  scroller.addEventListener("keyup", (e) => e.shiftKey && setTimeout(showSelectionBar));
   pop.addEventListener("mousedown", (e) => e.preventDefault()); // keep the selection while clicking
   pop.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-sel]")?.dataset.sel;
@@ -524,62 +532,58 @@ export async function readerPage(id, stale) {
   $("#nudge-finish").onclick = finish;
   $("#nudge-later").onclick = () => ($("#nudge").hidden = true);
   $("#finish").onclick = p.status === "read" ? () => (location.hash = `#/papers/${id}`) : finish;
-  $("#finish-end").onclick = finish;
 
   bindNotes(p, $("#notes"));
   renderVocab($("#reader-vocab"), p, { compact: true });
-  // Tap or click an underlined word to see what it means (hover works too on a computer).
-  article.addEventListener("click", (e) => {
+  scroller.addEventListener("click", (e) => {
+    if (e.target.closest("[data-finish]")) return finish({ currentTarget: e.target.closest("[data-finish]") });
+    // Tap or click an underlined word to see what it means (hover works too on a computer).
     const term = e.target.closest(".term");
     if (term && !getSelection().toString()) toast(`${term.textContent}: ${term.title}`);
   });
   // A newly generated vocabulary or a word marked as known changes the underlines in Text view.
-  $("#reader-vocab").addEventListener("click", () => setTimeout(() => view === "text" && refreshTerms(), 0));
-  $("#reader-vocab").addEventListener("known-changed", () => view === "text" && refreshTerms());
   const refreshTerms = () => {
     const position = positionNow();
     show("text").then(() => scrollToPosition(position));
   };
+  $("#reader-vocab").addEventListener("click", () => setTimeout(() => view === "text" && refreshTerms(), 0));
+  $("#reader-vocab").addEventListener("known-changed", () => view === "text" && refreshTerms());
 
-  // Keyboard: s = skim/read, n = notes panel, e = explain the selection, ? = help.
+  // ----- Zoom (PDF): around the cursor for Ctrl + wheel / pinch, around the middle otherwise -----
+  const middle = () => {
+    const r = scroller.getBoundingClientRect();
+    return [r.left + r.width / 2, r.top + r.height / 2];
+  };
+  $("#zoom").onclick = (e) => {
+    const z = e.target.closest("[data-zoom]")?.dataset.zoom;
+    if (!pdf || !z) return;
+    if (z === "fit") pdf.fitWidth();
+    else pdf.zoomBy(z === "in" ? 1.25 : 0.8, middle());
+  };
+  // Trackpad pinches arrive as Ctrl + wheel too; small deltas give small, smooth steps.
+  scroller.addEventListener("wheel", (e) => {
+    if (!pdf || !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY / 300)));
+    pdf.zoomBy(factor, [e.clientX, e.clientY]);
+  }, { passive: false });
+
+  // Keyboard: s = skim/read, n = notes panel, e = explain, l = listen, +/- = zoom, ? = help.
   const onKey = (e) => {
     if (e.target.closest?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "s") app.querySelector(`[data-track=${tracker.mode === "read" ? "skim" : "read"}]`).click();
     else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
     else if (e.key === "e" && !pop.hidden) pop.querySelector("[data-sel=explain]").click();
     else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
-    else if ((e.key === "+" || e.key === "=") && pdf) zoomBy(0.25);
-    else if (e.key === "-" && pdf) zoomBy(-0.25);
+    else if ((e.key === "+" || e.key === "=") && pdf) pdf.zoomBy(1.25, middle());
+    else if (e.key === "-" && pdf) pdf.zoomBy(0.8, middle());
     else if (e.key === "?") showShortcuts([["s", "Switch between reading and skimming"], ["n", "Open or close notes and questions"],
-      ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel)"]]);
+      ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
     else return;
     e.preventDefault();
   };
   addEventListener("keydown", onKey);
-
-  // ----- Zoom: redraws the PDF at the new size so it stays sharp -----
-  const zoomTo = (z) => {
-    if (!pdf) return;
-    const position = positionNow();
-    const zoom = pdf.setZoom(z);
-    try { localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* not remembered */ }
-    $("#zoom .zoom-value").textContent = pct(zoom);
-    scrollToPosition(position);
-    paintView();
-  };
-  const zoomBy = (step) => pdf && zoomTo(pdf.zoom + step);
-  $("#zoom").onclick = (e) => {
-    const z = e.target.closest("[data-zoom]")?.dataset.zoom;
-    if (z) zoomTo(z === "+" ? pdf.zoom + 0.25 : z === "-" ? pdf.zoom - 0.25 : 1);
-  };
-  // Ctrl + wheel over the PDF zooms the pages (sharp), not the whole browser (blurry).
-  const onWheel = (e) => {
-    if (!pdf || !(e.ctrlKey || e.metaKey)) return;
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
-  };
-  article.addEventListener("wheel", onWheel, { passive: false });
-  bindReadingPrefs(app.querySelector(".reader-bar"));
+  bindReadingPrefs($("#bar"));
 
   return () => {
     stopSpeaking();
@@ -587,10 +591,11 @@ export async function readerPage(id, stale) {
     flush(true);
     tracker.stop();
     clearInterval(flushTimer);
-    removeEventListener("scroll", onScroll);
+    barObserver.disconnect();
     removeEventListener("pagehide", onHide);
     pdf?.close();
     document.body.classList.remove("notes-open", "skimming");
+    document.body.style.removeProperty("--reader-top");
   };
 }
 
