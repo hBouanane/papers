@@ -61,11 +61,17 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
     if p.get("url"):
         lines.append(f"Source: {p['url']}")
     lines += ["", "## My notes", "", p.get("notes") or ""]
-    if s := p.get("skim"):
-        lines += ["", "## Key points", "", s["verdict"], "", "**Problem.** " + s["problem"], "", "**Method.** " + s["method"], ""]
-        for heading, key in (("Contributions", "contributions"), ("Results", "results"),
-                             ("Limitations", "limitations"), ("Read closely", "read_closely")):
-            lines += [f"**{heading}**", *[f"- {x}" for x in s[key]], ""]
+    if s := p.get("skim"):  # older key points lack some fields
+        lines += ["", "## Key points", "", s.get("tldr") or s["verdict"], ""]
+        for heading, key in (("Problem", "problem"), ("Key idea", "key_idea"), ("Method", "method"),
+                             ("Why it matters to me", "relevance"), ("Verdict", "verdict")):
+            if s.get(key) and not (key == "verdict" and not s.get("tldr")):
+                lines += [f"**{heading}.** {s[key]}", ""]
+        for heading, key in (("Contributions", "contributions"), ("Results", "results"), ("Limitations", "limitations"),
+                             ("Figures to look at", "figures"), ("Questions to keep in mind", "questions"),
+                             ("Reading plan", "reading_plan"), ("Read closely", "read_closely")):
+            if s.get(key):
+                lines += [f"**{heading}**", *[f"- {x}" for x in s[key]], ""]
     if explanations:
         lines += ["", "## Explanations", ""]
         for e in explanations:

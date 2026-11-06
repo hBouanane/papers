@@ -183,12 +183,17 @@ def extract_references(section: str) -> list[dict]:
 
 
 class Skim(BaseModel):
+    tldr: str
     problem: str
+    key_idea: str
     contributions: list[str]
     method: str
     results: list[str]
     limitations: list[str]
-    read_closely: list[str]
+    figures: list[str]
+    questions: list[str]
+    reading_plan: list[str]
+    relevance: str
     verdict: str
 
 
@@ -234,14 +239,32 @@ def define(paper: dict, term: str, context: str, language: str = "") -> dict:
     return _parse(prompt, Word, effort="low").model_dump()
 
 
-def skim(paper: dict) -> dict:
+def skim(paper: dict, goal: str = "") -> dict:
+    """A first pass the way Andrew Ng teaches it: title, abstract and figures, then introduction,
+    conclusion and section headings, skipping related work and dense math. Written for a reader
+    whose first language may not be English, and shaped by what they are working on."""
     prompt = (
         f"{_paper_context(paper)}\n\n"
-        "Help me skim this paper the way Andrew Ng recommends: title, abstract, figures, "
-        "introduction and conclusion first, skipping related work and dense math. Give me: "
-        "the problem it tackles, its key contributions, the method in a few sentences, the key "
-        "results, its limitations, which sections deserve a close read, and a one-line verdict "
-        "on whether it is worth reading fully. Be concise; each list item is one sentence."
+        + (f"<my_goal>{goal}</my_goal>\n\n" if goal else "")
+        + "Give me the first pass on this paper, as Andrew Ng recommends doing it: look at the title, "
+        "abstract and figures first, then the introduction, conclusion and section headings; skip related "
+        "work and dense math. I may not be a native English speaker, so write in plain, simple English: short "
+        "sentences, everyday words, technical terms only when needed (and say what they mean).\n\n"
+        "Fill in:\n"
+        "- tldr: what the paper does and why it matters, in two or three sentences a newcomer understands.\n"
+        "- problem: the problem it tackles and why earlier work falls short.\n"
+        "- key_idea: the one idea that makes it work, in one sentence.\n"
+        "- contributions: what is new, one sentence each.\n"
+        "- method: how it works, in a few sentences, with an intuition rather than equations.\n"
+        "- results: the main results, with the actual numbers and what they are compared against.\n"
+        "- limitations: weaknesses the authors admit, plus obvious ones they don't.\n"
+        "- figures: the figures and tables worth looking at first, each as 'Figure N: what it shows'.\n"
+        "- questions: 3 to 5 questions to keep in mind while reading, which the paper answers.\n"
+        "- reading_plan: the sections to read, in order, each as 'Section: why, about N minutes'; mark the "
+        "ones to read closely and the ones to skip.\n"
+        "- relevance: " + ("how this paper helps with my goal, concretely; say so plainly if it doesn't."
+                           if goal else "leave empty.") + "\n"
+        "- verdict: one line on whether to read it fully, skim it, or skip it, and why."
     )
     return _parse(prompt, Skim).model_dump()
 

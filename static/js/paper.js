@@ -8,12 +8,15 @@ import { SLICES, startTracker, stripBackground } from "./tracker.js";
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
 // ---------- Overview ----------
-export async function paperPage(id, stale) {
+const TABS = [["overview", "Overview"], ["words", "Words"], ["notes", "Notes"], ["refs", "References"]];
+const prepared = (p) => p.skim && p.glossary && p.quiz && p.refs;
+
+export async function paperPage(id, stale, tab = "overview") {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
-  const [p, goals, chain] = await Promise.all([api(`/papers/${id}`), api("/topics"), api(`/papers/${id}/chain`)]);
+  const [p, goals, chain, settings] = await Promise.all([api(`/papers/${id}`), api("/topics"), api(`/papers/${id}/chain`), api("/settings")]);
   if (stale()) return;
   const goal = goals.find((g) => g.id === p.topic_id);
-  const readLabel = { new: "Start reading", skimmed: "Start reading", reading: `Continue at ${pct(p.position)}`, read: "Read again" }[p.status];
+  const readLabel = { new: "Start reading", skimmed: "Start reading", reading: `Continue reading`, read: "Read again" }[p.status];
   const ancestors = chain.path.slice(0, -1);
   const readable = p.text || p.has_pdf;
 
@@ -25,7 +28,7 @@ export async function paperPage(id, stale) {
       <div class="actions">
         ${readable ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>`
           : `<label class="button"><span>Upload the PDF</span><input type="file" class="pdf-input" accept="application/pdf,.pdf" hidden></label>`}
-        ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
+        ${p.quiz?.length && p.status === "read" ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
         <details class="menu">
           <summary class="button quiet">More</summary>
@@ -42,31 +45,19 @@ export async function paperPage(id, stale) {
       ${p.archived ? `<p class="hint">This paper is archived: it's hidden from your lists but still searchable.</p>` : ""}
       ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
       ${p.has_pdf && !p.text ? `<p class="hint">This PDF has no selectable text, so it's probably a scan. You can read it,
-        but skimming, explanations and the quiz need text.</p>` : ""}
+        but key points, explanations and questions need text.</p>` : ""}
     </header>
 
     <div class="paper-layout">
       <div class="paper-main">
-        ${p.abstract ? `<section class="sheet pad-lg abstract"><h2>Abstract</h2><p>${esc(p.abstract)}</p></section>` : ""}
-        <section class="sheet pad-lg my-notes-section"><h2>My notes</h2>${notesBox(p, 4)}</section>
-        <section class="sheet pad-lg" id="skim"></section>
-        <section class="sheet pad-lg vocab-section" id="vocab"></section>
-        <section class="section">
-          <div class="section-bar">
-            <h2>References</h2>
-            ${p.external_id || p.text ? `<button class="button secondary" id="refs-btn">Show references</button>` : ""}
-          </div>
-          <div id="refs"><p class="faint">${p.external_id || p.text
-            ? "Follow a reference to go deeper. The map remembers which paper led you where."
-            : "Upload the PDF to see this paper's references."}</p></div>
-        </section>
+        <div class="tabs" role="tablist">${TABS.map(([key, label]) =>
+          `<button role="tab" data-tab="${key}" aria-selected="${key === tab}">${label}</button>`).join("")}</div>
+        <section class="sheet pad-lg tab-panel" id="panel" role="tabpanel"></section>
       </div>
-
       <aside class="paper-side">
         <div class="sheet facts">
           <div><span>Status</span>${statusTag(p)}</div>
           <div><span>Read</span><span class="fact-bar">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span></div>
-          ${p.status === "reading" ? `<div><span>Stopped at</span><span class="num">${pct(p.position)}</span></div>` : ""}
           <div><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span></div>
           ${p.text ? `<div><span>Length</span><span>${minutes(p.text)} min</span></div>` : ""}
         </div>
@@ -77,14 +68,48 @@ export async function paperPage(id, stale) {
       </aside>
     </div></div>`;
 
-  renderSkim(p);
-  renderVocab(app.querySelector("#vocab"), p);
-  bindNotes(p);
+  const panel = app.querySelector("#panel");
+  const showTab = (key) => {
+    tab = key;
+    app.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === key));
+    if (key === "overview") renderOverview(panel, p, settings);
+    else if (key === "words") {
+      if (!p.glossary && p.preparing) panel.innerHTML = preparingNote("the hard words");
+      else renderVocab(panel, p);
+    } else if (key === "notes") {
+      panel.innerHTML = `<h2>My notes</h2>${notesBox(p, 10)}`;
+      bindNotes(p, panel);
+    } else loadRefs(panel, p);
+  };
+  app.querySelector(".tabs").onclick = (e) => {
+    const b = e.target.closest("[data-tab]");
+    if (b) showTab(b.dataset.tab);
+  };
+  showTab(tab);
+
+  // Claude reads the paper ahead of time; while it does, the tabs fill in as results arrive.
+  if (settings.ai_ready && p.text && !prepared(p)) {
+    if (!p.preparing) await api(`/papers/${id}/prepare`, { method: "POST" }).catch(() => {});
+    p.preparing = true;
+    showTab(tab);
+    const started = Date.now();
+    const poll = setInterval(async () => {
+      if (stale() || Date.now() - started > 5 * 60 * 1000) return clearInterval(poll);
+      const fresh = await api(`/papers/${id}`).catch(() => null);
+      if (!fresh) return;
+      const changed = ["skim", "glossary", "quiz", "refs"].some((k) => !p[k] && fresh[k]);
+      Object.assign(p, { skim: fresh.skim, glossary: fresh.glossary, quiz: fresh.quiz, refs: fresh.refs, preparing: fresh.preparing });
+      if (changed || !fresh.preparing) showTab(tab);
+      if (!fresh.preparing) clearInterval(poll);
+    }, 3000);
+  }
+
   const menu = app.querySelector(".menu");
   app.querySelector("#edit").onclick = () => { menu.open = false; editDetails(p, goals); };
   app.querySelector("#mark-read")?.addEventListener("click", (e) => busy(e.currentTarget, "Marking…", async () => {
     await api(`/papers/${id}/finish`, { method: "POST" });
-    paperPage(id, stale);
+    celebrate();
+    paperPage(id, stale, tab);
   }));
   app.querySelector("#copy-bib").onclick = async () => {
     menu.open = false;
@@ -95,7 +120,7 @@ export async function paperPage(id, stale) {
   app.querySelector("#archive").onclick = (e) => busy(e.currentTarget, "Saving…", async () => {
     await api(`/papers/${id}`, { method: "PATCH", json: { archived: !p.archived } });
     toast(p.archived ? "Restored to your library." : "Archived. Find it under Archived in the Library.");
-    paperPage(id, stale);
+    paperPage(id, stale, tab);
   });
   app.querySelector("#delete").onclick = (e) => {
     if (!confirm(`Delete "${p.title}"? Its PDF, notes and explanations are removed too. This can't be undone.`)) return;
@@ -106,7 +131,45 @@ export async function paperPage(id, stale) {
     });
   };
   app.querySelectorAll(".pdf-input").forEach((input) => input.addEventListener("change", (e) => uploadPdf(id, e.target.files[0])));
-  app.querySelector("#refs-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Loading…", () => loadRefs(p)));
+}
+
+const preparingNote = (what) => `<div class="preparing"><span class="dot-pulse" aria-hidden="true"></span>
+  <p>Claude is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
+
+function renderOverview(box, p, settings) {
+  const s = p.skim;
+  const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
+  const fold = (title, body, open = false) => body ? `<details class="fold"${open ? " open" : ""}><summary>${title}</summary>${body}</details>` : "";
+  const abstract = p.abstract ? fold("Abstract", `<p class="fold-text">${esc(p.abstract)}</p>`, !s) : "";
+  if (!s) {
+    box.innerHTML = p.preparing ? `${preparingNote("its key points")}${abstract}`
+      : settings.ai_ready && p.text ? `<h2>Key points</h2><p class="hint">A first pass on the paper in plain English, before you read it.</p>
+          <button class="button" id="skim-btn">Get key points</button>${abstract}`
+      : `<p class="hint">${p.text ? `Set up Claude in <a href="#/settings">Settings</a> to get key points, words and questions.`
+          : "Upload the PDF to get key points."}</p>${abstract}`;
+    box.querySelector("#skim-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Reading the paper…", async () => {
+      p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
+      renderOverview(box, p, settings);
+    }));
+    return;
+  }
+  // Older key points have fewer fields; show what's there.
+  box.innerHTML = `
+    ${s.tldr ? `<p class="tldr">${esc(s.tldr)}</p>` : ""}
+    <div class="callouts">
+      <div class="callout"><span class="callout-label">Verdict</span><p>${esc(s.verdict)}</p></div>
+      ${s.relevance ? `<div class="callout"><span class="callout-label">For your goal</span><p>${esc(s.relevance)}</p></div>` : ""}
+    </div>
+    ${s.key_idea ? `<p class="key-idea"><span class="callout-label">Key idea</span>${esc(s.key_idea)}</p>` : ""}
+    ${fold("Reading plan", s.reading_plan?.length ? list(s.reading_plan) : "", true)}
+    ${fold("Questions to keep in mind", s.questions?.length ? list(s.questions) : "")}
+    ${fold("Problem and method", `${s.problem ? `<p class="fold-text">${esc(s.problem)}</p>` : ""}${s.method ? `<p class="fold-text">${esc(s.method)}</p>` : ""}`)}
+    ${fold("What's new", s.contributions?.length ? list(s.contributions) : "")}
+    ${fold("Results", s.results?.length ? list(s.results) : "")}
+    ${fold("Limitations", s.limitations?.length ? list(s.limitations) : "")}
+    ${fold("Figures to look at", s.figures?.length ? list(s.figures) : "")}
+    ${fold("Read closely", s.read_closely?.length ? list(s.read_closely) : "")}
+    ${abstract}`;
 }
 
 function editDetails(p, goals) {
@@ -149,41 +212,17 @@ async function uploadPdf(id, file) {
   } catch (e) { toast(e.message); }
 }
 
-function renderSkim(p) {
-  const box = app.querySelector("#skim");
-  const s = p.skim;
-  const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
-  if (!s) {
-    box.innerHTML = `<h2>Skim before you read</h2>
-      <p class="skim-intro">A first pass in the style Andrew Ng recommends: what problem it tackles, what's new,
-      how it works, what it shows, where it falls short, and which sections deserve a close read.</p>
-      <button class="button" id="skim-btn">Skim this paper</button>`;
-  } else {
-    box.innerHTML = `<div class="section-bar"><h2>Key points</h2>
-        <button class="button quiet" id="skim-btn">Redo</button></div>
-      <p class="verdict">${esc(s.verdict)}</p>
-      <div class="skim">
-        <h3>Problem</h3><p>${esc(s.problem)}</p>
-        <h3>Contributions</h3>${list(s.contributions)}
-        <h3>Method</h3><p>${esc(s.method)}</p>
-        <h3>Results</h3>${list(s.results)}
-        <h3>Limitations</h3>${list(s.limitations)}
-        <h3>Read closely</h3>${list(s.read_closely)}
-      </div>`;
+async function loadRefs(box, p) {
+  if (!p.external_id && !p.text) {
+    box.innerHTML = `<p class="faint">Upload the PDF to see this paper's references.</p>`;
+    return;
   }
-  box.querySelector("#skim-btn").onclick = (e) => busy(e.currentTarget, "Reading the paper…", async () => {
-    p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
-    renderSkim(p);
-  });
-}
-
-async function loadRefs(p) {
-  const box = app.querySelector("#refs");
+  box.innerHTML = p.refs ? "" : (p.preparing ? preparingNote("its references") : loading("Loading references"));
   let refs;
   try { refs = await api(`/papers/${p.id}/references`); }
   catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
-  app.querySelector("#refs-btn")?.remove();
-  box.innerHTML = refs.length ? `<div class="sheet list">${refs.map((r, i) => `<div class="ref">
+  box.innerHTML = refs.length ? `<p class="hint">Pick one to read next; the map remembers which paper led you where.</p>
+    <div class="list">${refs.map((r, i) => `<div class="ref">
       <span><span class="ref-title">${esc(r.title)}</span><span class="result-cite">${cite(r)}</span></span>
       ${r.library_id ? `<a class="button quiet" href="#/papers/${r.library_id}">Open</a>`
         : `<button class="button secondary" data-ref="${i}">Read this</button>`}</div>`).join("")}</div>`
@@ -195,6 +234,25 @@ async function loadRefs(p) {
       location.hash = `#/papers/${added.id}`;
     });
   };
+}
+
+// A short burst of sprinkles when you finish a paper.
+export function celebrate() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const colors = ["#1d3fbb", "#1d7a4e", "#e2b84b", "#b42318", "#8ea6ff"];
+  const layer = document.createElement("div");
+  layer.className = "sprinkles";
+  layer.innerHTML = Array.from({ length: 90 }, () => {
+    const x = Math.random() * 100;
+    const delay = Math.random() * 0.4;
+    const duration = 1.6 + Math.random() * 1.2;
+    const drift = (Math.random() - 0.5) * 200;
+    const turn = Math.random() * 720 - 360;
+    return `<i style="left:${x}vw;background:${colors[Math.floor(Math.random() * colors.length)]};
+      animation-delay:${delay}s;animation-duration:${duration}s;--drift:${drift}px;--turn:${turn}deg"></i>`;
+  }).join("");
+  document.body.append(layer);
+  setTimeout(() => layer.remove(), 3500);
 }
 
 // ---------- Reader ----------
@@ -222,7 +280,6 @@ function markTerms(html, seen = new Set()) {
 const ZOOM_KEY = "papers.pdfZoom";
 const savedZoom = () => { try { return Number(localStorage.getItem(ZOOM_KEY)) || 1; } catch { return 1; } };
 const saveZoom = (z) => { try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* not remembered */ } };
-const MODE_LABEL = { simplify: "Simplified", translate: "Translated" };
 
 export async function readerPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
@@ -246,9 +303,6 @@ export async function readerPage(id, stale) {
     <div class="reader-bar" id="bar">
       <div class="reader-bar-inner">
         <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
-        <div class="segmented small" role="group" aria-label="Mode" id="modes">
-          <button data-track="read" class="active" title="Time spent reading counts towards your progress">Reading</button>
-          <button data-track="skim" title="Jump around freely; nothing is recorded">Skimming</button></div>
         ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
@@ -257,32 +311,37 @@ export async function readerPage(id, stale) {
           <button class="button quiet small zoom-value num" data-zoom="fit" title="Fit to width">100%</button>
           <button class="button quiet small" data-zoom="in" title="Zoom in (+)">+</button></div>
         ${readingPrefsMenu()}
-        <span class="reader-pct num" id="pct"></span>
-        <button class="button secondary small" id="toggle-notes" title="Notes and questions (n)">Notes &amp; questions</button>
-        <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
+        <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
+        <button class="button secondary small" id="toggle-notes" title="Ask Claude, words, your notes (n)">Ask &amp; notes</button>
       </div>
-      <div class="strip" id="strip" title="Read parts of the paper. Click to jump."><span class="strip-view" id="strip-view"></span></div>
-      <div class="skim-note nudge" id="nudge" hidden>You've read most of this paper.
-        <button class="button small" id="nudge-finish">Mark as finished</button>
-        <button class="button quiet small" id="nudge-later">Not yet</button></div>
-      <div class="skim-note" id="skim-note" hidden>Skimming: nothing you do here counts as reading.
-        <button class="button quiet small" id="back-to-saved">Back to where you stopped</button></div>
+      <div class="strip" id="strip" title="Parts you've read. Click to jump."><span class="strip-view" id="strip-view"></span></div>
     </div>
     <div class="reader-scroll" id="scroller"></div>
-    <aside class="notes" id="notes" aria-label="Notes and questions">
-      <div class="notes-head"><h2>My notes</h2><button class="button quiet small" id="close-notes">Close</button></div>
-      ${notesBox(p, 5)}
-      <h2 class="ask-title">Ask about this paper</h2>
-      <p class="hint">Select a passage in the paper and press <kbd>e</kbd>, or ask anything here. Claude answers with the whole paper in mind.</p>
-      <form id="ask" class="ask">
-        <input id="question" placeholder="How does this differ from earlier work?">
-        <textarea id="passage" rows="3" placeholder="Passage to explain (optional)"></textarea>
-        <button class="button small">Ask</button>
-      </form>
-      <div id="answers"></div>
-      <h2 class="ask-title">Vocabulary</h2>
-      <div id="reader-vocab" class="reader-vocab"></div>
+    <aside class="notes" id="notes" aria-label="Ask, words and notes">
+      <div class="panel-head">
+        <div class="panel-tabs" role="tablist">
+          <button role="tab" data-pane="ask" aria-selected="true">Ask</button>
+          <button role="tab" data-pane="words" aria-selected="false">Words</button>
+          <button role="tab" data-pane="notes" aria-selected="false">Notes</button>
+        </div>
+        <button class="button quiet small" id="close-notes" title="Close (n)">Close</button>
+      </div>
+      <div class="pane pane-ask" data-pane="ask">
+        <div class="thread" id="thread">
+          <div class="thread-empty">
+            <p><strong>Select any text in the paper</strong> to explain, simplify, translate or hear it.</p>
+            <p>Or ask anything below. Claude answers with the whole paper in mind.</p>
+          </div>
+        </div>
+        <form id="ask" class="composer">
+          <textarea id="question" rows="2" placeholder="Ask anything about this paper…"></textarea>
+          <button class="button small">Ask</button>
+        </form>
+      </div>
+      <div class="pane" data-pane="words" hidden><div id="reader-vocab" class="reader-vocab"></div></div>
+      <div class="pane" data-pane="notes" hidden>${notesBox(p, 14)}</div>
     </aside>
+    <div class="finish-card sheet" id="finish-card" role="dialog" aria-live="polite" hidden></div>
     <div class="sel-bar" id="pop" role="toolbar" aria-label="Selected text" hidden>
       <button data-sel="explain" title="Explain it with the whole paper in mind (e)">Explain</button>
       <button data-sel="simplify" title="Rewrite it in simple English">Simplify</button>
@@ -295,7 +354,14 @@ export async function readerPage(id, stale) {
   // The paper scrolls in this panel (both views), below the reader bar.
   const scroller = $("#scroller");
   const pop = $("#pop");
-  const setOpen = (open) => document.body.classList.toggle("notes-open", open);
+  // The side panel: Ask, Words or Notes, one at a time.
+  const setOpen = (open, pane) => {
+    document.body.classList.toggle("notes-open", open);
+    if (!pane) return;
+    app.querySelectorAll(".panel-tabs [data-pane]").forEach((b) => b.setAttribute("aria-selected", b.dataset.pane === pane));
+    app.querySelectorAll(".pane").forEach((el) => (el.hidden = el.dataset.pane !== pane));
+    if (pane === "ask") setTimeout(() => $("#thread").scrollTo(0, $("#thread").scrollHeight));
+  };
   const placeScroller = () => document.body.style.setProperty("--reader-top", `${$("#bar").offsetHeight}px`);
   const barObserver = new ResizeObserver(placeScroller);
   barObserver.observe($("#bar"));
@@ -305,10 +371,9 @@ export async function readerPage(id, stale) {
   const scrollToPosition = (position) => (scroller.scrollTop = position * maxScroll());
   const scrollToElement = (el) =>
     (scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16);
-  const endBox = `<div class="article-end">
-      <p>That's the end of the paper.</p>
-      <button class="button" data-finish>I've finished, quiz me</button>
-    </div>`;
+  const endBox = `<div class="article-end">${p.status === "read"
+    ? `<p>You've finished this paper.</p>${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">Test yourself</a>` : ""}`
+    : `<p>That's the end of the paper.</p><button class="button" data-finish>Mark as finished</button>`}</div>`;
   let pdf = null;
   let targets = []; // "Go to…" destinations for the current view: { label, go, page? }
 
@@ -366,12 +431,10 @@ export async function readerPage(id, stale) {
   const tracker = startTracker({ scroller, paper: p, words, onRead: () => paintStrip() });
   // Papers tracked the old way keep their percentage until real reading overtakes it (same rule as the server).
   const legacy = p.read_slices ? 0 : p.progress;
-  let nudged = p.status === "read"; // offer to finish once, when most of the paper has been read
   const paintStrip = () => {
     const read = Math.max(legacy, tracker.bits.filter((b) => b === "1").length / SLICES);
     $("#strip").style.background = stripBackground(tracker.bits);
     $("#pct").textContent = `${pct(read)} read`;
-    if (!nudged && read >= 0.9) { nudged = true; $("#nudge").hidden = false; }
   };
   const paintView = () => {
     const height = Math.max(1, scroller.scrollHeight);
@@ -393,7 +456,7 @@ export async function readerPage(id, stale) {
   const onHide = () => flush(true);
   addEventListener("pagehide", onHide);
 
-  scroller.addEventListener("scroll", () => { paintView(); pop.hidden = true; }, { passive: true });
+  scroller.addEventListener("scroll", () => { paintView(); pop.hidden = true; checkFinished(); }, { passive: true });
 
   $("#strip").onclick = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -403,20 +466,6 @@ export async function readerPage(id, stale) {
     targets[e.target.value]?.go();
     e.target.value = "";
   };
-  $("#modes").onclick = (e) => {
-    const b = e.target.closest("[data-track]");
-    if (!b || b.dataset.track === tracker.mode) return;
-    flush();
-    tracker.setMode(b.dataset.track);
-    app.querySelectorAll("[data-track]").forEach((x) => x.classList.toggle("active", x === b));
-    $("#skim-note").hidden = tracker.mode !== "skim";
-    document.body.classList.toggle("skimming", tracker.mode === "skim");
-    if (tracker.mode === "skim" && p.status === "new") {
-      p.status = "skimmed";
-      api(`/papers/${id}/progress`, { method: "PUT", json: { position: saved, mode: "skim" } }).catch(() => {});
-    }
-  };
-  $("#back-to-saved").onclick = () => scrollToPosition(saved);
   $("#views")?.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-view]");
     if (!b || b.dataset.view === view) return;
@@ -426,25 +475,43 @@ export async function readerPage(id, stale) {
   });
 
   // ----- Explanations -----
-  const answerHtml = (e) => `${MODE_LABEL[e.mode] ? `<p class="answer-mode">${MODE_LABEL[e.mode]}</p>` : ""}${quote(e.passage)}
-    ${e.question ? `<p class="answer-q">${esc(e.question)}</p>` : ""}<div class="answer-body">${e.answer ? markdown(e.answer) : loading("Thinking")}</div>`;
+  // The Ask tab is a conversation: what you asked (or selected), then Claude's answer.
+  const ACTION = { explain: "Explain", simplify: "Simplify", translate: "Translate" };
+  const turnHtml = (e) => `<div class="msg msg-you">
+      ${e.passage ? `<span class="msg-action">${ACTION[e.mode] || "Explain"}</span>${quote(e.passage)}` : ""}
+      ${e.question ? `<p>${esc(e.question)}</p>` : ""}</div>
+    <div class="msg msg-claude">${e.answer ? markdown(e.answer) : e.error ? `<p class="error">${esc(e.error)}</p>` : `<p class="typing">Thinking…</p>`}
+      ${e.answer && canSpeak() ? `<button class="link-button msg-listen">Listen</button>` : ""}</div>`;
+  const thread = $("#thread");
+  const toBottom = () => (thread.scrollTop = thread.scrollHeight);
+  const addTurn = (e) => {
+    thread.querySelector(".thread-empty")?.remove();
+    const turn = document.createElement("div");
+    turn.className = "turn";
+    turn.innerHTML = turnHtml(e);
+    thread.append(turn);
+    toBottom();
+    return turn;
+  };
   const explain = async (passage, question = "", mode = "explain") => {
-    setOpen(true);
-    const item = document.createElement("div");
-    item.className = "answer";
-    item.innerHTML = answerHtml({ passage, question, mode, answer: "" });
-    $("#answers").prepend(item);
+    setOpen(true, "ask");
+    const turn = addTurn({ passage, question, mode });
     try {
       const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question, mode } });
-      item.innerHTML = answerHtml({ passage, question, mode, answer: r.explanation });
-    } catch (e) {
-      item.querySelector(".answer-body").innerHTML = `<p class="error">${esc(e.message)}</p>`;
+      turn.innerHTML = turnHtml({ passage, question, mode, answer: r.explanation });
+    } catch (err) {
+      turn.innerHTML = turnHtml({ passage, question, mode, error: err.message });
     }
+    toBottom();
   };
+  thread.addEventListener("click", (e) => {
+    const listen = e.target.closest(".msg-listen");
+    if (listen) speaking() ? stopSpeaking() : speak(listen.closest(".msg").innerText.replace(/Listen$/, ""));
+  });
 
-  // Earlier explanations for this paper, newest first.
+  // Earlier questions for this paper, oldest first, like a conversation.
   api(`/papers/${id}/explanations`).then((items) => {
-    $("#answers").innerHTML = items.map((e) => `<div class="answer">${answerHtml(e)}</div>`).join("");
+    items.reverse().forEach((e) => addTurn(e));
   }).catch(() => {});
 
   // Mark explained passages in the reflowed text; the PDF text layer is absolutely positioned, so leave it alone.
@@ -503,7 +570,7 @@ export async function readerPage(id, stale) {
         p.glossary = await api(`/papers/${id}/words`, { method: "POST", json: { term: text, context: sentence } });
         renderVocab($("#reader-vocab"), p, { compact: true });
         const w = p.glossary.find((x) => x.term.toLowerCase() === text.toLowerCase());
-        setOpen(true);
+        setOpen(true, "words");
         toast(w ? `${w.term}: ${w.meaning}` : "Added.");
       } catch (err) { toast(err.message); }
       return;
@@ -515,28 +582,66 @@ export async function readerPage(id, stale) {
 
   $("#ask").onsubmit = (e) => {
     e.preventDefault();
-    const passage = $("#passage").value.trim();
     const question = $("#question").value.trim();
-    if (!passage && !question) return $("#question").focus();
-    explain(passage, question);
-    $("#passage").value = $("#question").value = "";
+    if (!question) return $("#question").focus();
+    explain("", question);
+    $("#question").value = "";
+  };
+  $("#question").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#ask").requestSubmit(); }
+  });
+  app.querySelector(".panel-tabs").onclick = (e) => {
+    const b = e.target.closest("[data-pane]");
+    if (b) setOpen(true, b.dataset.pane);
   };
   $("#toggle-notes").onclick = () => setOpen(!document.body.classList.contains("notes-open"));
   $("#close-notes").onclick = () => setOpen(false);
 
-  const finish = (e) => busy(e.currentTarget, "Wrapping up…", async () => {
+  // ----- Finishing: asked once you reach the end of the main text (before the references),
+  // and again at the very end if you said "not yet". -----
+  const card = $("#finish-card");
+  let asked = 0; // 0: not yet asked, 1: asked at the end of the main text, 2: asked at the very end
+  const mainEndReached = () => {
+    const refs = view === "text" && [...scroller.querySelectorAll(".section-head")].find((h) => /references|bibliography/i.test(h.textContent));
+    const bottom = scroller.scrollTop + scroller.clientHeight;
+    if (refs) return refs.getBoundingClientRect().top < scroller.getBoundingClientRect().bottom - 40;
+    return bottom >= scroller.scrollHeight * Math.min(p.main_end, 0.98);
+  };
+  const atVeryEnd = () => scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 40;
+  const checkFinished = () => {
+    if (p.status === "read" || !card.hidden) return;
+    if ((asked === 0 && mainEndReached()) || (asked === 1 && atVeryEnd())) {
+      asked += 1;
+      askFinished();
+    }
+  };
+  const askFinished = () => {
+    card.innerHTML = `<p class="finish-q">Did you finish reading this paper?</p>
+      <div class="finish-actions"><button class="button" data-finish>Yes, I finished</button>
+      <button class="button quiet" id="not-yet">Not yet</button></div>`;
+    card.hidden = false;
+    card.querySelector("#not-yet").onclick = () => (card.hidden = true);
+  };
+  const finish = (button) => busy(button, "Saving…", async () => {
     flush();
     const done = await api(`/papers/${id}/finish`, { method: "POST" });
-    location.hash = done.quiz?.length ? `#/papers/${id}/quiz` : `#/papers/${id}`;
+    p.status = "read";
+    celebrate();
+    $("#pct").textContent = "100% read";
+    card.innerHTML = `<p class="finish-q">Nice work, that's another paper read.</p>
+      <p class="hint">${done.quiz?.length ? "A few review questions are ready whenever you want to check what stuck." : "It's marked as read."}</p>
+      <div class="finish-actions">${done.quiz?.length ? `<a class="button" href="#/papers/${id}/quiz">Test yourself</a>` : ""}
+      <button class="button quiet" id="keep-reading">Keep reading</button></div>`;
+    card.hidden = false;
+    card.querySelector("#keep-reading").onclick = () => (card.hidden = true);
+    scroller.querySelector(".article-end")?.replaceChildren(Object.assign(document.createElement("p"), { textContent: "You've finished this paper." }));
   });
-  $("#nudge-finish").onclick = finish;
-  $("#nudge-later").onclick = () => ($("#nudge").hidden = true);
-  $("#finish").onclick = p.status === "read" ? () => (location.hash = `#/papers/${id}`) : finish;
+  card.addEventListener("click", (e) => { const b = e.target.closest("[data-finish]"); if (b) finish(b); });
 
   bindNotes(p, $("#notes"));
   renderVocab($("#reader-vocab"), p, { compact: true });
   scroller.addEventListener("click", (e) => {
-    if (e.target.closest("[data-finish]")) return finish({ currentTarget: e.target.closest("[data-finish]") });
+    if (e.target.closest("[data-finish]")) return finish(e.target.closest("[data-finish]"));
     // Tap or click an underlined word to see what it means (hover works too on a computer).
     const term = e.target.closest(".term");
     if (term && !getSelection().toString()) toast(`${term.textContent}: ${term.title}`);
@@ -571,13 +676,12 @@ export async function readerPage(id, stale) {
   // Keyboard: s = skim/read, n = notes panel, e = explain, l = listen, +/- = zoom, ? = help.
   const onKey = (e) => {
     if (e.target.closest?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === "s") app.querySelector(`[data-track=${tracker.mode === "read" ? "skim" : "read"}]`).click();
-    else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
+    if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
     else if (e.key === "e" && !pop.hidden) pop.querySelector("[data-sel=explain]").click();
     else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
     else if ((e.key === "+" || e.key === "=") && pdf) pdf.zoomBy(1.25, middle());
     else if (e.key === "-" && pdf) pdf.zoomBy(0.8, middle());
-    else if (e.key === "?") showShortcuts([["s", "Switch between reading and skimming"], ["n", "Open or close notes and questions"],
+    else if (e.key === "?") showShortcuts([["n", "Open or close Ask, Words and Notes"],
       ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
     else return;
     e.preventDefault();
@@ -594,7 +698,7 @@ export async function readerPage(id, stale) {
     barObserver.disconnect();
     removeEventListener("pagehide", onHide);
     pdf?.close();
-    document.body.classList.remove("notes-open", "skimming");
+    document.body.classList.remove("notes-open");
     document.body.style.removeProperty("--reader-top");
   };
 }

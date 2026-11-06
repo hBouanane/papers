@@ -12,10 +12,11 @@ export function setSpeechRate(rate) {
   try { localStorage.setItem(RATE_KEY, String(rate)); } catch { /* not remembered */ }
 }
 
-// Prefer natural-sounding English voices when the system has them.
-function englishVoice() {
-  const voices = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
-  const score = (v) => (/natural|neural|online|google/i.test(v.name) ? 2 : 0) + (/en-(us|gb)/i.test(v.lang) ? 1 : 0);
+// An American English voice, the most natural-sounding one the system has
+// (Edge's "Natural" voices and Chrome's "Google US English" sound best).
+function usVoice() {
+  const voices = speechSynthesis.getVoices().filter((v) => /^en[-_]us$/i.test(v.lang));
+  const score = (v) => (/natural|neural|online/i.test(v.name) ? 3 : 0) + (/google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
   return voices.sort((a, b) => score(b) - score(a))[0] || null;
 }
 
@@ -25,7 +26,7 @@ export function speak(text, { rate = speechRate(), onEnd } = {}) {
   const utterance = new SpeechSynthesisUtterance(text.replace(/\s+/g, " ").trim());
   utterance.lang = "en-US";
   utterance.rate = rate;
-  const voice = englishVoice();
+  const voice = usVoice();
   if (voice) utterance.voice = voice;
   if (onEnd) { utterance.onend = onEnd; utterance.onerror = onEnd; }
   speechSynthesis.speak(utterance);
