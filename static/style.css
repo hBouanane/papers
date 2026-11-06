@@ -31,6 +31,7 @@
   --shadow-soft: 0 2px 8px rgb(20 24 32 / .06);
   --shadow-card: 0 1px 2px rgb(20 24 32 / .04), 0 2px 8px rgb(20 24 32 / .03);
   --page-filter: none;
+  --dark-page: #1b1e23; /* dark PDF pages: a real dark page even in light mode */
   --ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
   --paper: "STIX Two Text", "Times New Roman", serif;
   --r-panel: 8px;
@@ -41,7 +42,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+    --dark-page: #050607; --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
     --pop: #f2f4f6; --on-pop: #050607;
     --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
     --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
@@ -57,7 +58,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+  --dark-page: #050607; --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
   --pop: #f2f4f6; --on-pop: #050607;
   --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
@@ -580,7 +581,7 @@ body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
 body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }
 /* Dark pages are recoloured by PDF.js itself (text and lines only, images keep their colours). */
 body.pages-dark .view-pdf .pdfViewer .page canvas { filter: none; }
-body.pages-dark .view-pdf .pdfViewer .page { background: var(--sheet); } /* dark pages look like the app's cards */
+body.pages-dark .view-pdf .pdfViewer .page { background: var(--dark-page); } /* like the cards in dim and dark mode */
 ::selection { background: color-mix(in srgb, var(--ink) 32%, transparent); }
 .menu:not([open]) > .menu-list { display: none; } /* a closed menu must not widen the page */
 @media (max-width: 640px) { .actions .menu-list { left: auto; right: 0; } }
@@ -634,7 +635,7 @@ body.skimming .strip { opacity: .35; }
    background, so they read as raised, like white cards on grey in light mode. */
 :root[data-theme="dim"] {
   color-scheme: dark;
-  --desk: #0e1726; --sheet: #152238; --raised: #1c2c46; --field: #111b2e; --header: #152238;
+  --dark-page: #152238; --desk: #0e1726; --sheet: #152238; --raised: #1c2c46; --field: #111b2e; --header: #152238;
   --pop: #f2f5fa; --on-pop: #0e1726;
   --selected: #f2f5fa; --on-selected: #0e1726;
   --graphite: #e1e8f2; --heading: #ffffff; --reading: #d6dfeb; --pencil: #93a5bf;

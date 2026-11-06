@@ -21,9 +21,10 @@ async function load() {
 // `after` is HTML placed below the last page (e.g. an end-of-paper box).
 // `dark` recolours the page background and its text and lines, but leaves images alone
 // (PDF.js's high-contrast mode, which Firefox uses), unlike inverting the whole page.
-// The page takes the colour of the app's cards, so it matches dim and dark mode.
+// In dim and dark mode the page takes the colour of the app's cards; in light mode it's a plain dark grey
+// (the cards are white there, and light text on a white page would look faded).
 const darkPage = () => ({
-  background: getComputedStyle(document.documentElement).getPropertyValue("--sheet").trim() || "#0b0c0e",
+  background: getComputedStyle(document.documentElement).getPropertyValue("--dark-page").trim() || "#1b1e23",
   foreground: "#dfe3e8",
 });
 
