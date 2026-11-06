@@ -576,6 +576,8 @@ abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset:
 
 /* PDF pages: dimmed in dark mode by default; Aa > Pages lets you choose */
 .view-pdf .pdfViewer .page canvas { filter: var(--page-filter); }
+body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
+body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }
 /* Dark pages are recoloured by PDF.js itself (text and lines only, images keep their colours). */
 body.pages-dark .view-pdf .pdfViewer .page canvas { filter: none; }
 body.pages-dark .view-pdf .pdfViewer .page { background: var(--sheet); } /* dark pages look like the app's cards */
