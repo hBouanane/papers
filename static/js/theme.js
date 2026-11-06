@@ -36,7 +36,7 @@ export function setTheme(theme, from) {
   setTimeout(once, 300);
   document.startViewTransition(once).ready.then(() => document.documentElement.animate(
     { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-    { duration: 500, easing: "cubic-bezier(.4, 0, .2, 1)", pseudoElement: "::view-transition-new(root)" },
+    { duration: 800, easing: "cubic-bezier(.4, 0, .2, 1)", pseudoElement: "::view-transition-new(root)" },
   )).catch(() => {});
 }
 
@@ -44,5 +44,9 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-theme-pick]");
   if (b) setTheme(b.dataset.themePick, [e.clientX, e.clientY]);
 });
+// After picking with the mouse, close the switch again when the pointer leaves it.
+document.querySelectorAll(".theme-switch").forEach((s) => s.addEventListener("mouseleave", () => {
+  if (s.contains(document.activeElement)) document.activeElement.blur();
+}));
 system.addEventListener("change", () => { apply(); document.dispatchEvent(new CustomEvent("theme-changed")); });
 apply();

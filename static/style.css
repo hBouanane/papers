@@ -29,7 +29,7 @@
   --shadow-pop: 0 12px 32px rgb(20 24 32 / .14);
   --shadow-panel: -16px 0 40px rgb(20 24 32 / .12);
   --shadow-soft: 0 2px 8px rgb(20 24 32 / .06);
-  --shadow-card: 0 1px 2px rgb(20 24 32 / .05), 0 4px 14px rgb(20 24 32 / .05);
+  --shadow-card: 0 1px 2px rgb(20 24 32 / .04), 0 2px 8px rgb(20 24 32 / .03);
   --page-filter: none;
   --ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
   --paper: "STIX Two Text", "Times New Roman", serif;
@@ -51,7 +51,7 @@
     --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
     --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
     --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .05), 0 0 0 1px rgb(255 255 255 / .03), 0 0 26px rgb(255 255 255 / .07);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 16px rgb(255 255 255 / .035);
     --page-filter: none;
 }
 }
@@ -67,7 +67,7 @@
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
   --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
   --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .05), 0 0 0 1px rgb(255 255 255 / .03), 0 0 26px rgb(255 255 255 / .07);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 16px rgb(255 255 255 / .035);
   --page-filter: none;
 }
 
@@ -633,7 +633,7 @@ body.skimming .strip { opacity: .35; }
 /* Dim: between light and dark. Slate grey instead of near-black, for evenings or a bright room. */
 :root[data-theme="dim"] {
   color-scheme: dark;
-  --desk: #343a43; --sheet: #3d434d; --raised: #474e58; --field: #30353d; --header: #3d434d;
+  --desk: #343a43; --sheet: #393f48; --raised: #434953; --field: #2f343c; --header: #393f48;
   --pop: #f2f4f6; --on-pop: #2a2f36;
   --selected: #f2f4f6; --on-selected: #2a2f36;
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #dde1e6; --pencil: #a8b0ba;
@@ -643,23 +643,28 @@ body.skimming .strip { opacity: .35; }
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .4), 0 0 0 1px rgb(255 255 255 / .08);
   --shadow-panel: -16px 0 40px rgb(0 0 0 / .35);
   --shadow-soft: 0 2px 10px rgb(0 0 0 / .3);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / .25), 0 6px 18px rgb(0 0 0 / .28);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / .18), 0 3px 10px rgb(0 0 0 / .16);
   --page-filter: none;
 }
 
 /* The sections in the bar are plain words, the current one shown as a filled pill (no box around them). */
 .site-header .nav.segmented { background: transparent; border: 0; padding: 0; gap: 4px; }
-/* Theme switch: a pill in the bottom-left corner; the knob slides to the theme you pick. */
-.theme-switch { position: fixed; left: 16px; bottom: 16px; z-index: 30; display: grid; grid-template-columns: repeat(3, 1fr);
-  padding: 3px; background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-soft); }
-.theme-switch button { position: relative; z-index: 1; border: 0; background: transparent; border-radius: 999px; padding: 5px 13px;
-  font: 700 13px var(--ui); color: var(--pencil); cursor: pointer; transition: color .3s; }
+/* Theme switch: in the bottom-left corner it shows only the current theme's icon; pointing at it (or
+   focusing it) opens all three, and the knob slides to the one you pick. */
+.theme-switch { position: fixed; left: 16px; bottom: 16px; z-index: 30; display: flex; padding: 3px;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-soft); }
+.theme-switch button { position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 30px; padding: 0;
+  border: 0; background: transparent; border-radius: 999px; color: var(--pencil); cursor: pointer; overflow: hidden;
+  transition: width .45s cubic-bezier(.3, .8, .25, 1), opacity .45s, color .5s; }
+.theme-switch svg { width: 17px; height: 17px; flex-shrink: 0; }
 .theme-switch button:hover { color: var(--graphite); }
 .theme-switch button.active { color: var(--on-selected); }
-.theme-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: 999px;
-  background: var(--selected); transition: transform .35s cubic-bezier(.3, .8, .25, 1), background-color .35s; }
-.theme-switch[data-at="dim"] .theme-thumb { transform: translateX(100%); }
-.theme-switch[data-at="dark"] .theme-thumb { transform: translateX(200%); }
+.theme-switch:not(:hover):not(:focus-within) button:not(.active) { width: 0; opacity: 0; }
+.theme-thumb { position: absolute; top: 3px; left: 3px; width: 32px; height: 30px; border-radius: 999px;
+  background: var(--selected); transition: transform .6s cubic-bezier(.3, .8, .25, 1), background-color .5s; }
+.theme-switch[data-at="dim"] .theme-thumb { transform: translateX(32px); }
+.theme-switch[data-at="dark"] .theme-thumb { transform: translateX(64px); }
+.theme-switch:not(:hover):not(:focus-within) .theme-thumb { transform: none; }
 /* The new theme spreads out in a circle from where you clicked (theme.js); no cross-fade on top of it. */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 @media (prefers-reduced-motion: reduce) { .theme-thumb, .theme-switch button { transition: none; } }
