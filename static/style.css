@@ -40,11 +40,11 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --desk: #22262c; --sheet: #0b0c0e; --raised: #17191d; --field: #0b0c0e; --header: #0b0c0e;
-    --pop: #f2f4f6; --on-pop: #0b0c0e;
-    --selected: #f2f4f6; --on-selected: #0b0c0e; /* the reverse of light mode: white with black text */
+    --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+    --pop: #f2f4f6; --on-pop: #050607;
+    --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
     --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-    --line: #3a3f47; --line-soft: #23262b;
+    --line: #353a42; --line-soft: #1d2024;
     --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
     --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
     --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
@@ -55,11 +55,11 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --desk: #22262c; --sheet: #0b0c0e; --raised: #17191d; --field: #0b0c0e; --header: #0b0c0e;
-  --pop: #f2f4f6; --on-pop: #0b0c0e;
-  --selected: #f2f4f6; --on-selected: #0b0c0e; /* the reverse of light mode: white with black text */
+  --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+  --pop: #f2f4f6; --on-pop: #050607;
+  --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-  --line: #3a3f47; --line-soft: #23262b;
+  --line: #353a42; --line-soft: #1d2024;
   --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
   --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
