@@ -39,11 +39,11 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --desk: #0d0f12; --sheet: #181b20; --raised: #22262d; --field: #111317; --header: #0d0f12;
+    --desk: #08090b; --sheet: #1c2026; --raised: #272c34; --field: #121519; --header: #08090b;
     --pop: #2a2f38; --on-pop: #f2f4f6;
-    --selected: #f2f4f6; --on-selected: #111317; /* the reverse of light mode: white with black text */
+    --selected: #f2f4f6; --on-selected: #08090b; /* the reverse of light mode: white with black text */
     --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-    --line: #31363e; --line-soft: #252930;
+    --line: #3d434d; --line-soft: #2d323a;
     --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
     --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
     --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
@@ -54,11 +54,11 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --desk: #0d0f12; --sheet: #181b20; --raised: #22262d; --field: #111317; --header: #0d0f12;
+  --desk: #08090b; --sheet: #1c2026; --raised: #272c34; --field: #121519; --header: #08090b;
   --pop: #2a2f38; --on-pop: #f2f4f6;
-  --selected: #f2f4f6; --on-selected: #111317; /* the reverse of light mode: white with black text */
+  --selected: #f2f4f6; --on-selected: #08090b; /* the reverse of light mode: white with black text */
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-  --line: #31363e; --line-soft: #252930;
+  --line: #3d434d; --line-soft: #2d323a;
   --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
   --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
@@ -629,11 +629,11 @@ body.skimming .strip { opacity: .35; }
 /* Dim: between light and dark. Slate grey instead of near-black, for evenings or a bright room. */
 :root[data-theme="dim"] {
   color-scheme: dark;
-  --desk: #1f2329; --sheet: #2a2f37; --raised: #343a43; --field: #23272d; --header: #1f2329;
+  --desk: #181b20; --sheet: #2c313a; --raised: #373d47; --field: #20242a; --header: #181b20;
   --pop: #3a4049; --on-pop: #f2f4f6;
-  --selected: #f2f4f6; --on-selected: #1f2329;
+  --selected: #f2f4f6; --on-selected: #181b20;
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #dde1e6; --pencil: #a8b0ba;
-  --line: #414852; --line-soft: #353b44;
+  --line: #4d5561; --line-soft: #3b414b;
   --ink: #a9bbfb; --ink-hover: #c5d1fc; --ink-fill: #4567e0; --ink-fill-hover: #5374e8; --on-ink: #ffffff;
   --ink-tint: #303a5a; --done: #6acb98; --partial: #e6bd5c; --miss: #f59a92;
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .4), 0 0 0 1px rgb(255 255 255 / .08);
