@@ -673,3 +673,19 @@ body.skimming .strip { opacity: .35; }
 /* Long titles and words wrap instead of widening the page. */
 .paper-name, .card-title, .resume-title, .goal-text, .row-title { overflow-wrap: anywhere; }
 .container { min-width: 0; }
+
+/* PDF pages in the reader bar: white, dimmed or dark, the knob sliding like the theme switch. */
+.page-tone { display: inline-flex; align-items: center; gap: 8px; font: 700 14px var(--ui); color: var(--pencil); white-space: nowrap; }
+.page-tone[hidden] { display: none; }
+.tone-pill { position: relative; display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--desk); }
+.tone-pill button { position: relative; z-index: 1; display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0;
+  background: transparent; border-radius: 999px; color: var(--pencil); cursor: pointer; transition: color .4s; }
+.tone-pill button:hover { color: var(--graphite); }
+.tone-pill button.active { color: var(--on-selected); }
+.tone-pill svg { width: 15px; height: 15px; }
+.tone-thumb { position: absolute; top: 2px; left: 2px; width: 28px; height: 24px; border-radius: 999px; background: var(--selected);
+  transition: transform .5s cubic-bezier(.3, .8, .25, 1); }
+.page-tone[data-at="dim"] .tone-thumb { transform: translateX(28px); }
+.page-tone[data-at="dark"] .tone-thumb { transform: translateX(56px); }
+@media (max-width: 760px) { .page-tone { order: 3; } .page-tone-label { display: none; } }
+@media (prefers-reduced-motion: reduce) { .tone-thumb, .tone-pill button { transition: none; } }

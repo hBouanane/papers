@@ -20,19 +20,43 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   s.setProperty("--read-leading", prefs.leading);
   s.setProperty("--read-width", `${prefs.width}px`);
   s.setProperty("--read-font", prefs.font === "easy" ? "var(--ui)" : "var(--paper)");
-  // PDF pages: "auto" follows the app (white in light mode, dark in dim and dark mode).
-  const dark = darkPages(prefs);
+  // PDF pages: white, dimmed or dark. "auto" follows the app (white in light mode, dark in dim and dark mode).
+  const tone = pageTone(prefs);
+  const dark = tone === "dark";
   const before = document.body.classList.contains("pages-dark");
   document.body.classList.remove("pages-white", "pages-dim", "pages-dark");
-  if (dark) document.body.classList.add("pages-dark");
-  else if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
+  document.body.classList.add(`pages-${tone}`);
+  document.querySelectorAll(".page-tone").forEach((group) => {
+    group.dataset.at = tone;
+    group.querySelectorAll("[data-pages]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.pages === tone);
+      b.setAttribute("aria-pressed", b.dataset.pages === tone);
+    });
+  });
   // Dark pages are drawn by the PDF viewer itself, so it has to redraw when they change.
-  document.querySelectorAll("#dark-pages").forEach((b) => b.setAttribute("aria-checked", dark));
   if (before !== dark || (dark && themeChanged)) document.dispatchEvent(new CustomEvent("dark-pages-changed"));
 }
 
-export const pdfPagesDark = () => darkPages(readingPrefs());
-const darkPages = (prefs) => prefs.pages === "dark" || (prefs.pages === "auto" && currentTheme() !== "light");
+export const pdfPagesDark = () => pageTone(readingPrefs()) === "dark";
+const pageTone = (prefs) => ["white", "dim", "dark"].includes(prefs.pages) ? prefs.pages : currentTheme() === "light" ? "white" : "dark";
+
+export function setPageTone(tone) {
+  const p = readingPrefs();
+  p.pages = tone;
+  save(p);
+  applyReadingPrefs(p);
+}
+
+const ICON = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+// White, dimmed or dark PDF pages, in the reader bar (shown in the Original view).
+export const pageToneControl = () => `<div class="page-tone" id="page-tone" role="group" aria-label="PDF pages" hidden>
+  <span class="page-tone-label">Pages</span>
+  <span class="tone-pill"><span class="tone-thumb"></span>
+    <button type="button" data-pages="white" title="White pages" aria-label="White pages">${ICON('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>')}</button>
+    <button type="button" data-pages="dim" title="Dimmed pages" aria-label="Dimmed pages">${ICON('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>')}</button>
+    <button type="button" data-pages="dark" title="Dark pages (d)" aria-label="Dark pages">${ICON('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>')}</button>
+  </span>
+</div>`;
 let themeChanged = false;
 // Picking a theme hands the pages back to it (a Dark pages switch made in the reader was for that moment).
 document.addEventListener("theme-changed", () => {
@@ -44,10 +68,10 @@ document.addEventListener("theme-changed", () => {
   themeChanged = false;
 });
 
-// Dark PDF pages on and off (the Dark pages switch and the `d` key in the reader).
+// Dark PDF pages on and off (the `d` key in the reader).
 export function toggleDarkPages() {
   const p = readingPrefs();
-  p.pages = darkPages(p) ? "white" : "dark";
+  p.pages = pageTone(p) === "dark" ? "white" : "dark";
   save(p);
   applyReadingPrefs(p);
   return p.pages === "dark";

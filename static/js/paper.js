@@ -1,6 +1,6 @@
 import { api, app, bindNotes, busy, cite, esc, setBar, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { openPdf } from "./pdfview.js";
-import { bindReadingPrefs, pdfPagesDark, readingPrefsMenu, toggleDarkPages } from "./readprefs.js";
+import { bindReadingPrefs, pageToneControl, pdfPagesDark, readingPrefsMenu, setPageTone, toggleDarkPages } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
 import { renderPaperText } from "./textview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
@@ -312,7 +312,7 @@ export async function readerPage(id, stale) {
           <button class="button quiet small" data-zoom="in" title="Zoom in (+)">+</button></div>
         ${readingPrefsMenu()}
         <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
-        <button class="switch" id="dark-pages" role="switch" aria-checked="false" title="Dark PDF pages; they follow the theme until you switch (d)" hidden><span class="switch-track" aria-hidden="true"></span>Dark pages</button>
+        ${pageToneControl()}
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
         <button class="button secondary small" id="toggle-notes" title="Ask Claude, words, your notes (n)">Ask &amp; notes</button>
       </div>
@@ -421,7 +421,7 @@ export async function readerPage(id, stale) {
       ${pages.length ? `<optgroup label="Pages">${pages.map((t) => `<option value="${targets.indexOf(t)}">${esc(t.label)}</option>`).join("")}</optgroup>` : ""}`;
     $("#jump").hidden = !targets.length;
     $("#zoom").hidden = !pdf;
-    $("#dark-pages").hidden = view !== "pdf";
+    $("#page-tone").hidden = view !== "pdf";
     if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
     setTimeout(() => (settling = false), 800); // callers put you back where you were in the meantime
   };
@@ -457,7 +457,7 @@ export async function readerPage(id, stale) {
     }
   };
   $("#skim").onclick = () => setSkimming(tracker.mode !== "skim");
-  $("#dark-pages").onclick = () => toggleDarkPages();
+  $("#page-tone").onclick = (e) => { const b = e.target.closest("[data-pages]"); if (b) setPageTone(b.dataset.pages); };
   const paintView = () => {
     const height = Math.max(1, scroller.scrollHeight);
     const marker = $("#strip-view");
