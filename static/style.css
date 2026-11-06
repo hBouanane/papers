@@ -630,15 +630,15 @@ body.skimming .strip { opacity: .35; }
 .desk-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desk-link { margin-top: 8px; padding: 0; }
 
-/* Dim: between light and dark. Deep navy instead of grey: the cards are a clearly lighter blue than the
-   background, so they read as raised, like white cards on grey in light mode. */
+/* Dim: between light and dark, in navy. Like dark mode, the reverse of light: a lighter blue desk with
+   deep navy cards and bar. */
 :root[data-theme="dim"] {
   color-scheme: dark;
-  --desk: #0e1726; --sheet: #192840; --raised: #21334f; --field: #121e33; --header: #192840;
-  --pop: #f2f5fa; --on-pop: #0e1726;
-  --selected: #f2f5fa; --on-selected: #0e1726;
+  --desk: #1f3050; --sheet: #0f1a2d; --raised: #17243b; --field: #0b1525; --header: #0f1a2d;
+  --pop: #f2f5fa; --on-pop: #0f1a2d;
+  --selected: #f2f5fa; --on-selected: #0f1a2d;
   --graphite: #e1e8f2; --heading: #ffffff; --reading: #d6dfeb; --pencil: #93a5bf;
-  --line: #2d4263; --line-soft: #243754;
+  --line: #31476b; --line-soft: #1e2d47;
   --ink: #9cb8ff; --ink-hover: #bfd0ff; --ink-fill: #3f6ce4; --ink-fill-hover: #4d79ec; --on-ink: #ffffff;
   --ink-tint: #223a66; --done: #6acb98; --partial: #e6bd5c; --miss: #f59a92;
   --shadow-pop: 0 16px 40px rgb(2 8 20 / .5), 0 0 0 1px rgb(255 255 255 / .08);
