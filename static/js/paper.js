@@ -1,6 +1,6 @@
 import { api, app, bindNotes, busy, cite, esc, setBar, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { openPdf } from "./pdfview.js";
-import { bindReadingPrefs, pdfPagesDark, readingPrefsMenu, toggleDarkPages } from "./readprefs.js";
+import { bindReadingPrefs, pdfPagesDark, readingPrefsMenu } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
 import { renderPaperText } from "./textview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
@@ -706,15 +706,14 @@ export async function readerPage(id, stale) {
     else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
     else if ((e.key === "+" || e.key === "=") && pdf) pdf.zoomBy(1.25, middle());
     else if (e.key === "-" && pdf) pdf.zoomBy(0.8, middle());
-    else if (e.key === "d" && pdf) toast(toggleDarkPages() ? "Dark pages on (press d to turn off)." : "Dark pages off.");
-    else if (e.key === "?") showShortcuts([["s", "Skimming on or off (nothing counts while it's on)"], ["d", "Dark PDF pages on or off"], ["n", "Open or close Ask, Words and Notes"],
+    else if (e.key === "?") showShortcuts([["s", "Skimming on or off (nothing counts while it's on)"], ["n", "Open or close Ask, Words and Notes"],
       ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
     else return;
     e.preventDefault();
   };
   addEventListener("keydown", onKey);
   bindReadingPrefs($("#bar"));
-  // Switching dark pages reopens the PDF where you are.
+  // Switching the theme between light and dark reopens the PDF where you are.
   const onDarkPages = async () => {
     if (view !== "pdf") return;
     const position = positionNow();
