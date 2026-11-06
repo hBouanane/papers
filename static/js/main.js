@@ -1,4 +1,4 @@
-import { addFromLink, app, currentGoal, esc, looksLikePaperLink, showShortcuts, toast, uploadPdfs } from "./core.js";
+import { addFromLink, app, currentGoal, esc, looksLikePaperLink, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
 import { goalPage, goalsPage, libraryPage, mapPage, recallPage, settingsPage } from "./pages.js";
 import { paperPage, quizPage, readerPage } from "./paper.js";
 
@@ -23,6 +23,7 @@ async function render() {
   cleanup?.();
   cleanup = null;
   document.body.classList.remove("reading");
+  setBar();
   const match = routes.find(([re]) => re.test(path));
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === match?.[2]));
   if (!match) {

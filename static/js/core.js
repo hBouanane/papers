@@ -327,3 +327,15 @@ export function markdown(text) {
   closeList();
   return out.join("");
 }
+
+// ---------- App bar ----------
+// Main pages show the app's name; pages inside them show a back arrow and their own title,
+// the same way the reader does.
+const BACK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+export function setBar({ back, title } = {}) {
+  const start = document.getElementById("bar-start");
+  start.innerHTML = back
+    ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(title || back.label)}</span></a>`
+    : `<a href="#/" class="wordmark">Papers</a>`;
+}

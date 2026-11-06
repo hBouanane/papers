@@ -2,7 +2,7 @@
 import { setSpeechRate, speechRate } from "./speech.js";
 
 const KEY = "papers.readingPrefs";
-const DEFAULTS = { size: 19, leading: 1.75, font: "paper", width: 680 };
+const DEFAULTS = { size: 19, leading: 1.75, font: "paper", width: 680, pages: "auto" };
 const SIZES = [16, 17, 18, 19, 20, 22, 24];
 
 export function readingPrefs() {
@@ -19,6 +19,9 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   s.setProperty("--read-leading", prefs.leading);
   s.setProperty("--read-width", `${prefs.width}px`);
   s.setProperty("--read-font", prefs.font === "easy" ? "var(--ui)" : "var(--paper)");
+  // PDF pages: "auto" follows the theme (white in light mode, dimmed in dark mode).
+  document.body.classList.remove("pages-white", "pages-dim", "pages-dark");
+  if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
 }
 
 const option = (group, value, label, current) =>
@@ -44,6 +47,8 @@ export function bindReadingPrefs(root) {
       <div class="segmented small">${option("font", "paper", "Like the paper", p.font)}${option("font", "easy", "Easy to read", p.font)}</div>
       <p class="pref-label">Line length</p>
       <div class="segmented small">${option("width", 600, "Short", p.width)}${option("width", 680, "Medium", p.width)}${option("width", 800, "Long", p.width)}</div>
+      <p class="pref-label">PDF pages <span class="faint">(Original view)</span></p>
+      <div class="segmented small">${option("pages", "auto", "Auto", p.pages)}${option("pages", "white", "White", p.pages)}${option("pages", "dim", "Dimmed", p.pages)}${option("pages", "dark", "Dark", p.pages)}</div>
       <p class="pref-label">Reading voice</p>
       <div class="segmented small">${option("rate", 1, "Normal", rate)}${option("rate", 0.8, "Slower", rate)}${option("rate", 0.65, "Slow", rate)}</div>`;
   };
@@ -56,7 +61,7 @@ export function bindReadingPrefs(root) {
     else if (pref === "size") {
       const i = SIZES.indexOf(p.size);
       p.size = SIZES[Math.min(SIZES.length - 1, Math.max(0, (i < 0 ? 3 : i) + (value === "+" ? 1 : -1)))];
-    } else p[pref] = pref === "font" ? value : Number(value);
+    } else p[pref] = pref === "font" || pref === "pages" ? value : Number(value);
     save(p);
     applyReadingPrefs(p);
     draw();
