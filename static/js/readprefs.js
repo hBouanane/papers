@@ -1,6 +1,6 @@
 // Reading settings for the Text view and the reading voice, remembered in this browser.
 import { setSpeechRate, speechRate } from "./speech.js";
-import { isDark, toggleTheme } from "./theme.js";
+import { currentTheme } from "./theme.js";
 
 const KEY = "papers.readingPrefs";
 const DEFAULTS = { size: 19, leading: 1.75, font: "paper", width: 680, pages: "auto" };
@@ -20,7 +20,7 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   s.setProperty("--read-leading", prefs.leading);
   s.setProperty("--read-width", `${prefs.width}px`);
   s.setProperty("--read-font", prefs.font === "easy" ? "var(--ui)" : "var(--paper)");
-  // PDF pages: "auto" follows the theme (white in light mode, dimmed in dark mode).
+  // PDF pages: "auto" follows the theme (white in light mode, softened in dim and dark).
   const before = document.body.classList.contains("pages-dark");
   document.body.classList.remove("pages-white", "pages-dim", "pages-dark");
   if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
@@ -52,7 +52,8 @@ export function bindReadingPrefs(root) {
     const rate = speechRate();
     box.innerHTML = `
       <p class="pref-label">App</p>
-      <div class="segmented small">${option("theme", "light", "Light", isDark() ? "dark" : "light")}${option("theme", "dark", "Dark", isDark() ? "dark" : "light")}</div>
+      <div class="segmented small">${["light", "dim", "dark"].map((t) =>
+        `<button data-theme-pick="${t}" class="${currentTheme() === t ? "active" : ""}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div>
       <p class="pref-label">Text size <span class="faint">(Text view)</span></p>
       <div class="segmented small"><button data-pref="size" data-value="-">A−</button>
         <span class="pref-value num">${p.size}px</span><button data-pref="size" data-value="+">A+</button></div>
@@ -68,11 +69,11 @@ export function bindReadingPrefs(root) {
       <div class="segmented small">${option("rate", 1, "Normal", rate)}${option("rate", 0.8, "Slower", rate)}${option("rate", 0.65, "Slow", rate)}</div>`;
   };
   box.addEventListener("click", (e) => {
+    if (e.target.closest("[data-theme-pick]")) return setTimeout(draw); // theme.js switches it
     const b = e.target.closest("[data-pref]");
     if (!b) return;
     const p = readingPrefs();
     const { pref, value } = b.dataset;
-    if (pref === "theme") { if ((value === "dark") !== isDark()) toggleTheme(); draw(); return; }
     if (pref === "rate") setSpeechRate(Number(value));
     else if (pref === "size") {
       const i = SIZES.indexOf(p.size);
