@@ -394,7 +394,8 @@ export async function readerPage(id, stale) {
     } else {
       scroller.innerHTML = loading("Opening the PDF");
       try {
-        pdf = await openPdf(`/api/papers/${id}/file`, scroller, { zoom: savedZoom(), after: endBox });
+        pdf = await openPdf(`/api/papers/${id}/file`, scroller,
+          { zoom: savedZoom(), after: endBox, dark: document.body.classList.contains("pages-dark") });
         pdf.onZoom((zoom) => {
           $("#zoom .zoom-value").textContent = pct(zoom);
           saveZoom(zoom);
@@ -709,10 +710,19 @@ export async function readerPage(id, stale) {
   };
   addEventListener("keydown", onKey);
   bindReadingPrefs($("#bar"));
+  // Switching dark pages reopens the PDF where you are.
+  const onDarkPages = async () => {
+    if (view !== "pdf") return;
+    const position = positionNow();
+    await show("pdf");
+    scrollToPosition(position);
+  };
+  document.addEventListener("dark-pages-changed", onDarkPages);
 
   return () => {
     stopSpeaking();
     removeEventListener("keydown", onKey);
+    document.removeEventListener("dark-pages-changed", onDarkPages);
     flush(true);
     tracker.stop();
     clearInterval(flushTimer);

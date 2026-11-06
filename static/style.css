@@ -12,6 +12,7 @@
   --selected: #262a31;
   --on-selected: #ffffff;
   --graphite: #262a31;
+  --heading: #111418;
   --reading: #262a31;
   --pencil: #666d78;
   --line: #d9dde3;
@@ -34,20 +35,36 @@
   --r-panel: 8px;
   --r-control: 6px;
 }
+/* Dark: follows the system unless the theme button picked one (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --desk: #0f1115; --sheet: #171a1f; --raised: #20242b; --field: #121418; --header: #0f1115;
-    --pop: #2a2f38; --on-pop: #eef0f3; --selected: #2f3540; --on-selected: #f2f4f6;
-    --graphite: #e4e7eb; --reading: #d5d9df; --pencil: #98a0ab;
-    --line: #2a2f37; --line-soft: #21252c;
-    --ink: #93a9f8; --ink-hover: #b4c4fb; --ink-fill: #3c5ed8; --ink-fill-hover: #4a6ce3; --on-ink: #ffffff;
-    --ink-tint: #1e2640; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
-    --shadow-pop: 0 16px 40px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .06);
-    --shadow-panel: -16px 0 40px rgb(0 0 0 / .4);
-    --shadow-soft: 0 2px 10px rgb(0 0 0 / .35);
+    --desk: #0d0f12; --sheet: #181b20; --raised: #22262d; --field: #111317; --header: #0d0f12;
+    --pop: #2a2f38; --on-pop: #f2f4f6;
+    --selected: #f2f4f6; --on-selected: #111317; /* the reverse of light mode: white with black text */
+    --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
+    --line: #31363e; --line-soft: #252930;
+    --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
+    --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
+    --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
+    --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
+    --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
     --page-filter: brightness(.86) contrast(1.04); /* white PDF pages glare on a dark screen */
-  }
+}
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --desk: #0d0f12; --sheet: #181b20; --raised: #22262d; --field: #111317; --header: #0d0f12;
+  --pop: #2a2f38; --on-pop: #f2f4f6;
+  --selected: #f2f4f6; --on-selected: #111317; /* the reverse of light mode: white with black text */
+  --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
+  --line: #31363e; --line-soft: #252930;
+  --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
+  --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
+  --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
+  --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
+  --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
+  --page-filter: brightness(.86) contrast(1.04); /* white PDF pages glare on a dark screen */
 }
 
 * { box-sizing: border-box; }
@@ -55,7 +72,7 @@
 html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; } /* pages with and without a scrollbar keep the same width */
 body { margin: 0; background: var(--desk); color: var(--graphite); font: 16px/1.55 var(--ui); }
 a { color: var(--ink); }
-h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.01em; color: var(--heading); overflow-wrap: break-word; }
 h1 { font-size: 32px; line-height: 1.15; }
 h2 { font-size: 19px; line-height: 1.3; }
 h3 { font-size: 16px; }
@@ -69,7 +86,8 @@ p { margin: 0; }
 
 .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .page { padding: 36px 24px 96px; }
-.page.narrow { max-width: 760px; }
+/* Every page has the same width as the bar above it; narrow pages only keep their lines short. */
+.page.narrow > * { max-width: 760px; }
 @media (max-width: 640px) { .container, .page { padding-left: 16px; padding-right: 16px; } .page { padding-top: 24px; } h1 { font-size: 27px; } }
 
 /* Header */
@@ -77,7 +95,7 @@ p { margin: 0; }
 .site-header { background: var(--header); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .bar-start { flex: 1; min-width: 0; display: flex; }
-.wordmark { font-weight: 800; font-size: 21px; color: var(--graphite); text-decoration: none; }
+.wordmark { font-weight: 800; font-size: 21px; color: var(--heading); text-decoration: none; }
 .nav { flex-shrink: 0; flex-wrap: nowrap; }
 .nav a { padding: 4px 11px; border-radius: 4px; color: var(--pencil); text-decoration: none; font-weight: 700; font-size: 14px; }
 .nav a:hover { color: var(--graphite); }
@@ -216,7 +234,7 @@ details p { margin-top: 8px; color: var(--graphite); max-width: 75ch; font-size:
 .paper-header { margin-bottom: 28px; }
 .paper-h1 { font-size: 36px; line-height: 1.15; max-width: 28ch; }
 .paper-cite { color: var(--pencil); margin-top: 10px; font-size: 16px; max-width: 70ch; }
-.actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 .paper-header .hint { margin-top: 12px; }
 .paper-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
 .paper-side { display: grid; gap: 16px; position: sticky; top: 84px; }
@@ -250,7 +268,7 @@ body.reading .site-header { display: none; } /* reading is a focused, full-scree
   font-size: 14px; color: var(--pencil); background: var(--desk); border-top: 1px solid var(--line); }
 .jump { width: auto; max-width: 180px; height: 34px; font-size: 14px; font-weight: 700; }
 /* The paper scrolls in this panel below the reader bar (PDF.js's viewer needs its own scroll container). */
-.reader-scroll { position: absolute; top: var(--reader-top, 96px); left: 0; right: 0; bottom: 0; overflow: auto; background: var(--desk); transition: right .2s ease; }
+.reader-scroll { z-index: 0; isolation: isolate; /* PDF link boxes stay below the bar's menus */ position: absolute; top: var(--reader-top, 96px); left: 0; right: 0; bottom: 0; overflow: auto; background: var(--desk); transition: right .2s ease; }
 .reader-scroll.view-text { padding: 32px 24px 96px; }
 .reader-scroll .loading { padding: 32px; }
 .page-sheet { max-width: calc(var(--read-width, 680px) + 144px); margin: 0 auto; background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; padding: 64px 72px 48px; }
@@ -384,6 +402,7 @@ select { width: 100%; height: 44px; font: 16px var(--ui); color: var(--graphite)
 
 /* Triage */
 .menu { position: relative; }
+.menu, .add-paper { margin-top: 0; } /* not the 8px every other <details> gets */
 .menu > summary { list-style: none; }
 .menu > summary::-webkit-details-marker { display: none; }
 .menu-list { position: absolute; left: 0; top: calc(100% + 6px); z-index: 25; min-width: 220px; padding: 6px; display: grid;
@@ -555,8 +574,9 @@ abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset:
 .view-pdf .pdfViewer .page canvas { filter: var(--page-filter); }
 body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
 body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }
-body.pages-dark .view-pdf .pdfViewer .page canvas { filter: invert(.9) hue-rotate(180deg); } /* hue-rotate keeps figure colours close */
-body.pages-dark .view-pdf .pdfViewer .page { background: #1a1a1a; }
+/* Dark pages are recoloured by PDF.js itself (text and lines only, images keep their colours). */
+body.pages-dark .view-pdf .pdfViewer .page canvas { filter: none; }
+body.pages-dark .view-pdf .pdfViewer .page { background: #1c1f24; }
 ::selection { background: color-mix(in srgb, var(--ink) 32%, transparent); }
 .menu:not([open]) > .menu-list { display: none; } /* a closed menu must not widen the page */
 @media (max-width: 640px) { .actions .menu-list { left: auto; right: 0; } }
@@ -576,9 +596,14 @@ body.skimming .strip { opacity: .35; }
 @media (max-width: 760px) { .switch { order: 3; } }
 
 /* ---------- Library: the reading desk ---------- */
-.desk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
-@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } }
-.desk-main h2, .desk-box h2 { font-size: 17px; margin-bottom: 12px; }
+/* The heading sits above both columns, so the cards and the side boxes start on the same line. */
+.desk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 24px; row-gap: 12px; align-items: start; }
+.desk-main { display: contents; }
+.desk-main > * { grid-column: 1; }
+.desk-side { grid-column: 2; grid-row: 2 / span 2; }
+@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } .desk-side { grid-column: 1; grid-row: auto; margin-top: 12px; } }
+.desk-main h2, .desk-box h2 { font-size: 17px; }
+.desk-box h2 { margin-bottom: 12px; }
 .reading-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .reading-card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; text-decoration: none; color: inherit; min-height: 210px; }
 .reading-card:hover { border-color: var(--pencil); }
@@ -592,7 +617,7 @@ body.skimming .strip { opacity: .35; }
 .card-foot .bar { flex: 1; width: auto; }
 .card-go { color: var(--ink); font-weight: 700; }
 .desk-empty { border: 1px dashed var(--line); border-radius: var(--r-panel); padding: 28px; color: var(--pencil); text-align: center; }
-.desk-side { display: grid; gap: 14px; }
+.desk-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; } /* long titles shorten with "…" instead of widening the box */
 .desk-box { padding: 16px 18px; }
 .desk-box .hint { font-size: 14px; }
 .desk-item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; text-decoration: none; color: inherit;
@@ -600,3 +625,13 @@ body.skimming .strip { opacity: .35; }
 .desk-item:hover .desk-item-title { color: var(--ink); }
 .desk-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desk-link { margin-top: 8px; padding: 0; }
+
+/* The sections in the bar are plain words, the current one shown as a filled pill (no box around them). */
+.site-header .nav.segmented { background: transparent; border: 0; padding: 0; gap: 4px; }
+.theme-toggle { border: 1px solid var(--line); background: transparent; color: var(--graphite); border-radius: var(--r-control);
+  font: 700 13px var(--ui); height: 30px; padding: 0 10px; cursor: pointer; flex-shrink: 0; }
+.theme-toggle:hover { border-color: var(--pencil); }
+@media (max-width: 640px) { .theme-toggle { position: absolute; top: 8px; right: 12px; } .header-inner { position: relative; } }
+/* Long titles and words wrap instead of widening the page. */
+.paper-name, .card-title, .resume-title, .goal-text, .row-title { overflow-wrap: anywhere; }
+.container { min-width: 0; }

@@ -19,12 +19,19 @@ async function load() {
 
 // `container` must be absolutely positioned and scrollable; the viewer scrolls inside it.
 // `after` is HTML placed below the last page (e.g. an end-of-paper box).
-export async function openPdf(url, container, { zoom = 1, after = "" } = {}) {
+// `dark` recolours the page background and its text and lines, but leaves images alone
+// (PDF.js's high-contrast mode, which Firefox uses), unlike inverting the whole page.
+const DARK_PAGE = { background: "#1c1f24", foreground: "#d9dde3" };
+
+export async function openPdf(url, container, { zoom = 1, after = "", dark = false } = {}) {
   const { pdfjs, viewer: V } = await load();
   container.innerHTML = `<div class="pdfViewer"></div>${after}`;
   const eventBus = new V.EventBus();
   const linkService = new V.PDFLinkService({ eventBus });
-  const view = new V.PDFViewer({ container, viewer: container.firstElementChild, eventBus, linkService, textLayerMode: 1 });
+  const view = new V.PDFViewer({
+    container, viewer: container.firstElementChild, eventBus, linkService, textLayerMode: 1,
+    pageColors: dark ? DARK_PAGE : null,
+  });
   linkService.setViewer(view);
   const doc = await pdfjs.getDocument(url).promise;
   const ready = new Promise((resolve) => eventBus.on("pagesinit", resolve, { once: true }));

@@ -1,5 +1,6 @@
 // Reading settings for the Text view and the reading voice, remembered in this browser.
 import { setSpeechRate, speechRate } from "./speech.js";
+import { isDark, toggleTheme } from "./theme.js";
 
 const KEY = "papers.readingPrefs";
 const DEFAULTS = { size: 19, leading: 1.75, font: "paper", width: 680, pages: "auto" };
@@ -20,8 +21,11 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   s.setProperty("--read-width", `${prefs.width}px`);
   s.setProperty("--read-font", prefs.font === "easy" ? "var(--ui)" : "var(--paper)");
   // PDF pages: "auto" follows the theme (white in light mode, dimmed in dark mode).
+  const before = document.body.classList.contains("pages-dark");
   document.body.classList.remove("pages-white", "pages-dim", "pages-dark");
   if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
+  // Dark pages are drawn by the PDF viewer itself, so it has to reopen when that changes.
+  if (before !== (prefs.pages === "dark")) document.dispatchEvent(new CustomEvent("dark-pages-changed"));
 }
 
 // Dark PDF pages on and off (the `d` key in the reader).
@@ -47,6 +51,8 @@ export function bindReadingPrefs(root) {
     const p = readingPrefs();
     const rate = speechRate();
     box.innerHTML = `
+      <p class="pref-label">App</p>
+      <div class="segmented small">${option("theme", "light", "Light", isDark() ? "dark" : "light")}${option("theme", "dark", "Dark", isDark() ? "dark" : "light")}</div>
       <p class="pref-label">Text size <span class="faint">(Text view)</span></p>
       <div class="segmented small"><button data-pref="size" data-value="-">A−</button>
         <span class="pref-value num">${p.size}px</span><button data-pref="size" data-value="+">A+</button></div>
@@ -66,6 +72,7 @@ export function bindReadingPrefs(root) {
     if (!b) return;
     const p = readingPrefs();
     const { pref, value } = b.dataset;
+    if (pref === "theme") { if ((value === "dark") !== isDark()) toggleTheme(); draw(); return; }
     if (pref === "rate") setSpeechRate(Number(value));
     else if (pref === "size") {
       const i = SIZES.indexOf(p.size);
