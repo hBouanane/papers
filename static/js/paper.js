@@ -312,6 +312,7 @@ export async function readerPage(id, stale) {
           <button class="button quiet small" data-zoom="in" title="Zoom in (+)">+</button></div>
         ${readingPrefsMenu()}
         <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
+        <button class="switch" id="dark-pages" role="switch" aria-checked="false" title="Dark PDF pages; they follow the theme until you switch (d)" hidden><span class="switch-track" aria-hidden="true"></span>Dark pages</button>
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
         <button class="button secondary small" id="toggle-notes" title="Ask Claude, words, your notes (n)">Ask &amp; notes</button>
       </div>
@@ -420,6 +421,7 @@ export async function readerPage(id, stale) {
       ${pages.length ? `<optgroup label="Pages">${pages.map((t) => `<option value="${targets.indexOf(t)}">${esc(t.label)}</option>`).join("")}</optgroup>` : ""}`;
     $("#jump").hidden = !targets.length;
     $("#zoom").hidden = !pdf;
+    $("#dark-pages").hidden = view !== "pdf";
     if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
     setTimeout(() => (settling = false), 800); // callers put you back where you were in the meantime
   };
@@ -455,6 +457,7 @@ export async function readerPage(id, stale) {
     }
   };
   $("#skim").onclick = () => setSkimming(tracker.mode !== "skim");
+  $("#dark-pages").onclick = () => toggleDarkPages();
   const paintView = () => {
     const height = Math.max(1, scroller.scrollHeight);
     const marker = $("#strip-view");

@@ -27,15 +27,24 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   if (dark) document.body.classList.add("pages-dark");
   else if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
   // Dark pages are drawn by the PDF viewer itself, so it has to redraw when they change.
+  document.querySelectorAll("#dark-pages").forEach((b) => b.setAttribute("aria-checked", dark));
   if (before !== dark || (dark && themeChanged)) document.dispatchEvent(new CustomEvent("dark-pages-changed"));
 }
 
 export const pdfPagesDark = () => darkPages(readingPrefs());
 const darkPages = (prefs) => prefs.pages === "dark" || (prefs.pages === "auto" && currentTheme() !== "light");
 let themeChanged = false;
-document.addEventListener("theme-changed", () => { themeChanged = true; applyReadingPrefs(); themeChanged = false; });
+// Picking a theme hands the pages back to it (a Dark pages switch made in the reader was for that moment).
+document.addEventListener("theme-changed", () => {
+  const p = readingPrefs();
+  p.pages = "auto";
+  save(p);
+  themeChanged = true;
+  applyReadingPrefs(p);
+  themeChanged = false;
+});
 
-// Dark PDF pages on and off (the `d` key in the reader).
+// Dark PDF pages on and off (the Dark pages switch and the `d` key in the reader).
 export function toggleDarkPages() {
   const p = readingPrefs();
   p.pages = darkPages(p) ? "white" : "dark";
@@ -67,8 +76,6 @@ export function bindReadingPrefs(root) {
       <div class="segmented small">${option("font", "paper", "Like the paper", p.font)}${option("font", "easy", "Easy to read", p.font)}</div>
       <p class="pref-label">Line length</p>
       <div class="segmented small">${option("width", 600, "Short", p.width)}${option("width", 680, "Medium", p.width)}${option("width", 800, "Long", p.width)}</div>
-      <p class="pref-label">PDF pages <span class="faint">(Auto follows the app; <kbd>d</kbd> toggles dark)</span></p>
-      <div class="segmented small">${option("pages", "auto", "Auto", p.pages)}${option("pages", "white", "White", p.pages)}${option("pages", "dim", "Dimmed", p.pages)}${option("pages", "dark", "Dark", p.pages)}</div>
       <p class="pref-label">Reading voice</p>
       <div class="segmented small">${option("rate", 1, "Normal", rate)}${option("rate", 0.8, "Slower", rate)}${option("rate", 0.65, "Slow", rate)}</div>`;
   };
