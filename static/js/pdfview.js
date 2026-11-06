@@ -48,7 +48,11 @@ export async function openPdf(url, container, { zoom = 1, after = "" } = {}) {
     goToPage: (pageNumber) => view.scrollPageIntoView({ pageNumber }),
     get zoom() { return view.currentScale / fit; },
     // factor > 1 zooms in; origin is the [x, y] screen point that stays put (the cursor).
-    zoomBy(factor, origin) { view.updateScale({ scaleFactor: factor, origin, drawingDelay: 250 }); },
+    // `smooth` (wheel and pinch) stretches the page at once and redraws it sharp a moment later,
+    // so a stream of wheel ticks doesn't redraw on every tick; one-off steps redraw sharp right away.
+    zoomBy(factor, origin, { smooth = false } = {}) {
+      view.updateScale({ scaleFactor: factor, origin, drawingDelay: smooth ? 250 : -1 });
+    },
     fitWidth() { fit = fitScale(); view.currentScale = fit; },
     onZoom(listener) { eventBus.on("scalechanging", () => listener(view.currentScale / fit)); },
     close() { view.setDocument(null); linkService.setDocument(null); doc.destroy(); },

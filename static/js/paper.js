@@ -1,6 +1,6 @@
 import { api, app, bindNotes, busy, cite, esc, setBar, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { openPdf } from "./pdfview.js";
-import { bindReadingPrefs, readingPrefsMenu } from "./readprefs.js";
+import { bindReadingPrefs, readingPrefsMenu, toggleDarkPages } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
 import { renderPaperText } from "./textview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
@@ -311,6 +311,7 @@ export async function readerPage(id, stale) {
           <button class="button quiet small zoom-value num" data-zoom="fit" title="Fit to width">100%</button>
           <button class="button quiet small" data-zoom="in" title="Zoom in (+)">+</button></div>
         ${readingPrefsMenu()}
+        <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
         <button class="button secondary small" id="toggle-notes" title="Ask Claude, words, your notes (n)">Ask &amp; notes</button>
       </div>
@@ -434,8 +435,21 @@ export async function readerPage(id, stale) {
   const paintStrip = () => {
     const read = Math.max(legacy, tracker.bits.filter((b) => b === "1").length / SLICES);
     $("#strip").style.background = stripBackground(tracker.bits);
-    $("#pct").textContent = `${pct(read)} read`;
+    $("#pct").textContent = tracker.mode === "skim" ? "Skimming, not counted" : `${pct(read)} read`;
   };
+  // Skimming: jump around freely; nothing counts until you switch it off.
+  const setSkimming = (on) => {
+    flush();
+    tracker.setMode(on ? "skim" : "read");
+    $("#skim").setAttribute("aria-checked", on);
+    document.body.classList.toggle("skimming", on);
+    paintStrip();
+    if (on && p.status === "new") {
+      p.status = "skimmed";
+      api(`/papers/${id}/progress`, { method: "PUT", json: { position: saved, mode: "skim" } }).catch(() => {});
+    }
+  };
+  $("#skim").onclick = () => setSkimming(tracker.mode !== "skim");
   const paintView = () => {
     const height = Math.max(1, scroller.scrollHeight);
     const marker = $("#strip-view");
@@ -675,18 +689,20 @@ export async function readerPage(id, stale) {
     if (!pdf || !(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
     const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY / 300)));
-    pdf.zoomBy(factor, [e.clientX, e.clientY]);
+    pdf.zoomBy(factor, [e.clientX, e.clientY], { smooth: true });
   }, { passive: false });
 
   // Keyboard: s = skim/read, n = notes panel, e = explain, l = listen, +/- = zoom, ? = help.
   const onKey = (e) => {
     if (e.target.closest?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
+    if (e.key === "s") setSkimming(tracker.mode !== "skim");
+    else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
     else if (e.key === "e" && !pop.hidden) pop.querySelector("[data-sel=explain]").click();
     else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
     else if ((e.key === "+" || e.key === "=") && pdf) pdf.zoomBy(1.25, middle());
     else if (e.key === "-" && pdf) pdf.zoomBy(0.8, middle());
-    else if (e.key === "?") showShortcuts([["n", "Open or close Ask, Words and Notes"],
+    else if (e.key === "d" && pdf) toast(toggleDarkPages() ? "Dark pages on (press d to turn off)." : "Dark pages off.");
+    else if (e.key === "?") showShortcuts([["s", "Skimming on or off (nothing counts while it's on)"], ["d", "Dark PDF pages on or off"], ["n", "Open or close Ask, Words and Notes"],
       ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
     else return;
     e.preventDefault();
@@ -703,7 +719,7 @@ export async function readerPage(id, stale) {
     barObserver.disconnect();
     removeEventListener("pagehide", onHide);
     pdf?.close();
-    document.body.classList.remove("notes-open");
+    document.body.classList.remove("notes-open", "skimming");
     document.body.style.removeProperty("--reader-top");
   };
 }

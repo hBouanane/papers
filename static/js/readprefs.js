@@ -24,6 +24,15 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
 }
 
+// Dark PDF pages on and off (the `d` key in the reader).
+export function toggleDarkPages() {
+  const p = readingPrefs();
+  p.pages = p.pages === "dark" ? "auto" : "dark";
+  save(p);
+  applyReadingPrefs(p);
+  return p.pages === "dark";
+}
+
 const option = (group, value, label, current) =>
   `<button data-pref="${group}" data-value="${value}" class="${String(current) === String(value) ? "active" : ""}">${label}</button>`;
 
@@ -47,7 +56,7 @@ export function bindReadingPrefs(root) {
       <div class="segmented small">${option("font", "paper", "Like the paper", p.font)}${option("font", "easy", "Easy to read", p.font)}</div>
       <p class="pref-label">Line length</p>
       <div class="segmented small">${option("width", 600, "Short", p.width)}${option("width", 680, "Medium", p.width)}${option("width", 800, "Long", p.width)}</div>
-      <p class="pref-label">PDF pages <span class="faint">(Original view)</span></p>
+      <p class="pref-label">PDF pages <span class="faint">(Original view, <kbd>d</kbd> toggles dark)</span></p>
       <div class="segmented small">${option("pages", "auto", "Auto", p.pages)}${option("pages", "white", "White", p.pages)}${option("pages", "dim", "Dimmed", p.pages)}${option("pages", "dark", "Dark", p.pages)}</div>
       <p class="pref-label">Reading voice</p>
       <div class="segmented small">${option("rate", 1, "Normal", rate)}${option("rate", 0.8, "Slower", rate)}${option("rate", 0.65, "Slow", rate)}</div>`;
@@ -66,6 +75,7 @@ export function bindReadingPrefs(root) {
     applyReadingPrefs(p);
     draw();
   });
+  box.closest("details").addEventListener("toggle", draw); // reflect changes made with shortcuts
   draw();
   applyReadingPrefs();
 }
