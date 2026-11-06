@@ -1,6 +1,6 @@
 import { api, app, bindNotes, busy, cite, esc, setBar, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { openPdf } from "./pdfview.js";
-import { bindReadingPrefs, readingPrefsMenu, toggleDarkPages } from "./readprefs.js";
+import { bindReadingPrefs, pdfPagesDark, readingPrefsMenu, toggleDarkPages } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
 import { renderPaperText } from "./textview.js";
 import { SLICES, startTracker, stripBackground } from "./tracker.js";
@@ -378,7 +378,10 @@ export async function readerPage(id, stale) {
   let pdf = null;
   let targets = []; // "Go to…" destinations for the current view: { label, go, page? }
 
+  // While a view (re)opens the page is briefly short or empty; that must not count as reaching the end.
+  let settling = false;
   const show = async (next) => {
+    settling = true;
     view = next;
     pdf?.close();
     pdf = null;
@@ -395,7 +398,7 @@ export async function readerPage(id, stale) {
       scroller.innerHTML = loading("Opening the PDF");
       try {
         pdf = await openPdf(`/api/papers/${id}/file`, scroller,
-          { zoom: savedZoom(), after: endBox, dark: document.body.classList.contains("pages-dark") });
+          { zoom: savedZoom(), after: endBox, dark: pdfPagesDark() });
         pdf.onZoom((zoom) => {
           $("#zoom .zoom-value").textContent = pct(zoom);
           saveZoom(zoom);
@@ -418,6 +421,7 @@ export async function readerPage(id, stale) {
     $("#jump").hidden = !targets.length;
     $("#zoom").hidden = !pdf;
     if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
+    setTimeout(() => (settling = false), 800); // callers put you back where you were in the meantime
   };
 
   // Open the paper, then go back to where the reader stopped.
@@ -629,7 +633,7 @@ export async function readerPage(id, stale) {
     scroller.addEventListener(type, () => (movedByYou = true), { passive: true, once: true }));
   addEventListener("keydown", () => (movedByYou = true), { once: true });
   const checkFinished = () => {
-    if (!movedByYou || p.status === "read" || !card.hidden) return;
+    if (!movedByYou || settling || p.status === "read" || !card.hidden) return;
     if ((asked === 0 && mainEndReached()) || (asked === 1 && atVeryEnd())) {
       asked += 1;
       askFinished();

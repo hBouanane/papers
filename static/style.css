@@ -35,36 +35,37 @@
   --r-panel: 8px;
   --r-control: 6px;
 }
-/* Dark: follows the system until a theme is picked in the bar (data-theme on <html>: light, dim or dark). */
+/* Dark: the reverse of light mode. Light has a grey desk with white cards and bar; dark has a grey desk
+   with black cards and bar. Follows the system until a theme is picked (data-theme on <html>: light, dim or dark). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --desk: #08090b; --sheet: #1c2026; --raised: #272c34; --field: #121519; --header: #08090b;
-    --pop: #2a2f38; --on-pop: #f2f4f6;
-    --selected: #f2f4f6; --on-selected: #08090b; /* the reverse of light mode: white with black text */
+    --desk: #22262c; --sheet: #0b0c0e; --raised: #17191d; --field: #0b0c0e; --header: #0b0c0e;
+    --pop: #f2f4f6; --on-pop: #0b0c0e;
+    --selected: #f2f4f6; --on-selected: #0b0c0e; /* the reverse of light mode: white with black text */
     --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-    --line: #3d434d; --line-soft: #2d323a;
+    --line: #3a3f47; --line-soft: #23262b;
     --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
     --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
     --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
     --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
     --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-    --page-filter: brightness(.86) contrast(1.04); /* white PDF pages glare on a dark screen */
+    --page-filter: none;
 }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --desk: #08090b; --sheet: #1c2026; --raised: #272c34; --field: #121519; --header: #08090b;
-  --pop: #2a2f38; --on-pop: #f2f4f6;
-  --selected: #f2f4f6; --on-selected: #08090b; /* the reverse of light mode: white with black text */
+  --desk: #22262c; --sheet: #0b0c0e; --raised: #17191d; --field: #0b0c0e; --header: #0b0c0e;
+  --pop: #f2f4f6; --on-pop: #0b0c0e;
+  --selected: #f2f4f6; --on-selected: #0b0c0e; /* the reverse of light mode: white with black text */
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-  --line: #3d434d; --line-soft: #2d323a;
+  --line: #3a3f47; --line-soft: #23262b;
   --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
   --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
   --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
   --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --page-filter: brightness(.86) contrast(1.04); /* white PDF pages glare on a dark screen */
+  --page-filter: none;
 }
 
 * { box-sizing: border-box; }
@@ -576,7 +577,7 @@ body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
 body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }
 /* Dark pages are recoloured by PDF.js itself (text and lines only, images keep their colours). */
 body.pages-dark .view-pdf .pdfViewer .page canvas { filter: none; }
-body.pages-dark .view-pdf .pdfViewer .page { background: #1c1f24; }
+body.pages-dark .view-pdf .pdfViewer .page { background: var(--sheet); } /* dark pages look like the app's cards */
 ::selection { background: color-mix(in srgb, var(--ink) 32%, transparent); }
 .menu:not([open]) > .menu-list { display: none; } /* a closed menu must not widen the page */
 @media (max-width: 640px) { .actions .menu-list { left: auto; right: 0; } }
@@ -629,17 +630,17 @@ body.skimming .strip { opacity: .35; }
 /* Dim: between light and dark. Slate grey instead of near-black, for evenings or a bright room. */
 :root[data-theme="dim"] {
   color-scheme: dark;
-  --desk: #181b20; --sheet: #2c313a; --raised: #373d47; --field: #20242a; --header: #181b20;
-  --pop: #3a4049; --on-pop: #f2f4f6;
-  --selected: #f2f4f6; --on-selected: #181b20;
+  --desk: #343a43; --sheet: #1d2025; --raised: #272b31; --field: #1d2025; --header: #1d2025;
+  --pop: #f2f4f6; --on-pop: #1d2025;
+  --selected: #f2f4f6; --on-selected: #1d2025;
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #dde1e6; --pencil: #a8b0ba;
-  --line: #4d5561; --line-soft: #3b414b;
+  --line: #4a515c; --line-soft: #30353c;
   --ink: #a9bbfb; --ink-hover: #c5d1fc; --ink-fill: #4567e0; --ink-fill-hover: #5374e8; --on-ink: #ffffff;
   --ink-tint: #303a5a; --done: #6acb98; --partial: #e6bd5c; --miss: #f59a92;
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .4), 0 0 0 1px rgb(255 255 255 / .08);
   --shadow-panel: -16px 0 40px rgb(0 0 0 / .35);
   --shadow-soft: 0 2px 10px rgb(0 0 0 / .3);
-  --page-filter: brightness(.93); /* a little softer than white */
+  --page-filter: none;
 }
 
 /* The sections in the bar are plain words, the current one shown as a filled pill (no box around them). */
@@ -655,7 +656,6 @@ body.skimming .strip { opacity: .35; }
   background: var(--selected); transition: transform .35s cubic-bezier(.3, .8, .25, 1), background-color .35s; }
 .theme-switch[data-at="dim"] .theme-thumb { transform: translateX(100%); }
 .theme-switch[data-at="dark"] .theme-thumb { transform: translateX(200%); }
-body.reading .theme-switch { display: none; } /* in the reader it lives in the Aa menu */
 /* The new theme spreads out in a circle from where you clicked (theme.js); no cross-fade on top of it. */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 @media (prefers-reduced-motion: reduce) { .theme-thumb, .theme-switch button { transition: none; } }

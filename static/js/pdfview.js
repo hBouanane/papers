@@ -21,7 +21,11 @@ async function load() {
 // `after` is HTML placed below the last page (e.g. an end-of-paper box).
 // `dark` recolours the page background and its text and lines, but leaves images alone
 // (PDF.js's high-contrast mode, which Firefox uses), unlike inverting the whole page.
-const DARK_PAGE = { background: "#1c1f24", foreground: "#d9dde3" };
+// The page takes the colour of the app's cards, so it matches dim and dark mode.
+const darkPage = () => ({
+  background: getComputedStyle(document.documentElement).getPropertyValue("--sheet").trim() || "#0b0c0e",
+  foreground: "#dfe3e8",
+});
 
 export async function openPdf(url, container, { zoom = 1, after = "", dark = false } = {}) {
   const { pdfjs, viewer: V } = await load();
@@ -30,7 +34,7 @@ export async function openPdf(url, container, { zoom = 1, after = "", dark = fal
   const linkService = new V.PDFLinkService({ eventBus });
   const view = new V.PDFViewer({
     container, viewer: container.firstElementChild, eventBus, linkService, textLayerMode: 1,
-    pageColors: dark ? DARK_PAGE : null,
+    pageColors: dark ? darkPage() : null,
   });
   linkService.setViewer(view);
   const doc = await pdfjs.getDocument(url).promise;

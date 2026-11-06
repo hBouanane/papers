@@ -25,6 +25,7 @@ export function setTheme(theme, from) {
   const change = () => {
     try { localStorage.setItem(KEY, theme); } catch { /* not remembered */ }
     apply();
+    document.dispatchEvent(new CustomEvent("theme-changed"));
   };
   if (!from || !document.startViewTransition || calm.matches) return change();
   const [x, y] = from;
@@ -43,5 +44,5 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-theme-pick]");
   if (b) setTheme(b.dataset.themePick, [e.clientX, e.clientY]);
 });
-system.addEventListener("change", apply);
+system.addEventListener("change", () => { apply(); document.dispatchEvent(new CustomEvent("theme-changed")); });
 apply();

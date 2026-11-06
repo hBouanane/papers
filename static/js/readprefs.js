@@ -20,18 +20,25 @@ export function applyReadingPrefs(prefs = readingPrefs()) {
   s.setProperty("--read-leading", prefs.leading);
   s.setProperty("--read-width", `${prefs.width}px`);
   s.setProperty("--read-font", prefs.font === "easy" ? "var(--ui)" : "var(--paper)");
-  // PDF pages: "auto" follows the theme (white in light mode, softened in dim and dark).
+  // PDF pages: "auto" follows the app (white in light mode, dark in dim and dark mode).
+  const dark = darkPages(prefs);
   const before = document.body.classList.contains("pages-dark");
   document.body.classList.remove("pages-white", "pages-dim", "pages-dark");
-  if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
-  // Dark pages are drawn by the PDF viewer itself, so it has to reopen when that changes.
-  if (before !== (prefs.pages === "dark")) document.dispatchEvent(new CustomEvent("dark-pages-changed"));
+  if (dark) document.body.classList.add("pages-dark");
+  else if (prefs.pages !== "auto") document.body.classList.add(`pages-${prefs.pages}`);
+  // Dark pages are drawn by the PDF viewer itself, so it has to redraw when they change.
+  if (before !== dark || (dark && themeChanged)) document.dispatchEvent(new CustomEvent("dark-pages-changed"));
 }
+
+export const pdfPagesDark = () => darkPages(readingPrefs());
+const darkPages = (prefs) => prefs.pages === "dark" || (prefs.pages === "auto" && currentTheme() !== "light");
+let themeChanged = false;
+document.addEventListener("theme-changed", () => { themeChanged = true; applyReadingPrefs(); themeChanged = false; });
 
 // Dark PDF pages on and off (the `d` key in the reader).
 export function toggleDarkPages() {
   const p = readingPrefs();
-  p.pages = p.pages === "dark" ? "auto" : "dark";
+  p.pages = darkPages(p) ? "white" : "dark";
   save(p);
   applyReadingPrefs(p);
   return p.pages === "dark";
@@ -51,9 +58,6 @@ export function bindReadingPrefs(root) {
     const p = readingPrefs();
     const rate = speechRate();
     box.innerHTML = `
-      <p class="pref-label">App</p>
-      <div class="segmented small">${["light", "dim", "dark"].map((t) =>
-        `<button data-theme-pick="${t}" class="${currentTheme() === t ? "active" : ""}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div>
       <p class="pref-label">Text size <span class="faint">(Text view)</span></p>
       <div class="segmented small"><button data-pref="size" data-value="-">A−</button>
         <span class="pref-value num">${p.size}px</span><button data-pref="size" data-value="+">A+</button></div>
@@ -63,13 +67,12 @@ export function bindReadingPrefs(root) {
       <div class="segmented small">${option("font", "paper", "Like the paper", p.font)}${option("font", "easy", "Easy to read", p.font)}</div>
       <p class="pref-label">Line length</p>
       <div class="segmented small">${option("width", 600, "Short", p.width)}${option("width", 680, "Medium", p.width)}${option("width", 800, "Long", p.width)}</div>
-      <p class="pref-label">PDF pages <span class="faint">(Original view, <kbd>d</kbd> toggles dark)</span></p>
+      <p class="pref-label">PDF pages <span class="faint">(Auto follows the app; <kbd>d</kbd> toggles dark)</span></p>
       <div class="segmented small">${option("pages", "auto", "Auto", p.pages)}${option("pages", "white", "White", p.pages)}${option("pages", "dim", "Dimmed", p.pages)}${option("pages", "dark", "Dark", p.pages)}</div>
       <p class="pref-label">Reading voice</p>
       <div class="segmented small">${option("rate", 1, "Normal", rate)}${option("rate", 0.8, "Slower", rate)}${option("rate", 0.65, "Slow", rate)}</div>`;
   };
   box.addEventListener("click", (e) => {
-    if (e.target.closest("[data-theme-pick]")) return setTimeout(draw); // theme.js switches it
     const b = e.target.closest("[data-pref]");
     if (!b) return;
     const p = readingPrefs();
