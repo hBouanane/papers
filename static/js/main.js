@@ -1,4 +1,4 @@
-import { addFromLink, app, currentGoal, esc, looksLikePaperLink, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
+import { addFromLink, app, currentGoal, esc, looksLikePaperLink, noteVisit, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
 import { goalPage, goalsPage, libraryPage, mapPage, recallPage, settingsPage } from "./pages.js";
 import { paperPage, quizPage, readerPage } from "./paper.js";
 import "./theme.js";
@@ -20,6 +20,7 @@ let renderId = 0;
 
 async function render() {
   const path = location.hash.slice(1) || "/";
+  noteVisit(path);
   const id = ++renderId;
   cleanup?.();
   cleanup = null;

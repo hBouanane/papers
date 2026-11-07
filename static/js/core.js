@@ -340,6 +340,27 @@ export function markdown(text) {
 // the same way the reader does.
 const BACK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+// Where each page was opened from, kept on its browser history entry (so it stays right with the
+// browser's back and forward buttons). A back arrow uses it: a paper opened from the Library goes back
+// to the Library, one opened from a goal goes back to that goal.
+let lastTrail = [];
+let lastPath = null;
+export function noteVisit(path) {
+  let state = history.state;
+  if (!state?.trail) { // a new page, not a step back or forward
+    state = { ...(state || {}), trail: lastPath && lastPath !== path ? [...lastTrail, lastPath].slice(-20) : lastTrail };
+    history.replaceState(state, "");
+  }
+  lastTrail = state.trail;
+  lastPath = path;
+}
+// The page this one was opened from, skipping its own sub-pages (a paper's reader and quiz).
+export function cameFrom(here) {
+  const trail = history.state?.trail || [];
+  for (let i = trail.length - 1; i >= 0; i--) if (!trail[i].startsWith(here)) return trail[i];
+  return null;
+}
+
 export function setBar({ back, title } = {}) {
   const start = document.getElementById("bar-start");
   start.innerHTML = back

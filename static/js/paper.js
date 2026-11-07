@@ -1,4 +1,4 @@
-import { api, apiStream, app, busy, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { api, apiStream, app, busy, cameFrom, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { cover, drawCovers, forgetCover } from "./covers.js";
 import { drawPdf, drawPdfPage, drawText, pdfAnchor, textAnchor } from "./highlights.js";
 import { COLORS, bindNotesList, noteStore } from "./notes.js";
@@ -22,7 +22,15 @@ export async function paperPage(id, stale, tab = "overview") {
   const readLabel = { new: "Start reading", skimmed: "Start reading", reading: `Continue reading`, read: "Read again" }[p.status];
   const ancestors = chain.path.slice(0, -1);
   const readable = p.text || p.has_pdf;
-  setBar({ back: goal ? { href: `#/goals/${goal.id}`, label: goal.goal } : { href: "#/", label: "Library" }, title: p.title });
+  // Back goes where you came from: a goal, Recall, the Map, another paper; the Library otherwise.
+  const from = cameFrom(`/papers/${id}`) || "/";
+  const fromGoal = goals.find((g) => from === `/goals/${g.id}`);
+  const SECTIONS = { "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
+  const back = fromGoal ? { href: `#${from}`, label: fromGoal.goal }
+    : SECTIONS[from] ? { href: `#${from}`, label: SECTIONS[from] }
+    : /^\/papers\/\d+$/.test(from) ? { href: `#${from}`, label: "the previous paper" }
+    : { href: "#/", label: "Library" };
+  setBar({ back, title: p.title });
 
   app.innerHTML = `<div class="container page">
     <header class="paper-header" id="header">
