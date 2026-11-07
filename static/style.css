@@ -867,12 +867,8 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
 mark.hl[data-note] { cursor: pointer; }
 .hl-pop .sel-dot.active .hl-dot { box-shadow: 0 0 0 2px var(--pop), 0 0 0 3.5px var(--dot); }
 
-/* Paper covers look like a small stack of real pages: two sheets peek out behind the first page,
+/* Dark and dim: paper covers look like a small stack of real pages: two sheets peek out behind the first page,
    then a deep shadow falls below; on hover the stack lifts. */
-:root {
-  --shadow-cover: 3px 3px 0 -1px #eef0f3, 3px 3px 0 0 rgb(20 24 32 / .16), 6px 6px 0 -2px #e1e4e8, 6px 6px 0 -1px rgb(20 24 32 / .16), 0 2px 4px rgb(20 24 32 / .12), 0 16px 30px -8px rgb(20 24 32 / .38);
-  --shadow-cover-lift: 3px 3px 0 -1px #eef0f3, 3px 3px 0 0 rgb(20 24 32 / .16), 6px 6px 0 -2px #e1e4e8, 6px 6px 0 -1px rgb(20 24 32 / .16), 0 4px 8px rgb(20 24 32 / .14), 0 28px 46px -12px rgb(20 24 32 / .45);
-}
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
   --shadow-cover: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .06), 0 3px 6px rgb(0 0 0 / .6), 0 22px 40px -10px rgb(0 0 0 / .9);
   --shadow-cover-lift: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .09), 0 6px 12px rgb(0 0 0 / .6), 0 34px 56px -12px rgb(0 0 0 / .95); } }
@@ -880,5 +876,11 @@ mark.hl[data-note] { cursor: pointer; }
   --shadow-cover: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .06), 0 3px 6px rgb(0 0 0 / .6), 0 22px 40px -10px rgb(0 0 0 / .9);
   --shadow-cover-lift: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .09), 0 6px 12px rgb(0 0 0 / .6), 0 34px 56px -12px rgb(0 0 0 / .95);
 }
-.cover { margin: 0 6px 6px 0; }
-.cover-link:hover .cover, .shelf-item:hover .cover { transform: translate(-1px, -4px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .cover { margin: 0 6px 6px 0; } }
+:root[data-theme="dark"] .cover, :root[data-theme="dim"] .cover { margin: 0 6px 6px 0; }
+
+/* Dim: cards lit from above too (a navy a little lighter at the top, a bright top edge, a deep shadow). */
+:root[data-theme="dim"] {
+  --sheet-fill: linear-gradient(180deg, #1d2e4a 0%, #16243b 40%, #132034 100%); --sheet-edge: rgb(255 255 255 / .12);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .05), 0 1px 2px rgb(2 8 20 / .5), 0 10px 22px -8px rgb(2 8 20 / .6), 0 28px 56px -18px rgb(2 8 20 / .7);
+}
