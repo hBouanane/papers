@@ -333,6 +333,7 @@ def list_papers(topic_id: int | None = None, archived: bool = False):
     for p in papers:
         text = p.pop("text")
         p["resume_text"] = resume_text(text, p["position"]) if p["status"] == "reading" and text else ""
+        p["has_pdf"] = db.pdf_path(p["id"]).exists()  # the Library draws its first page as the cover
     return papers
 
 
@@ -548,6 +549,7 @@ class SettingsIn(BaseModel):
     library_dir: str | None = None
     ai_backend: Literal["api", "claude-code"] | None = None
     language: str | None = None  # the reader's first language, for translations
+    name: str | None = None  # what the Library greets you with; empty means just "Good morning"
 
 
 def settings() -> dict:
@@ -555,7 +557,7 @@ def settings() -> dict:
     return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
             "suggested": str(Path.home() / "Documents" / "Papers"),
             "ai_backend": llm.backend(), "ai_ready": llm.configured(), "claude_binary": llm.claude_binary() or "",
-            "language": setting("language"),
+            "language": setting("language"), "name": setting("name"),
             "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))}
 
 
@@ -571,6 +573,8 @@ def save_settings(body: SettingsIn):
             conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
         if body.language is not None:
             conn.execute("insert or replace into settings (key, value) values ('language', ?)", (body.language.strip(),))
+        if body.name is not None:
+            conn.execute("insert or replace into settings (key, value) values ('name', ?)", (body.name.strip()[:60],))
     if body.library_dir is None:
         return settings()
     try:

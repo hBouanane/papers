@@ -601,27 +601,97 @@ body.skimming .strip { opacity: .35; }
 @media (max-width: 760px) { .switch { order: 3; } }
 
 /* ---------- Library: the reading desk ---------- */
-/* The heading sits above both columns, so the cards and the side boxes start on the same line. */
+/* A calm home: a serif greeting, the paper you opened last as a big cover, the others as a row of covers. */
+.library-head { margin-bottom: 36px; }
+.greeting { font-family: var(--paper); font-weight: 500; font-size: 46px; line-height: 1.1; letter-spacing: -0.005em; }
+.library-head .lede { max-width: 60ch; margin-top: 10px; }
+.lede-paper { font-family: var(--paper); font-style: italic; color: var(--graphite); }
+@media (max-width: 640px) { .greeting { font-size: 36px; } .library-head { margin-bottom: 24px; } }
+
+/* The heading sits above both columns, so the first card and the side boxes start on the same line. */
 .desk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 24px; row-gap: 12px; align-items: start; }
-.desk-main { display: contents; }
-.desk-main > * { grid-column: 1; }
-.desk-side { grid-column: 2; grid-row: 2 / span 2; }
-@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } .desk-side { grid-column: 1; grid-row: auto; margin-top: 12px; } }
+.desk-heading { grid-column: 1; }
+.desk-main { grid-column: 1; min-width: 0; }
+.desk-side { grid-column: 2; grid-row: 2; }
+@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } .desk-side { grid-column: 1; grid-row: auto; margin-top: 20px; } }
 .desk-main h2, .desk-box h2 { font-size: 17px; }
 .desk-box h2 { margin-bottom: 12px; }
-.reading-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
-.reading-card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; text-decoration: none; color: inherit; min-height: 210px; }
-.reading-card:hover { border-color: var(--pencil); }
-.reading-card:hover .card-go { text-decoration: underline; }
 .card-goal { font-size: 12px; font-weight: 700; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-title { font-size: 19px; line-height: 1.3; }
 .card-cite { font-size: 14px; color: var(--pencil); }
 .card-quote { font-family: var(--paper); font-style: italic; color: var(--pencil); font-size: 15px; line-height: 1.55; margin-top: 8px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .card-foot { margin-top: auto; padding-top: 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--pencil); }
-.card-foot .bar { flex: 1; width: auto; }
-.card-go { color: var(--ink); font-weight: 700; }
+.card-foot .bar { flex: 1; width: auto; max-width: 240px; }
 .desk-empty { border: 1px dashed var(--line); border-radius: var(--r-panel); padding: 28px; color: var(--pencil); text-align: center; }
+
+/* Covers: a page of paper with a soft shadow that lifts a little on hover. */
+:root { --shadow-cover: 0 1px 1px rgb(20 24 32 / .08), 0 6px 18px -6px rgb(20 24 32 / .28);
+  --shadow-cover-lift: 0 2px 3px rgb(20 24 32 / .08), 0 14px 28px -8px rgb(20 24 32 / .34); --cover-page: none; --cover-paper: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) {
+  --shadow-cover: 0 1px 2px rgb(0 0 0 / .5), 0 8px 22px -6px rgb(0 0 0 / .7);
+  --shadow-cover-lift: 0 2px 3px rgb(0 0 0 / .5), 0 16px 32px -8px rgb(0 0 0 / .8); --cover-page: brightness(.88); --cover-paper: var(--raised); } }
+:root[data-theme="dark"], :root[data-theme="dim"] {
+  --shadow-cover: 0 1px 2px rgb(0 0 0 / .5), 0 8px 22px -6px rgb(0 0 0 / .7);
+  --shadow-cover-lift: 0 2px 3px rgb(0 0 0 / .5), 0 16px 32px -8px rgb(0 0 0 / .8); --cover-page: brightness(.88); --cover-paper: var(--raised); }
+.cover { position: relative; display: block; aspect-ratio: 17 / 22; border-radius: 3px; overflow: hidden;
+  background: var(--cover-paper); box-shadow: var(--shadow-cover); outline: 1px solid var(--line-soft); outline-offset: -1px;
+  transition: transform .18s ease, box-shadow .18s ease; }
+.cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: #fff;
+  filter: var(--cover-page); opacity: 0; transition: opacity .25s ease; }
+.cover.has-page img { opacity: 1; }
+.cover.has-page .cover-type { visibility: hidden; }
+/* The typeset cover, for papers without a PDF (and while the page is being drawn). */
+.cover-type { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 16% 12% 12%; gap: 8px;
+  border-top: 3px solid var(--ink); background: var(--cover-paper); }
+.cover-title { font-family: var(--paper); font-weight: 600; color: var(--heading); line-height: 1.2; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.cover-rule { width: 28px; height: 1px; background: var(--line); margin-top: 4px; flex-shrink: 0; }
+.cover-cite { font-family: var(--paper); font-style: italic; color: var(--pencil); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cover-large .cover-title { font-size: 17px; -webkit-line-clamp: 7; }
+.cover-large .cover-cite { font-size: 13px; }
+.cover-small .cover-title { font-size: 13px; -webkit-line-clamp: 6; }
+.cover-small .cover-cite { font-size: 11px; }
+.cover-link { display: block; }
+.cover-link:hover .cover, .shelf-item:hover .cover { transform: translateY(-3px); box-shadow: var(--shadow-cover-lift); }
+
+/* Continue reading: the paper you opened last. */
+.continue { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 28px; padding: 24px; align-items: start; }
+.continue-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-self: stretch; }
+.continue-title { font-size: 26px; line-height: 1.2; color: var(--heading); text-decoration: none; overflow-wrap: break-word; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.continue-title:hover { color: var(--ink); }
+.continue .card-foot { margin-top: auto; padding-top: 16px; }
+.continue-go { align-self: flex-start; margin-top: 14px; }
+@media (max-width: 560px) {
+  .continue { grid-template-columns: 104px minmax(0, 1fr); gap: 16px; padding: 16px; }
+  .continue-title { font-size: 20px; }
+  .continue .card-quote { -webkit-line-clamp: 2; }
+  .cover-large .cover-title { font-size: 12px; -webkit-line-clamp: 6; }
+  .cover-large .cover-cite { font-size: 10px; }
+}
+
+/* Also reading: a row of covers on the desk, title underneath. */
+.shelf-heading { margin: 32px 0 14px; }
+.shelf { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 22px; }
+@media (max-width: 560px) { .shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 18px; } }
+.shelf-item { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; min-width: 0; }
+.shelf-item .cover { margin-bottom: 8px; }
+.shelf-title { font-size: 15px; line-height: 1.3; color: var(--heading);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.shelf-item:hover .shelf-title { color: var(--ink); }
+.shelf-foot { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pencil); }
+.shelf-foot .bar { flex: 1; width: auto; }
+.shelf + .button { margin-top: 16px; }
+
+/* A paper's own page shows its cover beside the title. */
+.paper-header:has(> .cover-link, > .cover) { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 32px; align-items: start; }
+.paper-header-text { min-width: 0; }
+@media (max-width: 640px) {
+  .paper-header:has(> .cover-link, > .cover) { grid-template-columns: 84px minmax(0, 1fr); gap: 16px; }
+  .paper-header .cover-large .cover-title { font-size: 10px; }
+  .paper-header .cover-large .cover-cite { display: none; }
+}
 .desk-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; } /* long titles shorten with "…" instead of widening the box */
 .desk-box { padding: 16px 18px; }
 .desk-box .hint { font-size: 14px; }

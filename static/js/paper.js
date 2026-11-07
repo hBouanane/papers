@@ -1,4 +1,5 @@
 import { api, apiStream, app, busy, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { cover, drawCovers, forgetCover } from "./covers.js";
 import { drawPdf, drawPdfPage, drawText, pdfAnchor, textAnchor } from "./highlights.js";
 import { COLORS, bindNotesList, noteStore } from "./notes.js";
 import { openPdf } from "./pdfview.js";
@@ -25,6 +26,8 @@ export async function paperPage(id, stale, tab = "overview") {
 
   app.innerHTML = `<div class="container page">
     <header class="paper-header" id="header">
+      ${readable ? `<a class="cover-link" href="#/papers/${id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>` : cover(p, "large")}
+      <div class="paper-header-text">
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
       <div class="actions">
@@ -48,6 +51,7 @@ export async function paperPage(id, stale, tab = "overview") {
       ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
       ${p.has_pdf && !p.text ? `<p class="hint">This PDF has no selectable text, so it's probably a scan. You can read it,
         but key points, explanations and questions need text.</p>` : ""}
+      </div>
     </header>
 
     <div class="paper-layout">
@@ -70,6 +74,7 @@ export async function paperPage(id, stale, tab = "overview") {
       </aside>
     </div></div>`;
 
+  drawCovers(app.querySelector("#header"));
   const panel = app.querySelector("#panel");
   const showTab = (key) => {
     tab = key;
@@ -218,6 +223,7 @@ async function uploadPdf(id, file) {
   app.querySelectorAll(".pdf-input").forEach((input) => (input.closest("label").querySelector("span").textContent = "Uploading…"));
   try {
     await api(`/papers/${id}/pdf`, { method: "POST", body: form });
+    forgetCover(id);
     location.hash = `#/papers/${id}/read`;
   } catch (e) { toast(e.message); }
 }
