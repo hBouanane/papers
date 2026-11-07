@@ -908,12 +908,9 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .cover-sheet { background: var(--sheet-glass); border: 0; -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%);
   box-shadow: 0 10px 24px -10px rgb(0 0 0 / .35); }
 
-/* Hovering a paper: the page lifts, and its text answers too. The title's underline draws in, the
+/* Hovering a paper: the page lifts, and its text answers too. The title rises a little, the
    reading bar gets a light sweep, and "7% read" slides away for "Continue →". On Continue reading the
    whole card counts as hovering the paper. */
-.ul { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 1px;
-  transition: background-size .45s cubic-bezier(.3, .8, .25, 1); }
-.shelf-card:hover .ul, .continue:hover .ul { background-size: 100% 1.5px; }
 .shelf-card .shelf-title { transition: color .3s ease, transform .45s cubic-bezier(.3, .8, .25, 1); }
 .shelf-card:hover .shelf-title { transform: translateY(-2px); }
 .continue:hover .continue-title { color: var(--ink); }
@@ -932,6 +929,6 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .arrow { display: inline-block; transition: transform .35s cubic-bezier(.3, .8, .25, 1); }
 .shelf-card:hover .arrow, .continue:hover .arrow { transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) {
-  .ul, .shelf-card .shelf-title, .foot-swap > *, .arrow { transition: none; }
+  .shelf-card .shelf-title, .foot-swap > *, .arrow { transition: none; }
   .shelf-card:hover .bar::after, .continue:hover .bar::after { animation: none; }
 }
