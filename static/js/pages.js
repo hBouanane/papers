@@ -272,8 +272,24 @@ export async function goalPage(id, stale) {
 }
 
 // ---------- Recall ----------
+// Your papers' first pages scattered behind Recall, since that's what it searches. They drift slowly,
+// and while a search runs a wave of light passes over them.
+function recallBackdrop(papers) {
+  if (!papers.length) return "";
+  const slots = 16;
+  const items = Array.from({ length: slots }, (_, i) => {
+    const p = papers[i % papers.length];
+    const col = i % 8, row = Math.floor(i / 8);
+    const x = 2 + col * 12.5 + ((i * 37) % 5) - 2; // across the page, a little irregular
+    const y = row ? 52 + ((i * 53) % 18) : 4 + ((i * 29) % 16);
+    const tilt = ((i * 47) % 25) - 12;
+    return `<span class="rb-item" style="--i:${i};--x:${x}%;--y:${y}%;--r:${tilt}deg">${cover(p, "small")}</span>`;
+  });
+  return `<div class="recall-backdrop" id="backdrop" aria-hidden="true">${items.join("")}</div>`;
+}
+
 export async function recallPage() {
-  app.innerHTML = `<div class="container page narrow">
+  app.innerHTML = `<div class="container page narrow recall-page">
     <div class="page-head">
       <h1 class="page-title">Where did I read that?</h1>
       <p class="lede">Describe the idea in your own words. Searches every paper, your notes and the explanations you asked for; finished papers come first.</p>
@@ -285,12 +301,19 @@ export async function recallPage() {
     </form>
     <div id="results"></div></div>`;
   const input = app.querySelector("#idea");
+  api("/papers").then((papers) => {
+    if (!app.querySelector(".recall-page")) return; // left the page meanwhile
+    const withPages = papers.filter((p) => p.has_pdf); // real first pages look best; typeset covers only if needed
+    app.insertAdjacentHTML("afterbegin", recallBackdrop(withPages.length >= 3 ? withPages : papers));
+    drawCovers(app.querySelector("#backdrop"));
+  }).catch(() => {});
   input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); app.querySelector("#recall").requestSubmit(); } };
   app.querySelector("#recall").onsubmit = (e) => {
     e.preventDefault();
     const box = app.querySelector("#results");
     busy(e.submitter, "Searching…", async () => {
       box.innerHTML = loading("Looking through your papers");
+      app.querySelector("#backdrop")?.classList.add("searching");
       try {
         const found = await api("/recall", { method: "POST", json: { idea: input.value.trim() } });
         box.innerHTML = found.length ? `<div class="recall-results">${found.map((m) => `
@@ -302,6 +325,7 @@ export async function recallPage() {
           : empty("Nothing in your library matches that. Try other words for the same idea.");
         drawCovers(box);
       } catch (err) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
+      finally { app.querySelector("#backdrop")?.classList.remove("searching"); }
     });
   };
 }

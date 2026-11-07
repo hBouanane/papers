@@ -1098,3 +1098,28 @@ body.reading #toast { bottom: 64px; }
 .match-cover .cover-sheet { display: none; }
 .match-card:hover .match-cover .cover { transform: translateY(-3px) rotate(-1.5deg); }
 .match-text { display: grid; gap: 3px; min-width: 0; }
+
+/* Recall: your papers' first pages scattered behind the page, faded, clearer at the edges than behind the
+   search; they drift slowly, and a wave of light passes over them while a search runs. */
+.recall-page { position: relative; z-index: 1; }
+.recall-backdrop { position: fixed; inset: 56px 0 0; z-index: 0; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 46% 52% at 50% 34%, transparent 0 35%, #000 82%);
+  mask-image: radial-gradient(ellipse 46% 52% at 50% 34%, transparent 0 35%, #000 82%); }
+.rb-item { position: absolute; left: var(--x); top: var(--y); width: clamp(90px, 9vw, 140px); opacity: .5;
+  transform: rotate(var(--r)); animation: rb-drift 16s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -1.7s);
+  transition: opacity .6s ease; }
+.rb-item .cover-sheet { display: none; }
+.rb-item .cover { box-shadow: 0 10px 26px -10px rgb(0 0 0 / .45); }
+@keyframes rb-drift {
+  from { transform: rotate(var(--r)) translate(0, 0); }
+  to { transform: rotate(calc(var(--r) * -0.4)) translate(6px, -14px); }
+}
+.recall-backdrop.searching .rb-item { animation: rb-scan 1.8s ease-in-out infinite; animation-delay: calc(var(--i) * .11s); }
+@keyframes rb-scan {
+  0%, 100% { opacity: .45; transform: rotate(var(--r)) translateY(0); }
+  45% { opacity: .95; transform: rotate(calc(var(--r) * .5)) translateY(-12px) scale(1.04); }
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .rb-item { opacity: .32; } }
+:root[data-theme="dark"] .rb-item, :root[data-theme="dim"] .rb-item { opacity: .32; }
+@media (max-width: 640px) { .rb-item { width: 70px; } }
+@media (prefers-reduced-motion: reduce) { .rb-item, .recall-backdrop.searching .rb-item { animation: none; } }
