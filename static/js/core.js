@@ -8,9 +8,15 @@ export const esc = (s) =>
 
 export const pct = (x) => `${Math.round((x || 0) * 100)}%`;
 
-export function toast(msg) {
+// `action` ({ label, run }) adds one button, e.g. Undo.
+export function toast(msg, action = null) {
   const t = document.getElementById("toast");
   t.textContent = msg;
+  if (action) {
+    const b = Object.assign(document.createElement("button"), { className: "toast-action", textContent: action.label });
+    b.onclick = () => { t.hidden = true; action.run(); };
+    t.append(" ", b);
+  }
   t.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => (t.hidden = true), 4500);

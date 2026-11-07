@@ -837,3 +837,27 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
   --shadow-cover: 0 0 0 1px rgb(255 255 255 / .06), 0 3px 8px rgb(255 255 255 / .07), 0 16px 36px -10px rgb(255 255 255 / .24);
   --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .08), 0 5px 12px rgb(255 255 255 / .09), 0 22px 44px -10px rgb(255 255 255 / .32);
 }
+
+/* Toast with an action (Undo). */
+#toast .toast-action { border: 0; background: none; color: inherit; font: 800 14px var(--ui); text-decoration: underline; cursor: pointer; padding: 0 0 0 6px; }
+#toast { pointer-events: auto; }
+
+/* The highlighter tool in the reader bar. */
+.hl-tool { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.hl-tool-btn { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 8px 0 7px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--pencil); cursor: pointer; }
+.hl-tool-btn:hover { color: var(--graphite); }
+.hl-tool-btn .hl-dot { width: 10px; height: 10px; }
+.hl-tool.on .hl-tool-btn { background: var(--selected); color: var(--on-selected); }
+.hl-tool-colors { display: inline-flex; gap: 4px; max-width: 0; overflow: hidden; opacity: 0; transition: max-width .3s ease, opacity .3s ease, padding .3s ease; }
+.hl-tool.on .hl-tool-colors, .hl-tool:hover .hl-tool-colors, .hl-tool:focus-within .hl-tool-colors { max-width: 90px; opacity: 1; padding: 0 6px 0 4px; }
+.hl-tool-colors .hl-dot { width: 14px; height: 14px; border: 0; padding: 0; cursor: pointer; flex-shrink: 0; }
+.hl-tool-colors .hl-dot.active { box-shadow: 0 0 0 2px var(--header), 0 0 0 3.5px var(--dot); }
+/* While it's on, the pointer is a marker in its colour over the paper. */
+.reader-scroll.highlighting, .reader-scroll.highlighting .textLayer, .reader-scroll.highlighting .textLayer span,
+.reader-scroll.highlighting #article, .reader-scroll.highlighting #article * { cursor: var(--hl-cursor), text !important; }
+@media (max-width: 760px) { .hl-tool { order: 3; } }
+
+/* Highlights can be clicked: in the Text view directly, in the PDF by position (they sit under the text). */
+mark.hl[data-note] { cursor: pointer; }
+.hl-pop .sel-dot.active .hl-dot { box-shadow: 0 0 0 2px var(--pop), 0 0 0 3.5px var(--dot); }

@@ -115,7 +115,10 @@ export async function libraryPage(stale) {
   let filter = "all";
   let hits = null; // search results, or null when the search box is empty
   let archived = []; // loaded when the Archived filter is opened
+  // Switching filters or searching never makes the list shorter than it has been on this visit, so the
+  // page doesn't shrink and jump up under your pointer (an empty filter just leaves room below).
   const show = () => {
+    rows.style.minHeight = `${Math.max(rows.offsetHeight, parseFloat(rows.style.minHeight) || 0)}px`;
     const pool = hits ?? (filter === "archived" ? archived : papers).map((paper) => ({ paper, snippet: "" }));
     const list = pool.filter(({ paper }) => filter === "all" || paper.status === filter
       || (filter === "archived" && paper.archived));

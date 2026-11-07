@@ -326,6 +326,10 @@ export async function readerPage(id, stale) {
           <button class="button quiet small" data-zoom="out" title="Zoom out (−)">−</button>
           <button class="button quiet small zoom-value num" data-zoom="fit" title="Fit to width">100%</button>
           <button class="button quiet small" data-zoom="in" title="Zoom in (+)">+</button></div>
+        <div class="hl-tool" id="hl-tool" role="group" aria-label="Highlighter">
+          <button class="hl-tool-btn" id="hl-toggle" aria-pressed="false" title="Highlighter: select text to highlight it at once (h, Esc to stop)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg><span class="hl-dot" id="hl-tool-dot"></span></button>
+          <span class="hl-tool-colors">${COLORS.map((c) => `<button class="hl-dot hl-${c}" data-tool-color="${c}" aria-label="${c}" title="${c[0].toUpperCase() + c.slice(1)}"></button>`).join("")}</span>
+        </div>
         ${readingPrefsMenu()}
         <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
         ${pageToneControl()}
@@ -360,6 +364,11 @@ export async function readerPage(id, stale) {
       <div class="pane" data-pane="notes" hidden><div id="notes-list"></div></div>
     </aside>
     <div class="finish-card sheet" id="finish-card" role="dialog" aria-live="polite" hidden></div>
+    <div class="sel-bar hl-pop" id="hl-pop" role="toolbar" aria-label="Highlight" hidden>
+      <span class="sel-colors">${COLORS.map((c) => `<button data-hl-color="${c}" class="sel-dot" aria-label="${c}" title="${c[0].toUpperCase() + c.slice(1)}"><span class="hl-dot hl-${c}"></span></button>`).join("")}</span>
+      <button data-hl-act="note">Note</button>
+      <button data-hl-act="remove">Remove</button>
+    </div>
     <div class="sel-bar" id="pop" role="toolbar" aria-label="Selected text" hidden>
       <span class="sel-colors" role="group" aria-label="Highlight">${COLORS.map((c, i) =>
         `<button data-sel="highlight" data-color="${c}" class="sel-dot" title="Highlight${i ? "" : " (h)"}" aria-label="Highlight ${c}"><span class="hl-dot hl-${c}"></span></button>`).join("")}</span>
@@ -622,9 +631,92 @@ export async function readerPage(id, stale) {
     pop.style.top = `${Math.max(rect.top - pop.offsetHeight - 10, top + 6)}px`;
     pop.style.left = `${Math.min(innerWidth - width - 8, Math.max(8, rect.left + rect.width / 2 - width / 2))}px`;
   };
-  scroller.addEventListener("mouseup", () => setTimeout(showSelectionBar));
+  scroller.addEventListener("mouseup", () => setTimeout(() => (tool.on ? highlightSelection() : showSelectionBar())));
   scroller.addEventListener("keyup", (e) => e.shiftKey && setTimeout(showSelectionBar));
   pop.addEventListener("mousedown", (e) => e.preventDefault()); // keep the selection while clicking
+
+  // ----- The highlighter tool (like a real marker): select text and it's highlighted, no menu. -----
+  const TOOL_KEY = "papers.highlighter";
+  const tool = (() => { try { return { on: false, color: "yellow", ...JSON.parse(localStorage.getItem(TOOL_KEY) || "{}") }; } catch { return { on: false, color: "yellow" }; } })();
+  const cursorFor = (color) => {
+    const fill = getComputedStyle(document.documentElement).getPropertyValue(`--dot-${color}`).trim() || "#f0c000";
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><path d='M4 22l2.5-6.5L17 5l4 4-10.5 10.5z' fill='${fill}' stroke='#1b1e23' stroke-width='1.4' stroke-linejoin='round'/><path d='M4 22l2.5-6.5 4 4z' fill='#1b1e23'/><path d='M15 7l4 4' stroke='#1b1e23' stroke-width='1.4'/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 4 22`;
+  };
+  const paintTool = () => {
+    $("#hl-toggle").setAttribute("aria-pressed", tool.on);
+    $("#hl-tool").classList.toggle("on", tool.on);
+    $("#hl-tool-dot").className = `hl-dot hl-${tool.color}`;
+    app.querySelectorAll("[data-tool-color]").forEach((b) => b.classList.toggle("active", b.dataset.toolColor === tool.color));
+    scroller.classList.toggle("highlighting", tool.on);
+    scroller.style.setProperty("--hl-cursor", cursorFor(tool.color));
+    try { localStorage.setItem(TOOL_KEY, JSON.stringify(tool)); } catch { /* not remembered */ }
+  };
+  const setTool = (on) => {
+    tool.on = on;
+    paintTool();
+    if (on) { pop.hidden = true; toast(`Highlighter on: select text to highlight it ${tool.color}. Esc to stop.`); }
+  };
+  $("#hl-toggle").onclick = () => setTool(!tool.on);
+  $("#hl-tool").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tool-color]");
+    if (!b) return;
+    tool.color = b.dataset.toolColor;
+    if (!tool.on) setTool(true); else paintTool();
+  });
+  const highlightSelection = async () => {
+    const sel = getSelection();
+    const text = sel.toString().trim();
+    if (text.length < 2 || !sel.rangeCount || !scroller.contains(sel.anchorNode)) return;
+    const range = sel.getRangeAt(0).cloneRange();
+    sel.removeAllRanges();
+    await addHighlight(range, text, tool.color);
+  };
+  paintTool();
+
+  // ----- Click a highlight on the page: change its colour, add a note, or remove it. -----
+  const hlPop = $("#hl-pop");
+  let picked = null; // the note whose highlight was clicked
+  const highlightAt = (e) => {
+    const mark = e.target.closest?.("mark.hl[data-note]");
+    if (mark) return { id: Number(mark.dataset.note), box: mark.getBoundingClientRect() };
+    // In the PDF the marks sit under the text, so find the one under the pointer by its position.
+    for (const el of scroller.querySelectorAll(".hl-layer .hl")) {
+      const r = el.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top - 2 && e.clientY <= r.bottom + 2) return { id: Number(el.dataset.note), box: r };
+    }
+    return null;
+  };
+  const openHighlight = (hit) => {
+    picked = notes.items.find((n) => n.id === hit.id);
+    if (!picked) return;
+    hlPop.querySelectorAll("[data-hl-color]").forEach((b) => b.classList.toggle("active", b.dataset.hlColor === picked.color));
+    hlPop.querySelector("[data-hl-act=note]").textContent = picked.body ? "Edit note" : "Note";
+    hlPop.hidden = false;
+    const top = scroller.getBoundingClientRect().top;
+    hlPop.style.top = `${Math.max(hit.box.top - hlPop.offsetHeight - 10, top + 6)}px`;
+    hlPop.style.left = `${Math.min(innerWidth - hlPop.offsetWidth - 8, Math.max(8, hit.box.left + hit.box.width / 2 - hlPop.offsetWidth / 2))}px`;
+  };
+  const closeHighlight = () => { hlPop.hidden = true; picked = null; };
+  hlPop.addEventListener("click", async (e) => {
+    if (!picked) return;
+    const note = picked;
+    const color = e.target.closest("[data-hl-color]")?.dataset.hlColor;
+    const act = e.target.closest("[data-hl-act]")?.dataset.hlAct;
+    closeHighlight();
+    if (color && color !== note.color) await notes.edit(note.id, { color }).catch((err) => toast(err.message));
+    if (act === "note") { setOpen(true, "notes"); notesUi.edit(note.id); }
+    if (act === "remove") {
+      await notes.remove(note.id).catch((err) => toast(err.message));
+      toast("Highlight removed.", { label: "Undo", run: () => {
+        const { kind, body, quote, color: c, page, position, anchor } = note;
+        notes.add({ kind, body, quote, color: c, page, position, anchor }).catch((err) => toast(err.message));
+      } });
+    }
+  });
+  const onOutside = (e) => { if (!hlPop.hidden && !hlPop.contains(e.target)) closeHighlight(); };
+  document.addEventListener("mousedown", onOutside);
+  scroller.addEventListener("scroll", () => { if (!hlPop.hidden) closeHighlight(); }, { passive: true });
   pop.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-sel]")?.dataset.sel;
     if (!action || !selection) return;
@@ -751,6 +843,10 @@ export async function readerPage(id, stale) {
   renderVocab($("#reader-vocab"), p, { compact: true });
   scroller.addEventListener("click", (e) => {
     if (e.target.closest("[data-finish]")) return finish(e.target.closest("[data-finish]"));
+    if (!getSelection().toString().trim()) {
+      const hit = highlightAt(e);
+      if (hit) return openHighlight(hit);
+    }
     // Tap or click an underlined word to see what it means (hover works too on a computer).
     const term = e.target.closest(".term");
     if (term && !getSelection().toString()) toast(`${term.textContent}: ${term.title}`);
@@ -789,12 +885,13 @@ export async function readerPage(id, stale) {
     else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
     else if (e.key === "e" && !pop.hidden) pop.querySelector("[data-sel=explain]").click();
     else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
-    else if (e.key === "h" && !pop.hidden) pop.querySelector("[data-sel=highlight]").click();
+    else if (e.key === "h") { if (!pop.hidden) pop.querySelector("[data-sel=highlight]").click(); else setTool(!tool.on); }
+    else if (e.key === "Escape" && (tool.on || !hlPop.hidden)) { closeHighlight(); if (tool.on) setTool(false); }
     else if ((e.key === "+" || e.key === "=") && pdf) pdf.zoomBy(1.25, middle());
     else if (e.key === "-" && pdf) pdf.zoomBy(0.8, middle());
     else if (e.key === "d" && pdf) toast(toggleDarkPages() ? "Dark pages on (press d to turn off)." : "Dark pages off.");
     else if (e.key === "?") showShortcuts([["s", "Skimming on or off (nothing counts while it's on)"], ["d", "Dark PDF pages on or off"], ["n", "Open or close Ask, Words and Notes"],
-      ["e", "Explain the selected text"], ["h", "Highlight the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
+      ["e", "Explain the selected text"], ["h", "Highlight the selected text, or turn the highlighter on and off"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
     else return;
     e.preventDefault();
   };
@@ -813,6 +910,7 @@ export async function readerPage(id, stale) {
     stopSpeaking();
     removeEventListener("keydown", onKey);
     notesUi.destroy();
+    document.removeEventListener("mousedown", onOutside);
     document.removeEventListener("dark-pages-changed", onDarkPages);
     flush(true);
     tracker.stop();
