@@ -50,7 +50,7 @@ export async function libraryPage(stale) {
     </div>`;
   // A card with a small stage on top: the paper's first page peeking up, a second sheet tilted behind it.
   const shelfItem = (p) => `<a class="shelf-card" href="#/papers/${p.id}">
-      <span class="shelf-stage" aria-hidden="true"><span class="shelf-sheet"></span>${cover(p, "small")}</span>
+      <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
       <span class="shelf-info">
         <span class="shelf-title paper-name">${esc(p.title)}</span>
         <span class="shelf-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>

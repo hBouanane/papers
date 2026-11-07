@@ -19,12 +19,14 @@ async function keep(id, blob) {
 }
 
 // `size` is "large" (the paper you're reading, a paper's own page) or "small" (a row of covers).
+// Every cover has a second sheet tilted behind it; inside a link, hovering lifts the page and fans the sheet.
 export function cover(p, size = "small") {
-  return `<span class="cover cover-${size}" data-cover="${p.id}" ${p.has_pdf ? "data-pdf" : ""}>
+  return `<span class="cover-wrap"><span class="cover-sheet" aria-hidden="true"></span>
+    <span class="cover cover-${size}" data-cover="${p.id}" ${p.has_pdf ? "data-pdf" : ""}>
     <span class="cover-type" aria-hidden="true">
       <span class="cover-title">${esc(p.title)}</span>
       ${p.authors || p.year ? `<span class="cover-rule"></span><span class="cover-cite">${cite(p)}</span>` : ""}
-    </span></span>`;
+    </span></span></span>`;
 }
 
 function thumbnail(id) {
