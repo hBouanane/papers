@@ -52,7 +52,7 @@
     --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
     --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
     --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 16px rgb(255 255 255 / .035);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .07), 0 2px 6px rgb(255 255 255 / .05), 0 12px 32px -8px rgb(255 255 255 / .16);
     --page-filter: none;
 }
 }
@@ -68,7 +68,7 @@
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
   --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
   --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 16px rgb(255 255 255 / .035);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .07), 0 2px 6px rgb(255 255 255 / .05), 0 12px 32px -8px rgb(255 255 255 / .16);
   --page-filter: none;
 }
 
@@ -825,15 +825,15 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
 
 /* Dark mode: on black, a black shadow can't be seen, so anything raised glows faintly white instead. */
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
-  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .08), 0 10px 36px rgb(255 255 255 / .07);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .1), 0 14px 40px -8px rgb(255 255 255 / .2);
   --shadow-panel: -10px 0 36px rgb(255 255 255 / .05);
-  --shadow-soft: 0 0 14px rgb(255 255 255 / .06);
-  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .05), 0 6px 22px -4px rgb(255 255 255 / .1);
-  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .07), 0 12px 30px -6px rgb(255 255 255 / .16); } }
+  --shadow-soft: 0 2px 6px rgb(255 255 255 / .06), 0 10px 26px -8px rgb(255 255 255 / .16);
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .06), 0 3px 8px rgb(255 255 255 / .07), 0 16px 36px -10px rgb(255 255 255 / .24);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .08), 0 5px 12px rgb(255 255 255 / .09), 0 22px 44px -10px rgb(255 255 255 / .32); } }
 :root[data-theme="dark"] {
-  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .08), 0 10px 36px rgb(255 255 255 / .07);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .1), 0 14px 40px -8px rgb(255 255 255 / .2);
   --shadow-panel: -10px 0 36px rgb(255 255 255 / .05);
-  --shadow-soft: 0 0 14px rgb(255 255 255 / .06);
-  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .05), 0 6px 22px -4px rgb(255 255 255 / .1);
-  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .07), 0 12px 30px -6px rgb(255 255 255 / .16);
+  --shadow-soft: 0 2px 6px rgb(255 255 255 / .06), 0 10px 26px -8px rgb(255 255 255 / .16);
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .06), 0 3px 8px rgb(255 255 255 / .07), 0 16px 36px -10px rgb(255 255 255 / .24);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .08), 0 5px 12px rgb(255 255 255 / .09), 0 22px 44px -10px rgb(255 255 255 / .32);
 }
