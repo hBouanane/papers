@@ -547,8 +547,8 @@ def list_explanations(paper_id: int):
 
 class SettingsIn(BaseModel):
     library_dir: str | None = None
-    ai_backend: Literal["api", "claude-code", "openai"] | None = None
-    ai_provider: str | None = None  # one of llm.PROVIDERS
+    ai_backend: Literal["api", "claude-code", "codex", "openai"] | None = None
+    ai_provider: str | None = None  # one of llm.PROVIDERS; choosing one also sets ai_backend
     ai_base_url: str | None = None  # empty: the provider's usual address
     ai_api_key: str | None = None  # kept on this computer, never sent back to the page
     ai_model: str | None = None
@@ -561,6 +561,7 @@ def openai_settings() -> dict:
     """The OpenAI-compatible model choice, without the key itself (only whether one is set)."""
     cfg = llm.openai_config()
     return {"ai_provider": cfg["provider"], "ai_base_url": cfg["base_url"], "ai_model": cfg["model"],
+            "codex_binary": llm.codex_binary() or "",
             "ai_key_set": bool(cfg["api_key"]), "ai_context": setting("ai_context") or "full",
             "ai_name": llm.ai_name(), "providers": llm.PROVIDERS}
 
@@ -585,12 +586,21 @@ def save_settings(body: SettingsIn):
     with db.connect() as conn:
         if body.ai_backend:
             conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
-        for key in ("ai_provider", "ai_base_url", "ai_api_key", "ai_model", "ai_context"):
-            value = getattr(body, key)
+        if body.ai_provider is not None:
+            if body.ai_provider not in llm.BY_ID:
+                raise HTTPException(422, "Unknown provider")
+            conn.execute("insert or replace into settings (key, value) values ('ai_provider', ?)", (body.ai_provider,))
+            conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)",
+                         (llm.BY_ID[body.ai_provider]["kind"],))
+        if body.ai_context is not None:
+            conn.execute("insert or replace into settings (key, value) values ('ai_context', ?)", (body.ai_context,))
+    # Key, model and address belong to the provider that is chosen now.
+    current = llm.provider()
+    with db.connect() as conn:
+        for field, key in (("ai_api_key", "ai_key"), ("ai_model", "ai_model"), ("ai_base_url", "ai_base_url")):
+            value = getattr(body, field)
             if value is not None:
-                conn.execute("insert or replace into settings (key, value) values (?, ?)", (key, value.strip()))
-        if body.ai_provider is not None and body.ai_base_url is None:
-            conn.execute("delete from settings where key = 'ai_base_url'")  # a new provider starts at its usual address
+                conn.execute("insert or replace into settings (key, value) values (?, ?)", (f"{key}:{current}", value.strip()))
         if body.language is not None:
             conn.execute("insert or replace into settings (key, value) values ('language', ?)", (body.language.strip(),))
         if body.name is not None:
@@ -613,20 +623,25 @@ def test_ai():
         llm.search_queries("checking the connection")
     except llm.AIError as e:
         return {"ok": False, "message": str(e)}
-    if llm.backend() == "openai":
-        cfg = llm.openai_config()
-        return {"ok": True, "message": f"{cfg['model']} answered through {cfg['name']}."}
-    via = "Claude Code" if llm.backend() == "claude-code" else "the API"
-    return {"ok": True, "message": f"Claude answered through {via}."}
+    p = llm.BY_ID[llm.provider()]
+    via = f"your {p['name'].split(' (')[0]} subscription" if p["group"] == "subscription" else p["name"]
+    return {"ok": True, "message": f"It works: {llm.ai_name()} answered through {via}."}
 
 
 @app.get("/api/ai/models")
 def ai_models():
     """The models the chosen OpenAI-compatible server offers, to pick from in Settings."""
+    kind = llm.backend()
+    if kind in ("claude-code", "codex"):
+        raise HTTPException(400, "Subscriptions use their default model; type a model name only if you want another one.")
     try:
+        if kind == "api":
+            return {"models": sorted(m.id for m in llm._client().models.list(limit=100))}
         return {"models": llm.list_models()}
     except llm.AIError as e:
         raise HTTPException(400, str(e))
+    except Exception as e:  # the Anthropic SDK's own errors (no key, refused key)
+        raise HTTPException(400, f"Couldn't list the models: {e}")
 
 
 _inbox_skipped: set[tuple] = set()  # files that aren't importable; don't retry until they change

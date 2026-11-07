@@ -31,32 +31,59 @@ def _setting(key: str) -> str:
     return (row["value"] if row else "") or ""
 
 
-def backend() -> str:
-    """'api' (Anthropic API key), 'claude-code' (a Claude subscription) or 'openai' (any OpenAI-compatible model)."""
-    return _setting("ai_backend") or os.environ.get("PAPERS_AI", "api")
-
-
-# ---------- Any OpenAI-compatible model ----------
-# These services (and local servers) all speak the same chat API; the user picks one and a model from its list.
+# ---------- Providers ----------
+# Every provider is chosen the same way. `kind` says how the app talks to it:
+#   claude-code / codex: a subscription, through its official CLI signed in with the user's own account
+#   api: the Anthropic API;  openai: the OpenAI-compatible chat API that most others (and local servers) speak
 PROVIDERS = [
-    {"id": "openai", "name": "OpenAI (ChatGPT)", "base_url": "https://api.openai.com/v1", "key": True},
-    {"id": "gemini", "name": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "key": True},
-    {"id": "openrouter", "name": "OpenRouter (hundreds of models)", "base_url": "https://openrouter.ai/api/v1", "key": True},
-    {"id": "mistral", "name": "Mistral", "base_url": "https://api.mistral.ai/v1", "key": True},
-    {"id": "groq", "name": "Groq", "base_url": "https://api.groq.com/openai/v1", "key": True},
-    {"id": "ollama", "name": "Ollama (on this computer)", "base_url": "http://localhost:11434/v1", "key": False},
-    {"id": "lmstudio", "name": "LM Studio (on this computer)", "base_url": "http://localhost:1234/v1", "key": False},
-    {"id": "custom", "name": "Another OpenAI-compatible server", "base_url": "", "key": False},
+    {"id": "claude-plan", "group": "subscription", "kind": "claude-code", "name": "Claude (Pro, Max)", "base_url": "", "key": False},
+    {"id": "chatgpt-plan", "group": "subscription", "kind": "codex", "name": "ChatGPT (Plus, Pro)", "base_url": "", "key": False},
+    {"id": "anthropic", "group": "key", "kind": "api", "name": "Anthropic (Claude)", "base_url": "", "key": True},
+    {"id": "openai", "group": "key", "kind": "openai", "name": "OpenAI (GPT)", "base_url": "https://api.openai.com/v1", "key": True},
+    {"id": "gemini", "group": "key", "kind": "openai", "name": "Google (Gemini)", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "key": True},
+    {"id": "mistral", "group": "key", "kind": "openai", "name": "Mistral", "base_url": "https://api.mistral.ai/v1", "key": True},
+    {"id": "groq", "group": "key", "kind": "openai", "name": "Groq", "base_url": "https://api.groq.com/openai/v1", "key": True},
+    {"id": "openrouter", "group": "key", "kind": "openai", "name": "OpenRouter (hundreds of models)", "base_url": "https://openrouter.ai/api/v1", "key": True},
+    {"id": "ollama", "group": "local", "kind": "openai", "name": "Ollama", "base_url": "http://localhost:11434/v1", "key": False},
+    {"id": "lmstudio", "group": "local", "kind": "openai", "name": "LM Studio", "base_url": "http://localhost:1234/v1", "key": False},
+    {"id": "custom", "group": "other", "kind": "openai", "name": "Any OpenAI-compatible server", "base_url": "", "key": False},
 ]
+BY_ID = {p["id"]: p for p in PROVIDERS}
+DEFAULT_FOR_KIND = {"claude-code": "claude-plan", "codex": "chatgpt-plan", "api": "anthropic"}
 _TRANSPORT = None  # tests put a fake server here
 
 
+def backend() -> str:
+    """How the chosen provider is reached: 'claude-code', 'codex', 'api' (Anthropic) or 'openai' (compatible API)."""
+    return _setting("ai_backend") or os.environ.get("PAPERS_AI", "api")
+
+
+def provider() -> str:
+    """The chosen provider's id (see PROVIDERS)."""
+    kind = backend()
+    if kind in DEFAULT_FOR_KIND:
+        return DEFAULT_FOR_KIND[kind]
+    chosen = _setting("ai_provider")
+    return chosen if BY_ID.get(chosen, {}).get("kind") == "openai" else "openai"
+
+
+# Each provider keeps its own key, model and address, so switching back and forth loses nothing.
+def provider_setting(name: str, pid: str | None = None) -> str:
+    return _setting(f"{name}:{pid or provider()}")
+
+
 def openai_config() -> dict:
-    provider = _setting("ai_provider") or "openai"
-    preset = next((p for p in PROVIDERS if p["id"] == provider), PROVIDERS[-1])
-    return {"provider": provider, "name": preset["name"], "needs_key": preset["key"],
-            "base_url": (_setting("ai_base_url") or preset["base_url"]).rstrip("/"),
-            "api_key": _setting("ai_api_key") or os.environ.get("OPENAI_API_KEY", ""), "model": _setting("ai_model")}
+    pid = provider()
+    preset = BY_ID[pid]
+    env_key = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}.get(pid, "")
+    return {"provider": pid, "name": preset["name"], "needs_key": preset["key"],
+            "base_url": (provider_setting("ai_base_url", pid) or preset["base_url"]).rstrip("/"),
+            "api_key": provider_setting("ai_key", pid) or (os.environ.get(env_key, "") if env_key else ""),
+            "model": provider_setting("ai_model", pid)}
+
+
+def claude_model() -> str:
+    return provider_setting("ai_model") or MODEL if backend() in ("claude-code", "api") else MODEL
 
 
 def _http() -> httpx.Client:
@@ -164,10 +191,9 @@ def list_models() -> list[str]:
 
 
 def ai_name() -> str:
-    """How to name the AI in messages: Claude, or the chosen model."""
-    if backend() == "openai":
-        return openai_config()["model"] or "the model"
-    return "Claude"
+    """How to name the AI in messages: the chosen model, or the provider's name."""
+    cfg = openai_config()
+    return cfg["model"] or {"claude-code": "Claude", "api": "Claude", "codex": "ChatGPT"}.get(backend(), "the model")
 
 
 def claude_binary() -> str | None:
@@ -184,7 +210,68 @@ def configured() -> bool:
         return bool(cfg["base_url"] and cfg["model"] and (cfg["api_key"] or not cfg["needs_key"]))
     if backend() == "claude-code":
         return claude_binary() is not None
-    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    if backend() == "codex":
+        return codex_binary() is not None
+    return bool(provider_setting("ai_key", "anthropic") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+
+# ---------- A ChatGPT plan, through the official Codex CLI ----------
+def codex_binary() -> str | None:
+    return os.environ.get("PAPERS_CODEX_BIN") or shutil.which("codex")
+
+
+def _strict(schema: dict) -> dict:
+    """The JSON Schema form strict structured output wants: every property required, nothing extra."""
+    if isinstance(schema, dict):
+        schema = {k: _strict(v) for k, v in schema.items() if k not in ("default", "title")}
+        if schema.get("type") == "object" and "properties" in schema:
+            schema["additionalProperties"] = False
+            schema["required"] = list(schema["properties"])
+    elif isinstance(schema, list):
+        schema = [_strict(v) for v in schema]
+    return schema
+
+
+def _codex(prompt: str, system: str = "", schema: dict | None = None) -> str | dict:
+    """One `codex exec` run with no tools that can change anything; the prompt goes in on stdin."""
+    binary = codex_binary()
+    if not binary:
+        raise AIError("Codex isn't installed. Install it (npm install -g @openai/codex), run `codex login` "
+                      "and sign in with your ChatGPT account, then try again.")
+    work = tempfile.mkdtemp(prefix="papers-codex-")
+    out_file = os.path.join(work, "answer.txt")
+    args = [binary, "exec", "-", "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "-o", out_file]
+    if model := provider_setting("ai_model", "chatgpt-plan"):
+        args += ["--model", model]
+    if schema:
+        schema_file = os.path.join(work, "schema.json")
+        with open(schema_file, "w", encoding="utf-8") as f:
+            json.dump(_strict(schema), f)
+        args += ["--output-schema", schema_file]
+    # Codex has no system prompt option; the instructions lead the prompt. Without these variables it
+    # uses the ChatGPT sign-in instead of billing an API key.
+    env = {k: v for k, v in os.environ.items() if k not in ("OPENAI_API_KEY", "CODEX_API_KEY")}
+    try:
+        done = subprocess.run(args, input=(f"{system}\n\n---\n\n{prompt}" if system else prompt), capture_output=True,
+                              text=True, encoding="utf-8", env=env, cwd=work, timeout=900)
+        if done.returncode != 0:
+            message = (done.stderr or done.stdout or "").strip()[-400:]
+            if re.search(r"log ?in|auth|sign in|credential", message, re.IGNORECASE):
+                raise AIError(f"Codex isn't signed in. Open a terminal, run `codex login` and sign in with your ChatGPT account. ({message})")
+            raise AIError(f"Codex failed: {message or 'no details'}")
+        text = open(out_file, encoding="utf-8").read() if os.path.exists(out_file) else done.stdout
+    except subprocess.TimeoutExpired as e:
+        raise AIError("Codex took too long to answer.") from e
+    except OSError as e:
+        raise AIError(f"Couldn't start Codex: {e}") from e
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return _json_in(text) if schema else text.strip()
+
+
+def _codex_stream(system: str, content: str):
+    """Codex gives the answer only once it's complete, so it arrives in one piece."""
+    yield _codex(content, system)
 
 
 def _claude_code_error(message: str | None) -> "AIError":
@@ -215,7 +302,7 @@ def _claude_code_stream(prompt: str, system: str = "", effort: str = "medium"):
         raise AIError("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
                       "and sign in with your Claude account, then try again.")
     args = [binary, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-            "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", MODEL, "--effort", effort]
+            "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", claude_model(), "--effort", effort]
     system_file = _system_file(system) if system else None
     if system_file:
         args += ["--system-prompt-file", system_file]
@@ -258,7 +345,7 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
         raise AIError("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
                       "and sign in with your Claude account, then try again.")
     args = [binary, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
-            "--no-session-persistence", "--model", MODEL, "--effort", effort]
+            "--no-session-persistence", "--model", claude_model(), "--effort", effort]
     system_file = _system_file(system) if system else None
     if system_file:
         args += ["--system-prompt-file", system_file]
@@ -291,9 +378,9 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
         raise AIError("Claude Code didn't return the expected format. Try again.") from e
 
 
-@cache
 def _client() -> anthropic.Anthropic:
-    return anthropic.Anthropic()
+    # A key saved in Settings wins; otherwise the SDK uses ANTHROPIC_API_KEY.
+    return anthropic.Anthropic(api_key=provider_setting("ai_key", "anthropic") or None)
 
 
 class AIError(Exception):
@@ -302,7 +389,7 @@ class AIError(Exception):
 
 def _request(method: str, **kwargs):
     try:
-        response = getattr(_client().messages, method)(model=MODEL, max_tokens=16000, **kwargs)
+        response = getattr(_client().messages, method)(model=claude_model(), max_tokens=16000, **kwargs)
     except TypeError as e:
         raise AIError("Claude is not set up. In Settings, choose your Claude subscription, or set ANTHROPIC_API_KEY and restart.") from e
     except anthropic.APIError as e:
@@ -315,6 +402,8 @@ def _request(method: str, **kwargs):
 def _parse(prompt: str, schema: type[BaseModel], system: str = "", effort: str = "medium") -> BaseModel:
     if backend() == "openai":
         return _openai_parse(prompt, schema, system)
+    if backend() == "codex":
+        return schema.model_validate(_codex(prompt, system, schema.model_json_schema()))
     if backend() == "claude-code":
         return schema.model_validate(_claude_code(prompt, system, schema.model_json_schema(), effort))
     return _request(
@@ -492,7 +581,7 @@ def explain(paper: dict, passage: str, question: str = "", mode: str = "explain"
 def _stream(system: list[dict], content: str, effort: str = "medium"):
     """The API's answer, piece by piece."""
     try:
-        with _client().messages.stream(model=MODEL, max_tokens=16000, system=system, output_config={"effort": effort},
+        with _client().messages.stream(model=claude_model(), max_tokens=16000, system=system, output_config={"effort": effort},
                                        messages=[{"role": "user", "content": content}]) as stream:
             yield from stream.text_stream
             if stream.get_final_message().stop_reason == "refusal":
@@ -523,6 +612,8 @@ def explain_stream(paper: dict, passage: str, question: str = "", mode: str = "e
         return _claude_code_stream(content, "\n\n".join(block["text"] for block in system))
     if backend() == "openai":
         return _openai_stream("\n\n".join(block["text"] for block in system), content)
+    if backend() == "codex":
+        return _codex_stream("\n\n".join(block["text"] for block in system), content)
     return _stream(system, content)
 
 
