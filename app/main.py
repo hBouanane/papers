@@ -366,12 +366,13 @@ def delete_paper(paper_id: int):
 def paper_figures(paper_id: int):
     """The figures cut out of the paper's PDF, with their captions (worked out once, then kept)."""
     get_paper(paper_id)
-    return [{**f, "url": f"/api/papers/{paper_id}/figures/{f['number']}.png"} for f in figures.for_paper(paper_id)]
+    return [{**f, "url": f"/api/papers/{paper_id}/figures/{figures.image_name(f['kind'], f['number'])}"}
+            for f in figures.for_paper(paper_id)]
 
 
-@app.get("/api/papers/{paper_id}/figures/{number}.png")
-def paper_figure(paper_id: int, number: int):
-    path = figures.folder(paper_id) / f"{number}.png"
+@app.get("/api/papers/{paper_id}/figures/{kind}-{number}.png")
+def paper_figure(paper_id: int, kind: Literal["figure", "table"], number: int):
+    path = figures.folder(paper_id) / figures.image_name(kind, number)
     if not path.exists():
         raise HTTPException(404, "No such figure")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=86400"})

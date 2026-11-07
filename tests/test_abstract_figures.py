@@ -58,7 +58,10 @@ def pdf_with_a_figure() -> bytes:
     content = DecodedStreamObject()
     content.set_data(b"BT /F1 10 Tf 72 720 Td (Some running text of the paper, long enough to be a line of prose here.) Tj ET "
                      b"0 0 1 rg 150 450 300 200 re f 0 g "
-                     b"BT /F1 10 Tf 150 430 Td (Figure 1: A blue box standing in for a diagram.) Tj ET")
+                     b"BT /F1 10 Tf 150 430 Td (Figure 1: A blue box standing in for a diagram.) Tj ET "
+                     b"BT /F1 10 Tf 150 300 Td (Table 1: Two numbers.) Tj ET "
+                     b"0.8 w 150 285 m 450 285 l S BT /F1 10 Tf 160 270 Td (Model) Tj 360 0 Td (Score) Tj ET "
+                     b"150 262 m 450 262 l S BT /F1 10 Tf 160 248 Td (Ours) Tj 360 0 Td (42) Tj ET 150 240 m 450 240 l S")
     page[NameObject("/Contents")] = w._add_object(content)
     out = io.BytesIO()
     w.write(out)
@@ -69,15 +72,16 @@ def test_figures_are_cut_out_with_their_captions(client):
     p = make(client)
     client.post(f"/api/papers/{p['id']}/pdf", files={"file": ("p.pdf", pdf_with_a_figure(), "application/pdf")})
     figs = client.get(f"/api/papers/{p['id']}/figures").json()
-    assert [(f["number"], f["page"], f["caption"]) for f in figs] == [(1, 1, "Figure 1: A blue box standing in for a diagram.")]
+    assert [(f["kind"], f["number"], f["page"], f["caption"]) for f in figs] == [
+        ("figure", 1, 1, "Figure 1: A blue box standing in for a diagram."), ("table", 1, 1, "Table 1: Two numbers.")]
     img = client.get(figs[0]["url"])
     assert img.status_code == 200 and img.headers["content-type"] == "image/png" and img.content[:4] == b"\x89PNG"
     # a new PDF replaces them
     client.post(f"/api/papers/{p['id']}/pdf", files={"file": ("p.pdf", pdf_with_a_figure(), "application/pdf")})
-    assert len(client.get(f"/api/papers/{p['id']}/figures").json()) == 1
+    assert len(client.get(f"/api/papers/{p['id']}/figures").json()) == 2
 
 
 def test_no_pdf_no_figures(client):
     p = make(client)
     assert client.get(f"/api/papers/{p['id']}/figures").json() == []
-    assert client.get(f"/api/papers/{p['id']}/figures/1.png").status_code == 404
+    assert client.get(f"/api/papers/{p['id']}/figures/figure-1.png").status_code == 404

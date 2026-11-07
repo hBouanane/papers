@@ -11,7 +11,7 @@ import { SLICES, startTracker, stripBackground } from "./tracker.js";
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
 // ---------- Overview ----------
-const TABS = [["overview", "Overview"], ["figures", "Figures"], ["words", "Words"], ["notes", "Notes"], ["refs", "References"]];
+const TABS = [["overview", "Overview"], ["figures", "Figures & tables"], ["words", "Words"], ["notes", "Notes"], ["refs", "References"]];
 const prepared = (p) => p.skim && p.glossary && p.quiz && p.refs;
 
 export async function paperPage(id, stale, tab = "overview") {
@@ -205,10 +205,18 @@ function renderOverview(box, p, settings, regenerate) {
     ${fold("What's new", s.contributions?.length ? list(s.contributions) : "")}
     ${fold("Results", s.results?.length ? list(s.results) : "")}
     ${fold("Limitations", s.limitations?.length ? list(s.limitations) : "")}
-    ${fold("Figures to look at", s.figures?.length ? list(s.figures) : "")}
+    ${fold("Figures to look at", s.figures?.length ? `<ul>${s.figures.map((f) => `<li>${linkFigures(esc(f))}</li>`).join("")}</ul>` : "", true)}
     ${fold("Read closely", s.read_closely?.length ? list(s.read_closely) : "")}
     ${redo}`;
   box.querySelector("#regenerate")?.addEventListener("click", (e) => regenerate(e.currentTarget));
+  box.addEventListener("click", async (e) => {
+    const link = e.target.closest(".fig-link");
+    if (!link) return;
+    const items = await busy(link, "", () => api(`/papers/${p.id}/figures`));
+    const item = items?.find((f) => f.kind === link.dataset.kind && f.number === Number(link.dataset.n));
+    if (item) showFigure(p, item);
+    else toast(`${link.textContent} couldn't be cut out of the PDF; it's in the paper itself.`);
+  });
 }
 
 function editDetails(p, goals) {
@@ -342,7 +350,7 @@ export async function readerPage(id, stale) {
   app.innerHTML = `
     <div class="reader-bar" id="bar">
       <div class="reader-bar-inner">
-        <a href="#/papers/${id}" class="reader-back" title="Back to ${esc(p.title)}" aria-label="Back to the paper's page"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a href="#/papers/${id}" class="reader-back" title="Back to ${esc(p.title)}" aria-label="Back to the paper's page"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="reader-back-label">Paper</span></a>
         ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
@@ -365,6 +373,7 @@ export async function readerPage(id, stale) {
       <div class="strip" id="strip" title="Parts you've read. Click to jump."><span class="strip-view" id="strip-view"></span></div>
     </div>
     <div class="reader-scroll" id="scroller"></div>
+    <nav class="reader-route" id="route" aria-label="Where you are"></nav>
     <aside class="notes" id="notes" aria-label="Ask, words and notes">
       <div class="panel-head">
         <div class="panel-tabs" role="tablist">
@@ -437,11 +446,12 @@ export async function readerPage(id, stale) {
   const origin = cameFrom(`/papers/${id}`) || "/";
   const ORIGIN = { "/": "Library", "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
   let originLabel = ORIGIN[origin] || (/^\/goals\/\d+$/.test(origin) ? "Goal" : /^\/papers\/\d+$/.test(origin) ? "Previous paper" : "Library");
-  const routeLine = () => `<nav class="reader-route" aria-label="Where you are"><a href="#${ORIGIN[origin] || /^\/(goals|papers)\/\d+$/.test(origin) ? origin : "/"}" data-origin>${esc(originLabel)}</a>
-      <span aria-hidden="true">›</span><a href="#/papers/${id}">${esc(p.title)}</a><span aria-hidden="true">›</span><span>Reading</span></nav>`;
+  const routeLine = () => `<a href="#${ORIGIN[origin] || /^\/(goals|papers)\/\d+$/.test(origin) ? origin : "/"}" data-origin>${esc(originLabel)}</a>
+      <span aria-hidden="true">›</span><a href="#/papers/${id}" class="route-paper" title="${esc(p.title)}">${esc(p.title)}</a><span aria-hidden="true">›</span><span>Reading</span>`;
+  $("#route").innerHTML = routeLine();
   if (/^\/goals\/\d+$/.test(origin)) api("/topics").then((goals) => {
     const g = goals.find((x) => `/goals/${x.id}` === origin);
-    if (g) { originLabel = g.goal; scroller.querySelectorAll("[data-origin]").forEach((a) => (a.textContent = g.goal)); }
+    if (g) { originLabel = g.goal; app.querySelectorAll("[data-origin]").forEach((a) => (a.textContent = g.goal)); }
   }).catch(() => {});
 
   // The bar stays one row: when it doesn't fit, the less-used tools move into the ⋯ menu, least used first,
@@ -487,7 +497,7 @@ export async function readerPage(id, stale) {
     if (view === "text") {
       prepareTerms(p.glossary);
       const { html, headings } = renderPaperText(p, markTerms);
-      scroller.innerHTML = `${routeLine()}<article class="page-sheet" id="article">${html}${endBox}</article>`;
+      scroller.innerHTML = `<article class="page-sheet" id="article">${html}${endBox}</article>`;
       targets = headings.map((h) => ({
         label: `${h.level === 3 ? "  " : ""}${h.label}`, go: () => scrollToElement(scroller.querySelector(`#${h.id}`)),
       }));
@@ -495,7 +505,7 @@ export async function readerPage(id, stale) {
       scroller.innerHTML = loading("Opening the PDF");
       try {
         pdf = await openPdf(`/api/papers/${id}/file`, scroller,
-          { zoom: savedZoom(), before: routeLine(), after: endBox, dark: pdfPagesDark() });
+          { zoom: savedZoom(), after: endBox, dark: pdfPagesDark() });
         pdf.onZoom((zoom) => {
           $("#zoom .zoom-value").textContent = pct(zoom);
           saveZoom(zoom);
@@ -1108,19 +1118,25 @@ async function renderFigures(box, p) {
     box.innerHTML = `<p class="hint">Figures come from the paper's PDF. Upload it to see them here.</p>`;
     return;
   }
-  box.innerHTML = loading("Finding the figures in the paper");
+  box.innerHTML = loading("Finding the figures and tables in the paper");
   let figs;
   try { figs = await api(`/papers/${p.id}/figures`); } catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
   if (!box.isConnected) return;
   if (!figs.length) {
-    box.innerHTML = `<p class="hint">No figures were found in this PDF. (Figures are found by their captions, like "Figure 1:".)</p>`;
+    box.innerHTML = `<p class="hint">No figures or tables were found in this PDF. (They're found by their captions, like "Figure 1:" or "Table 2:".)</p>`;
     return;
   }
-  box.innerHTML = `<div class="figures">${figs.map((f) => `<figure class="figure" data-n="${f.number}">
-      <button class="figure-img" title="See it larger"><img src="${f.url}" alt="${esc(f.caption)}" loading="lazy"></button>
-      <figcaption>${esc(f.caption)} <span class="faint">Page ${f.page}</span></figcaption></figure>`).join("")}</div>`;
-  box.querySelector(".figures").onclick = (e) => {
-    const fig = e.target.closest(".figure-img") && figs.find((f) => String(f.number) === e.target.closest(".figure").dataset.n);
+  const section = (kind, title) => {
+    const items = figs.filter((f) => f.kind === kind);
+    return items.length ? `<h2 class="figures-head">${title}</h2><div class="figures">${items.map((f) => `<figure class="figure" data-key="${f.kind}-${f.number}">
+      <button class="figure-img ${f.kind}" title="See it larger"><img src="${f.url}" alt="${esc(f.caption)}" loading="lazy"></button>
+      <figcaption>${esc(f.caption)} <span class="faint">Page ${f.page}</span></figcaption></figure>`).join("")}</div>` : "";
+  };
+  box.innerHTML = section("figure", "Figures") + section("table", "Tables")
+    + `<p class="hint figures-note">Found by their captions in the PDF; one that couldn't be cut out cleanly is left out.</p>`;
+  box.onclick = (e) => {
+    const key = e.target.closest(".figure-img") && e.target.closest(".figure").dataset.key;
+    const fig = key && figs.find((f) => `${f.kind}-${f.number}` === key);
     if (fig) showFigure(p, fig);
   };
 }
@@ -1134,7 +1150,7 @@ function showFigure(p, f) {
       <p class="lightbox-caption">${esc(f.caption)}</p>
       <div class="lightbox-actions"><button class="button" data-open>Open at page ${f.page}</button>
         <button class="button quiet" data-close>Close</button></div></div>`;
-  const close = () => { view.remove(); removeEventListener("keydown", onKey); };
+  const close = () => { view.remove(); removeEventListener("keydown", onKey); removeEventListener("hashchange", close); };
   const onKey = (e) => e.key === "Escape" && close();
   view.onclick = (e) => {
     if (e.target === view || e.target.closest("[data-close]")) close();
@@ -1145,5 +1161,12 @@ function showFigure(p, f) {
     }
   };
   addEventListener("keydown", onKey);
+  addEventListener("hashchange", close); // leaving the page closes it
   document.body.append(view);
+}
+
+// "Figure 3" or "Table 2" in a text becomes a link that opens it.
+function linkFigures(html) {
+  return html.replace(/\b(Fig(?:ure|\.)?|Table)\s*(\d+)/gi, (all, word, n) =>
+    `<button type="button" class="link fig-link" data-kind="${/^t/i.test(word) ? "table" : "figure"}" data-n="${n}">${all}</button>`);
 }

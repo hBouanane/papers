@@ -1024,3 +1024,25 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .hl-tool:hover .hl-tool-colors, .hl-tool:focus-within .hl-tool-colors { max-width: none; padding: 8px 10px; opacity: 1; pointer-events: auto; }
 .hl-tool-colors::before { content: ""; position: absolute; inset: -10px 0 auto; height: 10px; } /* keeps the hover while moving down to it */
 .reader-bar-inner > * { order: 0; } /* the old narrow-screen reordering isn't needed with the ⋯ menu */
+
+.figures-head { margin: 4px 0 12px; }
+.figures + .figures-head { margin-top: 30px; }
+.figure-img.table img { height: auto; max-height: 260px; }
+.figures-note { margin-top: 22px; font-size: 13px; }
+.fig-link { font: inherit; font-weight: 700; }
+
+/* The route floats at the bottom of the reader: always there, out of the way of the paper. */
+.reader-route { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 12; max-width: min(720px, calc(100% - 140px));
+  display: flex; align-items: center; gap: 6px; padding: 6px 14px; margin: 0; border-radius: 999px; font-size: 13px; color: var(--pencil);
+  background: color-mix(in srgb, var(--sheet) 82%, transparent); border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); white-space: nowrap; }
+.reader-route a { color: var(--pencil); text-decoration: none; max-width: none; flex-shrink: 0; }
+.reader-route a.route-paper { color: var(--graphite); font-weight: 700; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.reader-route a:hover { color: var(--ink); text-decoration: underline; }
+.reader-route:empty { display: none; }
+@media (min-width: 1300px) { body.notes-open .reader-route { left: calc((100% - 420px) / 2); } }
+@media (max-width: 760px) { .reader-route { bottom: 12px; max-width: calc(100% - 96px); padding: 5px 12px; } }
+body.reading #toast { bottom: 64px; }
+/* The reader's back arrow names where it goes. */
+.reader-bar-inner > .reader-back { width: auto; padding: 0 10px 0 6px; gap: 2px; }
+.reader-back-label { font-size: 14px; }

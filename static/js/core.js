@@ -364,6 +364,6 @@ export function cameFrom(here) {
 export function setBar({ back, title } = {}) {
   const start = document.getElementById("bar-start");
   start.innerHTML = back
-    ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(title || back.label)}</span></a>`
+    ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(back.label)}</span></a>`
     : `<a href="#/" class="wordmark">Papers</a>`;
 }
