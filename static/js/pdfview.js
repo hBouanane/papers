@@ -67,7 +67,20 @@ export async function openPdf(url, container, { zoom = 1, after = "", dark = fal
     },
     fitWidth() { fit = fitScale(); view.currentScale = fit; },
     onZoom(listener) { eventBus.on("scalechanging", () => listener(view.currentScale / fit)); },
-    close() { view.setDocument(null); linkService.setDocument(null); doc.destroy(); },
+    // Called each time a page is drawn (first time, after zooming, ...) with its number and element.
+    onPageRendered(listener) { eventBus.on("pagerendered", ({ pageNumber, source }) => listener(pageNumber, source.div)); },
+    get page() { return view.currentPageNumber; },
+    // Scroll so that a point on a page (y as a fraction of its height) is near the top of the screen.
+    showPoint(pageNumber, y = 0) {
+      const div = container.querySelector(`.page[data-page-number="${pageNumber}"]`);
+      if (!div) return;
+      container.scrollTop += div.getBoundingClientRect().top - container.getBoundingClientRect().top + y * div.clientHeight - 120;
+    },
+    // PDF.js can throw while cancelling a page that is half drawn; closing must still go ahead.
+    close() {
+      try { view.setDocument(null); linkService.setDocument(null); } catch { /* already going away */ }
+      doc.destroy();
+    },
   };
 }
 

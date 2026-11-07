@@ -1,4 +1,6 @@
-import { api, app, bindNotes, busy, cite, esc, setBar, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { api, app, busy, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { drawPdf, drawPdfPage, drawText, pdfAnchor, textAnchor } from "./highlights.js";
+import { COLORS, bindNotesList, noteStore } from "./notes.js";
 import { openPdf } from "./pdfview.js";
 import { bindReadingPrefs, pageToneControl, pdfPagesDark, readingPrefsMenu, setPageTone, toggleDarkPages } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
@@ -77,8 +79,16 @@ export async function paperPage(id, stale, tab = "overview") {
       if (!p.glossary && p.preparing) panel.innerHTML = preparingNote("the hard words");
       else renderVocab(panel, p);
     } else if (key === "notes") {
-      panel.innerHTML = `<h2>My notes</h2>${notesBox(p, 10)}`;
-      bindNotes(p, panel);
+      panel.innerHTML = `<h2>Notes and highlights</h2><div id="overview-notes"></div>`;
+      const store = noteStore(id);
+      bindNotesList(panel.querySelector("#overview-notes"), store, {
+        here: () => ({ position: p.position || 0 }),
+        jump: (note) => {
+          try { sessionStorage.setItem(`papers.jump.${id}`, note.id); } catch { /* opens at the last place instead */ }
+          location.hash = `#/papers/${id}/read`;
+        },
+      });
+      store.load().catch((e) => toast(e.message));
     } else loadRefs(panel, p);
   };
   app.querySelector(".tabs").onclick = (e) => {
@@ -341,10 +351,13 @@ export async function readerPage(id, stale) {
         </form>
       </div>
       <div class="pane" data-pane="words" hidden><div id="reader-vocab" class="reader-vocab"></div></div>
-      <div class="pane" data-pane="notes" hidden>${notesBox(p, 14)}</div>
+      <div class="pane" data-pane="notes" hidden><div id="notes-list"></div></div>
     </aside>
     <div class="finish-card sheet" id="finish-card" role="dialog" aria-live="polite" hidden></div>
     <div class="sel-bar" id="pop" role="toolbar" aria-label="Selected text" hidden>
+      <span class="sel-colors" role="group" aria-label="Highlight">${COLORS.map((c, i) =>
+        `<button data-sel="highlight" data-color="${c}" class="sel-dot" title="Highlight${i ? "" : " (h)"}" aria-label="Highlight ${c}"><span class="hl-dot hl-${c}"></span></button>`).join("")}</span>
+      <button data-sel="note" title="Highlight it and write a note">Note</button>
       <button data-sel="explain" title="Explain it with the whole paper in mind (e)">Explain</button>
       <button data-sel="simplify" title="Rewrite it in simple English">Simplify</button>
       <button data-sel="translate" title="${language ? `Translate into ${esc(language)}` : "Set your language in Settings to translate"}">Translate</button>
@@ -378,6 +391,11 @@ export async function readerPage(id, stale) {
     : `<p>That's the end of the paper.</p><button class="button" data-finish>Mark as finished</button>`}</div>`;
   let pdf = null;
   let targets = []; // "Go to…" destinations for the current view: { label, go, page? }
+
+  // Your notes and highlights: the list in the side panel and the marks on the paper.
+  const notes = noteStore(id);
+  const drawMarks = () => (view === "text" ? drawText(scroller.querySelector("#article"), notes.items) : drawPdf(scroller, notes.items));
+  notes.on(drawMarks);
 
   // While a view (re)opens the page is briefly short or empty; that must not count as reaching the end.
   let settling = false;
@@ -423,16 +441,28 @@ export async function readerPage(id, stale) {
     $("#zoom").hidden = !pdf;
     $("#page-tone").hidden = view !== "pdf";
     if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
+    if (pdf) pdf.onPageRendered((n, div) => drawPdfPage(div, n, notes.items));
+    drawMarks();
     setTimeout(() => (settling = false), 800); // callers put you back where you were in the meantime
   };
 
   // Open the paper, then go back to where the reader stopped.
   await show(view);
   if (stale()) { pdf?.close(); barObserver.disconnect(); return; }
-  if (saved > 0.01 && saved < 0.99) {
+  let jumpTo = null;
+  try { jumpTo = Number(sessionStorage.getItem(`papers.jump.${id}`)) || null; sessionStorage.removeItem(`papers.jump.${id}`); } catch { /* none */ }
+  if (saved > 0.01 && saved < 0.99 && !jumpTo) {
     scrollToPosition(saved);
     toast(`Back where you stopped, ${pct(saved)} in`);
   }
+  const notesUi = bindNotesList($("#notes-list"), notes, {
+    here: () => ({ position: positionNow(), page: pdf ? pdf.page : null }),
+    jump: (note) => jumpToNote(note),
+  });
+  notes.load().then(() => {
+    const note = jumpTo && notes.items.find((n) => n.id === jumpTo);
+    if (note) { jumpToNote(note); setOpen(true, "notes"); }
+  }).catch((e) => toast(e.message));
 
   // ----- Tracking -----
   const words = p.text ? p.text.split(/\s+/).length : (pdf?.pageCount || 10) * 400;
@@ -586,6 +616,11 @@ export async function readerPage(id, stale) {
     }
     pop.hidden = true;
     getSelection().removeAllRanges();
+    if (action === "highlight" || action === "note") {
+      const note = await addHighlight(range, text, action === "note" ? "yellow" : e.target.closest("[data-color]").dataset.color);
+      if (note && action === "note") { setOpen(true, "notes"); notesUi.edit(note.id); }
+      return;
+    }
     if (action === "word") {
       toast(`Adding "${text}" to the vocabulary…`);
       try {
@@ -601,6 +636,33 @@ export async function readerPage(id, stale) {
     highlight(range);
     explain(text, "", action);
   });
+
+  const addHighlight = async (range, text, color) => {
+    const box = range.getBoundingClientRect();
+    const y = scroller.scrollTop + box.top - scroller.getBoundingClientRect().top - 120;
+    const position = Math.min(1, Math.max(0, y / maxScroll()));
+    let anchor = null;
+    if (view === "pdf") {
+      anchor = pdfAnchor(range, scroller);
+      if (!anchor) return toast("Couldn't place that highlight on the page.");
+    } else anchor = textAnchor(scroller.querySelector("#article"), range);
+    try {
+      return await notes.add({ kind: "highlight", quote: text, color, position, page: anchor.rects?.[0]?.[0] ?? null, anchor });
+    } catch (err) { toast(err.message); }
+  };
+  // Go to a note: its exact spot when it's drawn in this view, otherwise its page or its place in the paper.
+  const jumpToNote = (note) => {
+    const mark = scroller.querySelector(`[data-note="${note.id}"]`);
+    const rect = note.anchor?.rects?.[0];
+    if (view === "pdf" && rect) pdf.showPoint(rect[0], rect[2]);
+    else if (mark && view === "text") scrollToElement(mark);
+    else if (view === "pdf" && note.page) pdf.goToPage(note.page);
+    else scrollToPosition(note.position);
+    const flash = () => scroller.querySelectorAll(`[data-note="${note.id}"]`).forEach((m) => {
+      m.classList.remove("flash"); void m.offsetWidth; m.classList.add("flash");
+    });
+    setTimeout(flash, 120);
+  };
 
   $("#ask").onsubmit = (e) => {
     e.preventDefault();
@@ -665,7 +727,6 @@ export async function readerPage(id, stale) {
   });
   card.addEventListener("click", (e) => { const b = e.target.closest("[data-finish]"); if (b) finish(b); });
 
-  bindNotes(p, $("#notes"));
   renderVocab($("#reader-vocab"), p, { compact: true });
   scroller.addEventListener("click", (e) => {
     if (e.target.closest("[data-finish]")) return finish(e.target.closest("[data-finish]"));
@@ -707,11 +768,12 @@ export async function readerPage(id, stale) {
     else if (e.key === "n") setOpen(!document.body.classList.contains("notes-open"));
     else if (e.key === "e" && !pop.hidden) pop.querySelector("[data-sel=explain]").click();
     else if (e.key === "l" && !pop.hidden) pop.querySelector("[data-sel=listen]")?.click();
+    else if (e.key === "h" && !pop.hidden) pop.querySelector("[data-sel=highlight]").click();
     else if ((e.key === "+" || e.key === "=") && pdf) pdf.zoomBy(1.25, middle());
     else if (e.key === "-" && pdf) pdf.zoomBy(0.8, middle());
     else if (e.key === "d" && pdf) toast(toggleDarkPages() ? "Dark pages on (press d to turn off)." : "Dark pages off.");
     else if (e.key === "?") showShortcuts([["s", "Skimming on or off (nothing counts while it's on)"], ["d", "Dark PDF pages on or off"], ["n", "Open or close Ask, Words and Notes"],
-      ["e", "Explain the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
+      ["e", "Explain the selected text"], ["h", "Highlight the selected text"], ["l", "Listen to the selected text"], ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"]]);
     else return;
     e.preventDefault();
   };
@@ -729,6 +791,7 @@ export async function readerPage(id, stale) {
   return () => {
     stopSpeaking();
     removeEventListener("keydown", onKey);
+    notesUi.destroy();
     document.removeEventListener("dark-pages-changed", onDarkPages);
     flush(true);
     tracker.stop();

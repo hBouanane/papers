@@ -185,32 +185,6 @@ export function bindAddPaper() {
   });
 }
 
-// ---------- Notes ----------
-// A textarea that saves itself (debounced) and says so.
-export function notesBox(paper, rows = 6) {
-  return `<div class="notes-box">
-    <textarea class="my-notes" rows="${rows}" placeholder="What matters to you here, how it connects to your work, what to check later…">${esc(paper.notes || "")}</textarea>
-    <p class="save-state faint" aria-live="polite"></p></div>`;
-}
-
-export function bindNotes(paper, root = app) {
-  root.querySelectorAll(".my-notes").forEach((box) => {
-    const state = box.parentElement.querySelector(".save-state");
-    let timer;
-    box.oninput = () => {
-      clearTimeout(timer);
-      state.textContent = "Saving…";
-      timer = setTimeout(async () => {
-        try {
-          await api(`/papers/${paper.id}`, { method: "PATCH", json: { notes: box.value } });
-          paper.notes = box.value;
-          state.textContent = "Saved";
-        } catch (e) { state.textContent = e.message; }
-      }, 700);
-    };
-  });
-}
-
 export const quote = (passage) => passage
   ? `<p class="answer-quote">${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</p>` : "";
 
