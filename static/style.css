@@ -822,3 +822,18 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
   background: var(--ink); animation: caret 1s steps(2, start) infinite; }
 @keyframes caret { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .caret { animation: none; opacity: .6; } }
+
+/* Dark mode: on black, a black shadow can't be seen, so anything raised glows faintly white instead. */
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) {
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .08), 0 10px 36px rgb(255 255 255 / .07);
+  --shadow-panel: -10px 0 36px rgb(255 255 255 / .05);
+  --shadow-soft: 0 0 14px rgb(255 255 255 / .06);
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .05), 0 6px 22px -4px rgb(255 255 255 / .1);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .07), 0 12px 30px -6px rgb(255 255 255 / .16); } }
+:root[data-theme="dark"] {
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .08), 0 10px 36px rgb(255 255 255 / .07);
+  --shadow-panel: -10px 0 36px rgb(255 255 255 / .05);
+  --shadow-soft: 0 0 14px rgb(255 255 255 / .06);
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .05), 0 6px 22px -4px rgb(255 255 255 / .1);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .07), 0 12px 30px -6px rgb(255 255 255 / .16);
+}
