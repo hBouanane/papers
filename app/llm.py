@@ -44,6 +44,70 @@ def configured() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
 
 
+def _claude_code_error(message: str | None) -> "AIError":
+    message = message or "unknown error"
+    if re.search(r"auth|log ?in|oauth|credential", message, re.IGNORECASE):
+        return AIError("Claude Code isn't signed in. Open a terminal, run `claude`, type /login and sign in "
+                       f"with your Claude account, then try again. ({message})")
+    return AIError(f"Claude Code: {message}")
+
+
+def _system_file(system: str) -> str:
+    # Long instructions (they contain the whole paper) go through a file: Windows caps a command
+    # line at ~32k characters ([WinError 206]).
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as f:
+        f.write(system)
+    return f.name
+
+
+def _subscription_env() -> dict:
+    # Without these, Claude Code would bill an API key instead of the subscription.
+    return {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+
+
+def _claude_code_stream(prompt: str, system: str = "", effort: str = "medium"):
+    """A Claude Code turn whose text is passed on piece by piece, as Claude writes it."""
+    binary = claude_binary()
+    if not binary:
+        raise AIError("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
+                      "and sign in with your Claude account, then try again.")
+    args = [binary, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+            "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", MODEL, "--effort", effort]
+    system_file = _system_file(system) if system else None
+    if system_file:
+        args += ["--system-prompt-file", system_file]
+    try:
+        proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, encoding="utf-8", env=_subscription_env(), cwd=tempfile.gettempdir())
+    except OSError as e:
+        if system_file:
+            os.unlink(system_file)
+        raise AIError(f"Couldn't start Claude Code: {e}") from e
+    wrote = False
+    try:
+        proc.stdin.write(prompt)
+        proc.stdin.close()
+        for line in proc.stdout:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("type") == "stream_event":
+                e = event.get("event") or {}
+                if e.get("type") == "content_block_delta" and (e.get("delta") or {}).get("type") == "text_delta":
+                    wrote = True
+                    yield e["delta"]["text"]
+            elif event.get("type") == "result" and event.get("is_error"):
+                raise _claude_code_error(event.get("result"))
+        if proc.wait(timeout=60) and not wrote:
+            raise AIError(f"Claude Code failed: {proc.stderr.read().strip()[:300]}")
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        if system_file:
+            os.unlink(system_file)
+
+
 def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effort: str = "medium"):
     """One non-interactive Claude Code turn with no tools; returns parsed JSON (schema) or text."""
     binary = claude_binary()
@@ -52,21 +116,14 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
                       "and sign in with your Claude account, then try again.")
     args = [binary, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
             "--no-session-persistence", "--model", MODEL, "--effort", effort]
-    # Long instructions (they contain the whole paper) go through a file: Windows caps a command
-    # line at ~32k characters ([WinError 206]).
-    system_file = None
-    if system:
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as f:
-            f.write(system)
-        system_file = f.name
+    system_file = _system_file(system) if system else None
+    if system_file:
         args += ["--system-prompt-file", system_file]
     if schema:
         args += ["--json-schema", json.dumps(schema)]
-    # Without these, Claude Code would bill an API key instead of the subscription.
-    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
     try:
         done = subprocess.run(args, input=prompt, capture_output=True, text=True, encoding="utf-8",
-                              env=env, cwd=tempfile.gettempdir(), timeout=900)
+                              env=_subscription_env(), cwd=tempfile.gettempdir(), timeout=900)
     except subprocess.TimeoutExpired as e:
         raise AIError("Claude Code took too long to answer.") from e
     except OSError as e:
@@ -79,11 +136,7 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
     except json.JSONDecodeError as e:
         raise AIError(f"Claude Code failed: {(done.stderr or done.stdout).strip()[:300]}") from e
     if out.get("is_error"):
-        message = out.get("result") or "unknown error"
-        if re.search(r"auth|log ?in|oauth|credential", message, re.IGNORECASE):
-            raise AIError("Claude Code isn't signed in. Open a terminal, run `claude`, type /login and sign in "
-                          f"with your Claude account, then try again. ({message})")
-        raise AIError(f"Claude Code: {message}")
+        raise _claude_code_error(out.get("result"))
     if not schema:
         return out.get("result", "")
     if out.get("structured_output") is not None:
@@ -281,6 +334,25 @@ MODES = {
 
 
 def explain(paper: dict, passage: str, question: str = "", mode: str = "explain", language: str = "") -> str:
+    return "".join(explain_stream(paper, passage, question, mode=mode, language=language))
+
+
+def _stream(system: list[dict], content: str, effort: str = "medium"):
+    """The API's answer, piece by piece."""
+    try:
+        with _client().messages.stream(model=MODEL, max_tokens=16000, system=system, output_config={"effort": effort},
+                                       messages=[{"role": "user", "content": content}]) as stream:
+            yield from stream.text_stream
+            if stream.get_final_message().stop_reason == "refusal":
+                raise AIError("The model declined this request.")
+    except TypeError as e:
+        raise AIError("Claude is not set up. In Settings, choose your Claude subscription, or set ANTHROPIC_API_KEY and restart.") from e
+    except anthropic.APIError as e:
+        raise AIError(f"Claude request failed: {e}") from e
+
+
+def explain_stream(paper: dict, passage: str, question: str = "", mode: str = "explain", language: str = ""):
+    """The explanation as it is written (an iterator of text pieces)."""
     system = [
         {"type": "text", "text": (
             "You help a researcher understand a paper they are reading. You have the full paper. "
@@ -296,14 +368,8 @@ def explain(paper: dict, passage: str, question: str = "", mode: str = "explain"
     if MODES.get(mode):  # after the cached paper, so every mode reuses the same cache
         content += "\n\n" + MODES[mode].format(language=language)
     if backend() == "claude-code":
-        return _claude_code(content, "\n\n".join(block["text"] for block in system))
-    response = _request(
-        "create",
-        system=system,
-        output_config={"effort": "medium"},
-        messages=[{"role": "user", "content": content}],
-    )
-    return "".join(b.text for b in response.content if b.type == "text")
+        return _claude_code_stream(content, "\n\n".join(block["text"] for block in system))
+    return _stream(system, content)
 
 
 class QuizItem(BaseModel):

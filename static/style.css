@@ -746,3 +746,9 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
 .note-add-body { justify-self: start; font-size: 14px; }
 .note-undo { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--pencil); padding: 6px 2px; }
 .note-empty { padding: 8px 2px; }
+
+/* A streaming answer: a soft blinking caret where the text is still coming. */
+.caret { display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: text-bottom; border-radius: 1px;
+  background: var(--ink); animation: caret 1s steps(2, start) infinite; }
+@keyframes caret { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; opacity: .6; } }

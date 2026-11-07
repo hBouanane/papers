@@ -1,3 +1,4 @@
+import io
 """The 'my Claude subscription' backend: the app runs the official Claude Code CLI (`claude -p`),
 which signs in with the user's own account. We never touch its credentials."""
 import json
@@ -45,7 +46,7 @@ def test_structured_calls_go_through_claude_code(cli):
 
 def test_text_answers_and_json_in_result_text(cli):
     cli({"is_error": False, "result": "Plainly put, it adds noise."})
-    assert llm.explain({"title": "P", "text": "body"}, "passage", "") == "Plainly put, it adds noise."
+    assert llm._claude_code("passage", "system") == "Plainly put, it adds noise."
     cli({"is_error": False, "result": '```json\n{"queries": ["x"]}\n```'})
     assert llm.search_queries("g") == ["x"]
 
@@ -94,14 +95,24 @@ def test_long_instructions_go_through_a_file_not_the_command_line(cli, monkeypat
     """Windows rejects command lines over ~32k characters ([WinError 206]); a paper is longer."""
     seen = {}
 
-    def run(args, **kw):
-        i = args.index("--system-prompt-file")
-        with open(args[i + 1], encoding="utf-8") as f:
-            seen["system"] = f.read()
-        seen["longest_arg"] = max(len(a) for a in args)
-        return subprocess.CompletedProcess(args, 0, stdout=json.dumps({"is_error": False, "result": "ok"}), stderr="")
+    class Process:  # explanations stream, so they go through Popen
+        def __init__(self, args, **kw):
+            i = args.index("--system-prompt-file")
+            with open(args[i + 1], encoding="utf-8") as f:
+                seen["system"] = f.read()
+            seen["longest_arg"] = max(len(a) for a in args)
+            self.stdin = io.StringIO()
+            self.stdout = iter([json.dumps({"type": "stream_event", "event": {"type": "content_block_delta",
+                                "delta": {"type": "text_delta", "text": "ok"}}}) + "\n"])
+            self.stderr = io.StringIO("")
 
-    monkeypatch.setattr(llm.subprocess, "run", run)
+        def wait(self, timeout=None):
+            return 0
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(llm.subprocess, "Popen", Process)
     paper = {"title": "Long", "text": "word " * 20000}
     assert llm.explain(paper, "passage", "") == "ok"
     assert "word word" in seen["system"] and seen["longest_arg"] < 2000

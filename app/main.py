@@ -10,7 +10,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -488,21 +488,52 @@ def skim_paper(paper_id: int):
     return result
 
 
-@app.post("/api/papers/{paper_id}/explain")
-def explain_passage(paper_id: int, body: ExplainIn):
+def explain_request(paper_id: int, body: ExplainIn) -> tuple[dict, str, str, str]:
+    paper = get_paper(paper_id)
     passage, question = body.passage.strip(), body.question.strip()
     if not passage and not question:
         raise HTTPException(400, "Select a passage or ask a question.")
     language = setting("language")
     if body.mode == "translate" and not language:
         raise HTTPException(400, "Set your language in Settings first, so Claude knows what to translate into.")
-    answer = llm.explain(get_paper(paper_id), passage, question, mode=body.mode, language=language)
+    return paper, passage, question, language
+
+
+def save_explanation(paper_id: int, passage: str, question: str, answer: str, mode: str) -> None:
     with db.connect() as conn:
         conn.execute("insert into explanations (paper_id, passage, question, answer, mode) values (?, ?, ?, ?, ?)",
-                     (paper_id, passage, question, answer, body.mode))
+                     (paper_id, passage, question, answer, mode))
     index.index_paper(get_paper(paper_id))
     library.sync_paper(paper_id)
+
+
+@app.post("/api/papers/{paper_id}/explain")
+def explain_passage(paper_id: int, body: ExplainIn):
+    paper, passage, question, language = explain_request(paper_id, body)
+    answer = llm.explain(paper, passage, question, mode=body.mode, language=language)
+    save_explanation(paper_id, passage, question, answer, body.mode)
     return {"explanation": answer}
+
+
+@app.post("/api/papers/{paper_id}/explain/stream")
+def explain_passage_stream(paper_id: int, body: ExplainIn):
+    """The answer as Claude writes it: one JSON object per line, {"text"} pieces then {"done"} or {"error"}."""
+    paper, passage, question, language = explain_request(paper_id, body)
+
+    def lines():
+        parts = []
+        try:
+            for piece in llm.explain_stream(paper, passage, question, mode=body.mode, language=language):
+                parts.append(piece)
+                yield json.dumps({"text": piece}) + "\n"
+        except llm.AIError as e:
+            yield json.dumps({"error": str(e)}) + "\n"
+            return
+        save_explanation(paper_id, passage, question, "".join(parts), body.mode)
+        yield json.dumps({"done": True}) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/papers/{paper_id}/explanations")

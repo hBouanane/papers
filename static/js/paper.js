@@ -1,4 +1,4 @@
-import { api, app, busy, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { api, apiStream, app, busy, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { drawPdf, drawPdfPage, drawText, pdfAnchor, textAnchor } from "./highlights.js";
 import { COLORS, bindNotesList, noteStore } from "./notes.js";
 import { openPdf } from "./pdfview.js";
@@ -545,14 +545,29 @@ export async function readerPage(id, stale) {
     toBottom();
     return turn;
   };
+  // The answer appears as Claude writes it (redrawn every few dozen milliseconds), with a caret while it's coming.
   const explain = async (passage, question = "", mode = "explain") => {
     setOpen(true, "ask");
     const turn = addTurn({ passage, question, mode });
+    const answer = turn.querySelector(".msg-claude");
+    let text = "";
+    let queued = false;
+    const paint = () => {
+      queued = false;
+      const follow = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80; // don't pull you down if you scrolled up
+      answer.innerHTML = markdown(text);
+      (answer.lastElementChild || answer).insertAdjacentHTML("beforeend", `<span class="caret" aria-hidden="true"></span>`);
+      if (follow) toBottom();
+    };
     try {
-      const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question, mode } });
-      turn.innerHTML = turnHtml({ passage, question, mode, answer: r.explanation });
+      text = await apiStream(`/papers/${id}/explain/stream`, { passage, question, mode }, (_, sofar) => {
+        text = sofar;
+        if (!queued) { queued = true; setTimeout(paint, 40); } // at most ~25 redraws a second
+      });
+      turn.innerHTML = turnHtml({ passage, question, mode, answer: text });
     } catch (err) {
-      turn.innerHTML = turnHtml({ passage, question, mode, error: err.message });
+      turn.innerHTML = turnHtml({ passage, question, mode, answer: text, error: text ? "" : err.message });
+      if (text) turn.querySelector(".msg-claude").insertAdjacentHTML("beforeend", `<p class="error">${esc(err.message)}</p>`);
     }
     toBottom();
   };

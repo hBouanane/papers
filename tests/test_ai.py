@@ -65,6 +65,7 @@ def test_ai_errors_become_503(client, monkeypatch):
         class messages:
             parse = staticmethod(fail)
             create = staticmethod(fail)
+            stream = staticmethod(fail)
 
     monkeypatch.setattr(llm, "_client", lambda: Fake)
     p = make_paper(client)
