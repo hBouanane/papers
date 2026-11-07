@@ -42,33 +42,35 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --dark-page: #050607; --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+    --dark-page: #1c1e22; --desk: #141518; --sheet: #212328; --raised: #2a2d33; --field: #17181b; --header: #0b0c0e;
+    --sheet-fill: linear-gradient(180deg, #2d3036 0%, #222429 40%, #1c1e22 100%); --sheet-edge: rgb(255 255 255 / .14);
     --pop: #f2f4f6; --on-pop: #050607;
     --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
     --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-    --line: #353a42; --line-soft: #1d2024;
+    --line: #32363d; --line-soft: #2a2d33;
     --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
     --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
     --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
     --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
     --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .07), 0 2px 6px rgb(255 255 255 / .05), 0 12px 32px -8px rgb(255 255 255 / .16);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .06), 0 1px 2px rgb(0 0 0 / .6), 0 10px 22px -8px rgb(0 0 0 / .7), 0 28px 56px -18px rgb(0 0 0 / .8);
     --page-filter: none;
 }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --dark-page: #050607; --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+  --dark-page: #1c1e22; --desk: #141518; --sheet: #212328; --raised: #2a2d33; --field: #17181b; --header: #0b0c0e;
+    --sheet-fill: linear-gradient(180deg, #2d3036 0%, #222429 40%, #1c1e22 100%); --sheet-edge: rgb(255 255 255 / .14);
   --pop: #f2f4f6; --on-pop: #050607;
   --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
   --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
-  --line: #353a42; --line-soft: #1d2024;
+  --line: #32363d; --line-soft: #2a2d33;
   --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
   --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
   --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
   --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
   --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
-  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .07), 0 2px 6px rgb(255 255 255 / .05), 0 12px 32px -8px rgb(255 255 255 / .16);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .06), 0 1px 2px rgb(0 0 0 / .6), 0 10px 22px -8px rgb(0 0 0 / .7), 0 28px 56px -18px rgb(0 0 0 / .8);
   --page-filter: none;
 }
 
@@ -823,20 +825,23 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
 @keyframes caret { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .caret { animation: none; opacity: .6; } }
 
-/* Dark mode: on black, a black shadow can't be seen, so anything raised glows faintly white instead. */
+/* Dark mode: raised things are lit from above (a bright top edge, a surface a little lighter at the top)
+   and cast a deep shadow onto the dark grey desk below them. */
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
-  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .1), 0 14px 40px -8px rgb(255 255 255 / .2);
-  --shadow-panel: -10px 0 36px rgb(255 255 255 / .05);
-  --shadow-soft: 0 2px 6px rgb(255 255 255 / .06), 0 10px 26px -8px rgb(255 255 255 / .16);
-  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .06), 0 3px 8px rgb(255 255 255 / .07), 0 16px 36px -10px rgb(255 255 255 / .24);
-  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .08), 0 5px 12px rgb(255 255 255 / .09), 0 22px 44px -10px rgb(255 255 255 / .32); } }
+  --shadow-pop: inset 0 1px 0 rgb(255 255 255 / .08), 0 0 0 1px rgb(255 255 255 / .06), 0 18px 40px -10px rgb(0 0 0 / .85);
+  --shadow-panel: -1px 0 0 rgb(255 255 255 / .06), -24px 0 48px -12px rgb(0 0 0 / .8);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / .6), 0 10px 24px -8px rgb(0 0 0 / .75);
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .07), 0 2px 4px rgb(0 0 0 / .6), 0 18px 36px -10px rgb(0 0 0 / .85);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .1), 0 4px 8px rgb(0 0 0 / .6), 0 28px 50px -12px rgb(0 0 0 / .9); } }
 :root[data-theme="dark"] {
-  --shadow-pop: 0 0 0 1px rgb(255 255 255 / .1), 0 14px 40px -8px rgb(255 255 255 / .2);
-  --shadow-panel: -10px 0 36px rgb(255 255 255 / .05);
-  --shadow-soft: 0 2px 6px rgb(255 255 255 / .06), 0 10px 26px -8px rgb(255 255 255 / .16);
-  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .06), 0 3px 8px rgb(255 255 255 / .07), 0 16px 36px -10px rgb(255 255 255 / .24);
-  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .08), 0 5px 12px rgb(255 255 255 / .09), 0 22px 44px -10px rgb(255 255 255 / .32);
+  --shadow-pop: inset 0 1px 0 rgb(255 255 255 / .08), 0 0 0 1px rgb(255 255 255 / .06), 0 18px 40px -10px rgb(0 0 0 / .85);
+  --shadow-panel: -1px 0 0 rgb(255 255 255 / .06), -24px 0 48px -12px rgb(0 0 0 / .8);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / .6), 0 10px 24px -8px rgb(0 0 0 / .75);
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .07), 0 2px 4px rgb(0 0 0 / .6), 0 18px 36px -10px rgb(0 0 0 / .85);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .1), 0 4px 8px rgb(0 0 0 / .6), 0 28px 50px -12px rgb(0 0 0 / .9);
 }
+.sheet { background: var(--sheet-fill, var(--sheet)); border-top-color: var(--sheet-edge, var(--line)); }
+.sheet.menu-list, .sheet.finish-card { background: var(--sheet); }
 
 /* Toast with an action (Undo). */
 #toast .toast-action { border: 0; background: none; color: inherit; font: 800 14px var(--ui); text-decoration: underline; cursor: pointer; padding: 0 0 0 6px; }
@@ -861,3 +866,19 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
 /* Highlights can be clicked: in the Text view directly, in the PDF by position (they sit under the text). */
 mark.hl[data-note] { cursor: pointer; }
 .hl-pop .sel-dot.active .hl-dot { box-shadow: 0 0 0 2px var(--pop), 0 0 0 3.5px var(--dot); }
+
+/* Paper covers look like a small stack of real pages: two sheets peek out behind the first page,
+   then a deep shadow falls below; on hover the stack lifts. */
+:root {
+  --shadow-cover: 3px 3px 0 -1px #eef0f3, 3px 3px 0 0 rgb(20 24 32 / .16), 6px 6px 0 -2px #e1e4e8, 6px 6px 0 -1px rgb(20 24 32 / .16), 0 2px 4px rgb(20 24 32 / .12), 0 16px 30px -8px rgb(20 24 32 / .38);
+  --shadow-cover-lift: 3px 3px 0 -1px #eef0f3, 3px 3px 0 0 rgb(20 24 32 / .16), 6px 6px 0 -2px #e1e4e8, 6px 6px 0 -1px rgb(20 24 32 / .16), 0 4px 8px rgb(20 24 32 / .14), 0 28px 46px -12px rgb(20 24 32 / .45);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) {
+  --shadow-cover: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .06), 0 3px 6px rgb(0 0 0 / .6), 0 22px 40px -10px rgb(0 0 0 / .9);
+  --shadow-cover-lift: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .09), 0 6px 12px rgb(0 0 0 / .6), 0 34px 56px -12px rgb(0 0 0 / .95); } }
+:root[data-theme="dark"], :root[data-theme="dim"] {
+  --shadow-cover: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .06), 0 3px 6px rgb(0 0 0 / .6), 0 22px 40px -10px rgb(0 0 0 / .9);
+  --shadow-cover-lift: 3px 3px 0 -1px #b9bcc1, 3px 3px 0 0 rgb(0 0 0 / .55), 6px 6px 0 -2px #9ea2a8, 6px 6px 0 -1px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .09), 0 6px 12px rgb(0 0 0 / .6), 0 34px 56px -12px rgb(0 0 0 / .95);
+}
+.cover { margin: 0 6px 6px 0; }
+.cover-link:hover .cover, .shelf-item:hover .cover { transform: translate(-1px, -4px); }
