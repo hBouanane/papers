@@ -41,19 +41,20 @@ export async function libraryPage(stale) {
       <a class="cover-link" href="#/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
       <div class="continue-text">
         ${goalOf(p)}
-        <a class="continue-title paper-name" href="#/papers/${p.id}">${esc(p.title)}</a>
+        <a class="continue-title paper-name" href="#/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
         <span class="card-cite">${cite(p)}</span>
         ${p.resume_text ? `<span class="card-quote">“${esc(p.resume_text)}”</span>` : ""}
         <span class="card-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>
-        <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading</a>
+        <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
       </div>
     </div>`;
   // A card with a small stage on top: the paper's first page peeking up, a second sheet tilted behind it.
   const shelfItem = (p) => `<a class="shelf-card" href="#/papers/${p.id}">
       <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
       <span class="shelf-info">
-        <span class="shelf-title paper-name">${esc(p.title)}</span>
-        <span class="shelf-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>
+        <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
+        <span class="shelf-foot">${progressBar(p)}<span class="foot-swap"><span class="foot-pct num">${pct(p.progress)} read</span>
+          <span class="foot-go" aria-hidden="true">Continue <span class="arrow">→</span></span></span></span>
       </span>
     </a>`;
   const goalLine = (g) => {

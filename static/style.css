@@ -907,3 +907,35 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
   --sheet-glass-rim: rgb(255 255 255 / .45); --sheet-glass-line: rgb(255 255 255 / .16); }
 .cover-sheet { background: var(--sheet-glass); border: 0; -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%);
   box-shadow: 0 10px 24px -10px rgb(0 0 0 / .35); }
+
+/* The sheet behind a cover: a soft, blurred copy of the page (frosted), not a flat colour. */
+.cover-sheet.has-page { background: var(--sheet-glass), var(--sheet-page) center top / cover no-repeat;
+  filter: blur(2.5px) saturate(115%); opacity: .8; }
+
+/* Hovering a paper: the page lifts, and its text answers too. The title's underline draws in, the
+   reading bar gets a light sweep, and "7% read" slides away for "Continue →". On Continue reading the
+   whole card counts as hovering the paper. */
+.ul { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 1px;
+  transition: background-size .45s cubic-bezier(.3, .8, .25, 1); }
+.shelf-card:hover .ul, .continue:hover .ul { background-size: 100% 1.5px; }
+.shelf-card .shelf-title { transition: color .3s ease, transform .45s cubic-bezier(.3, .8, .25, 1); }
+.shelf-card:hover .shelf-title { transform: translateY(-2px); }
+.continue:hover .continue-title { color: var(--ink); }
+.continue:hover .cover-wrap .cover { transform: translateY(-6px) rotate(-1.5deg); box-shadow: 0 3px 6px rgb(0 0 0 / .2), 0 24px 40px -10px rgb(0 0 0 / .5); }
+.continue:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
+.bar { position: relative; }
+.bar::after { content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / .6), transparent); }
+.shelf-card:hover .bar::after, .continue:hover .bar::after { animation: bar-sweep .9s ease-out; }
+@keyframes bar-sweep { to { transform: translateX(100%); } }
+.foot-swap { display: inline-grid; }
+.foot-swap > * { grid-area: 1 / 1; white-space: nowrap; transition: opacity .3s ease, transform .4s cubic-bezier(.3, .8, .25, 1); }
+.foot-go { opacity: 0; transform: translateX(-8px); color: var(--ink); font-weight: 700; }
+.shelf-card:hover .foot-pct { opacity: 0; transform: translateX(8px); }
+.shelf-card:hover .foot-go { opacity: 1; transform: none; }
+.arrow { display: inline-block; transition: transform .35s cubic-bezier(.3, .8, .25, 1); }
+.shelf-card:hover .arrow, .continue:hover .arrow { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) {
+  .ul, .shelf-card .shelf-title, .foot-swap > *, .arrow { transition: none; }
+  .shelf-card:hover .bar::after, .continue:hover .bar::after { animation: none; }
+}
