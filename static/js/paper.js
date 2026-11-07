@@ -339,7 +339,7 @@ export async function readerPage(id, stale) {
           <span class="hl-tool-colors">${COLORS.map((c) => `<button class="hl-dot hl-${c}" data-tool-color="${c}" aria-label="${c}" title="${c[0].toUpperCase() + c.slice(1)}"></button>`).join("")}</span>
         </div>
         ${readingPrefsMenu()}
-        <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
+        <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span><span class="switch-label">Skimming</span></button>
         ${pageToneControl()}
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
         <button class="button secondary small" id="toggle-notes" title="Ask the AI, words, your notes (n)">Ask &amp; notes</button>
@@ -463,6 +463,7 @@ export async function readerPage(id, stale) {
     $("#jump").hidden = !targets.length;
     $("#zoom").hidden = !pdf;
     $("#page-tone").hidden = view !== "pdf";
+    app.querySelector(".prefs-menu").hidden = view !== "text"; // text size, spacing and font only apply to the Text view
     if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
     if (pdf) pdf.onPageRendered((n, div) => drawPdfPage(div, n, notes.items));
     drawMarks();
