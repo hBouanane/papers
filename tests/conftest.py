@@ -28,6 +28,7 @@ def no_real_claude(request, monkeypatch):
 
     monkeypatch.setattr(llm, "_request", blocked)
     monkeypatch.setattr(llm, "_claude_code", blocked)
+    monkeypatch.setattr(llm, "_openai_send", blocked)
 
 
 @pytest.fixture

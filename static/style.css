@@ -932,3 +932,13 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
   .shelf-card .shelf-title, .foot-swap > *, .arrow { transition: none; }
   .shelf-card:hover .bar::after, .continue:hover .bar::after { animation: none; }
 }
+
+/* Settings: choosing another AI model. */
+.other-model { display: grid; gap: 8px; padding: 4px 0 0 30px; }
+.other-model select { width: 100%; font: 16px var(--ui); color: var(--graphite); background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--r-control); padding: 9px 10px; }
+.model-row { display: flex; gap: 8px; align-items: center; }
+.model-row .button { flex-shrink: 0; }
+.other-model .advanced { margin-top: 4px; display: grid; gap: 8px; }
+.other-model .advanced[open] { padding-bottom: 4px; }
+@media (max-width: 560px) { .other-model { padding-left: 0; } }

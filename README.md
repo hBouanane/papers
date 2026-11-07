@@ -20,6 +20,21 @@ Optional env vars: `S2_API_KEY` (Semantic Scholar key; without it search often f
 arXiv because of rate limits), `PAPERS_MODEL` (default `claude-opus-5-5`), `PAPERS_DB`
 (default `data/papers.db`; uploaded and downloaded PDFs are kept next to it in `pdfs/`).
 
+
+## Choosing an AI model
+
+Settings > AI model offers three ways:
+
+- **My Claude subscription** (Pro, Max): runs Claude Code on your computer, signed in with your account. For your own use only.
+- **API key**: Claude on the Anthropic API (`ANTHROPIC_API_KEY`).
+- **Another model**: any OpenAI-compatible provider. Pick one, paste its key, click **List models** and choose:
+  OpenAI (ChatGPT), Google Gemini, Mistral, Groq, OpenRouter (hundreds of models), or a model on your own computer
+  with [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) (no key, nothing leaves your machine).
+  Under *More options* you can point it at any other server (vLLM, llama.cpp, a company gateway) and, for small local
+  models, send only the first part of long papers.
+
+Keys are stored only in your local database (`data/papers.db`) and never sent back to the page.
+
 ## Using your Claude subscription
 
 Instead of an API key you can use your Claude Pro or Max plan: in **Settings → Claude** choose

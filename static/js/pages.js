@@ -334,8 +334,8 @@ export async function settingsPage(stale) {
         "Chinese", "Japanese", "Korean", "Russian", "Hindi", "Indonesian", "Vietnamese"].map((l) => `<option value="${l}">`).join("")}</datalist>
     </form>
     <form class="sheet form" id="ai-form">
-      <h2>Claude</h2>
-      <p class="hint">Skimming, explanations, quizzes and recall are done by Claude. Choose how the app reaches it.</p>
+      <h2>AI model</h2>
+      <p class="hint">Key points, explanations, vocabulary, questions and recall are written by an AI model. Choose which one.</p>
       <label class="choice"><input type="radio" name="ai" value="claude-code" ${s.ai_backend === "claude-code" ? "checked" : ""}>
         <span><span><strong>My Claude subscription</strong> (Pro, Max)</span>
         <span class="hint">Runs Claude Code on this computer, signed in with your Claude account. Usage counts toward your plan's limits.
@@ -345,8 +345,36 @@ export async function settingsPage(stale) {
         First time: open a terminal, run <code>claude</code>, type <code>/login</code> and sign in.</span></span></label>
       <label class="choice"><input type="radio" name="ai" value="api" ${s.ai_backend === "api" ? "checked" : ""}>
         <span><strong>API key</strong>
-        <span class="hint">Pay per use on the Anthropic API. Set <code>ANTHROPIC_API_KEY</code> before starting the app.
+        <span class="hint">Claude, paid per use on the Anthropic API. Set <code>ANTHROPIC_API_KEY</code> before starting the app.
         ${s.api_key_set ? "A key is set." : "No key is set."}</span></span></label>
+      <label class="choice"><input type="radio" name="ai" value="openai" ${s.ai_backend === "openai" ? "checked" : ""}>
+        <span><strong>Another model</strong>
+        <span class="hint">ChatGPT, Gemini, Mistral, Groq, hundreds more through OpenRouter, or a model running on this computer
+        (Ollama, LM Studio), so nothing leaves it.</span></span></label>
+      <div class="other-model" id="other-model" ${s.ai_backend === "openai" ? "" : "hidden"}>
+        <label for="ai-provider">Provider</label>
+        <select id="ai-provider">${s.providers.map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>
+        <label for="ai-key">API key</label>
+        <input id="ai-key" type="password" autocomplete="off" placeholder="${s.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key"}">
+        <p class="hint" id="ai-key-hint"></p>
+        <label for="ai-model">Model</label>
+        <div class="model-row"><input id="ai-model" list="ai-models" value="${esc(s.ai_model)}" placeholder="Pick from the list or type its name">
+          <button type="button" class="button secondary small" id="list-models">List models</button></div>
+        <datalist id="ai-models"></datalist>
+        <details class="advanced"><summary>More options</summary>
+          <label for="ai-base">Server address</label>
+          <input id="ai-base" value="${esc(s.ai_base_url)}" placeholder="https://…/v1">
+          <p class="hint">Filled in for the provider you picked. Change it only for another server or port.</p>
+          <label for="ai-context">How much of a paper to send</label>
+          <select id="ai-context">
+            <option value="full" ${s.ai_context === "full" ? "selected" : ""}>The whole paper (large cloud models)</option>
+            <option value="32k" ${s.ai_context === "32k" ? "selected" : ""}>About 32k tokens (most local models)</option>
+            <option value="8k" ${s.ai_context === "8k" ? "selected" : ""}>About 8k tokens (small local models)</option>
+          </select>
+          <p class="hint">Models with a small memory can't read a whole paper at once; they get the beginning of it.</p>
+        </details>
+        <div class="form-foot"><button class="button" id="ai-save">Save</button></div>
+      </div>
       <div class="form-foot"><button type="button" class="button secondary" id="ai-test">Test connection</button></div>
       <p id="ai-status" class="hint" role="status"></p>
     </form>
@@ -385,14 +413,54 @@ export async function settingsPage(stale) {
     });
   };
   const aiStatus = app.querySelector("#ai-status");
-  app.querySelector("#ai-form").onchange = async (e) => {
-    if (e.target.name !== "ai") return;
-    const saved = await api("/settings", { method: "PUT", json: { ai_backend: e.target.value } });
-    aiStatus.className = "hint";
-    aiStatus.textContent = saved.ai_ready ? "Saved. Use Test connection to check it works."
-      : saved.ai_backend === "api" ? "Saved, but no API key is set." : "Saved, but Claude Code wasn't found on this computer.";
+  const say = (text, ok = true) => { aiStatus.className = ok ? "hint" : "error"; aiStatus.textContent = text; };
+  const $ = (id) => app.querySelector(id);
+  const preset = () => s.providers.find((p) => p.id === $("#ai-provider").value);
+  const keyHint = () => {
+    const p = preset();
+    $("#ai-key-hint").textContent = p.id === "ollama" || p.id === "lmstudio"
+      ? "Not needed: the model runs on this computer. Start it first, and download a model in it."
+      : p.key ? "Kept on this computer only. Get one from the provider's website." : "Only if your server asks for one.";
   };
-  app.querySelector("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking Claude…", async () => {
+  keyHint();
+  // The choice between Claude (subscription or API) and another model is saved as soon as you pick it.
+  app.querySelector("#ai-form").addEventListener("change", async (e) => {
+    if (e.target.name === "ai") {
+      $("#other-model").hidden = e.target.value !== "openai";
+      const saved = await api("/settings", { method: "PUT", json: { ai_backend: e.target.value } });
+      say(saved.ai_ready ? "Saved. Use Test connection to check it works."
+        : saved.ai_backend === "api" ? "Saved, but no API key is set."
+        : saved.ai_backend === "openai" ? "Now choose a provider and a model." : "Saved, but Claude Code wasn't found on this computer.");
+    } else if (e.target.id === "ai-provider") {
+      $("#ai-base").value = preset().base_url;
+      $("#ai-model").value = "";
+      $("#ai-models").innerHTML = "";
+      keyHint();
+    }
+  });
+  const saveModel = () => {
+    const json = { ai_provider: $("#ai-provider").value, ai_base_url: $("#ai-base").value, ai_model: $("#ai-model").value,
+      ai_context: $("#ai-context").value };
+    if ($("#ai-key").value) json.ai_api_key = $("#ai-key").value;
+    return api("/settings", { method: "PUT", json });
+  };
+  $("#ai-save").onclick = (e) => busy(e.currentTarget, "Saving…", async () => {
+    const saved = await saveModel();
+    $("#ai-key").value = "";
+    $("#ai-key").placeholder = saved.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key";
+    say(saved.ai_ready ? "Saved. Use Test connection to check it works." : !saved.ai_model ? "Saved. Now choose a model." : "Saved, but an API key is still needed.");
+  });
+  // Ask the provider which models it has, so you pick a real name instead of guessing one.
+  $("#list-models").onclick = (e) => busy(e.currentTarget, "Asking…", async () => {
+    await saveModel();
+    try {
+      const { models } = await api("/ai/models");
+      $("#ai-models").innerHTML = models.map((m) => `<option value="${esc(m)}">`).join("");
+      say(models.length ? `${models.length} models available. Click the Model box to pick one, then Save.` : "The provider listed no models.");
+      $("#ai-model").focus();
+    } catch (err) { say(err.message, false); }
+  });
+  app.querySelector("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking the model…", async () => {
     const r = await api("/ai/test", { method: "POST" });
     aiStatus.className = r.ok ? "hint ok" : "error";
     aiStatus.textContent = r.message;

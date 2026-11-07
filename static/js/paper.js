@@ -149,7 +149,7 @@ export async function paperPage(id, stale, tab = "overview") {
 }
 
 const preparingNote = (what) => `<div class="preparing"><span class="dot-pulse" aria-hidden="true"></span>
-  <p>Claude is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
+  <p>The AI is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
 
 function renderOverview(box, p, settings) {
   const s = p.skim;
@@ -160,7 +160,7 @@ function renderOverview(box, p, settings) {
     box.innerHTML = p.preparing ? `${preparingNote("its key points")}${abstract}`
       : settings.ai_ready && p.text ? `<h2>Key points</h2><p class="hint">A first pass on the paper in plain English, before you read it.</p>
           <button class="button" id="skim-btn">Get key points</button>${abstract}`
-      : `<p class="hint">${p.text ? `Set up Claude in <a href="#/settings">Settings</a> to get key points, words and questions.`
+      : `<p class="hint">${p.text ? `Choose an AI model in <a href="#/settings">Settings</a> to get key points, words and questions.`
           : "Upload the PDF to get key points."}</p>${abstract}`;
     box.querySelector("#skim-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Reading the paper…", async () => {
       p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
@@ -334,7 +334,7 @@ export async function readerPage(id, stale) {
         <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
         ${pageToneControl()}
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
-        <button class="button secondary small" id="toggle-notes" title="Ask Claude, words, your notes (n)">Ask &amp; notes</button>
+        <button class="button secondary small" id="toggle-notes" title="Ask the AI, words, your notes (n)">Ask &amp; notes</button>
       </div>
       <div class="strip" id="strip" title="Parts you've read. Click to jump."><span class="strip-view" id="strip-view"></span></div>
     </div>
@@ -352,7 +352,7 @@ export async function readerPage(id, stale) {
         <div class="thread" id="thread">
           <div class="thread-empty">
             <p><strong>Select any text in the paper</strong> to explain, simplify, translate or hear it.</p>
-            <p>Or ask anything below. Claude answers with the whole paper in mind.</p>
+            <p>Or ask anything below. The AI answers with the whole paper in mind.</p>
           </div>
         </div>
         <form id="ask" class="composer">
@@ -936,7 +936,7 @@ export async function quizPage(id, stale) {
   if (!p.quiz?.length) {
     app.innerHTML = `<div class="container page narrow">${crumbs}
       <div class="page-head"><h1>Test yourself</h1></div>
-      <div class="empty"><p>No questions for this paper yet. Claude writes them from the paper.</p>
+      <div class="empty"><p>No questions for this paper yet. The AI writes them from the paper.</p>
         <button class="button" id="gen">Write questions</button></div></div>`;
     app.querySelector("#gen").onclick = (e) => busy(e.currentTarget, "Writing questions…", async () => {
       await api(`/papers/${id}/quiz`, { method: "POST" });
@@ -962,7 +962,7 @@ export async function quizPage(id, stale) {
         <button class="button" id="reveal">Show answer <kbd>Space</kbd></button>
       </div>
       <p class="card-alt">Think of your answer, then reveal it and rate yourself honestly.
-        Prefer to write? <button class="link-button" id="typed">Type answers for Claude to grade</button></p>
+        Prefer to write? <button class="link-button" id="typed">Type answers for the AI to grade</button></p>
     </div>`;
     app.querySelector("#reveal").onclick = reveal;
     app.querySelector("#typed").onclick = () => typedQuiz(p, crumbs);
@@ -1007,7 +1007,7 @@ export async function quizPage(id, stale) {
 function typedQuiz(p, crumbs) {
   app.innerHTML = `<div class="container page narrow">${crumbs}
     <div class="page-head"><h1>Test yourself</h1>
-    <p class="lede">Answer in your own words. Claude grades each answer against the paper, not against exact wording.</p></div>
+    <p class="lede">Answer in your own words. The AI grades each answer against the paper, not against exact wording.</p></div>
     <form id="quiz" class="quiz">${p.quiz.map((q, i) => `<div class="sheet question">
       <label for="a${i}"><span class="q-num">Question ${i + 1} of ${p.quiz.length}</span>${esc(q.question)}</label>
       <textarea id="a${i}" rows="3"></textarea>

@@ -547,9 +547,22 @@ def list_explanations(paper_id: int):
 
 class SettingsIn(BaseModel):
     library_dir: str | None = None
-    ai_backend: Literal["api", "claude-code"] | None = None
+    ai_backend: Literal["api", "claude-code", "openai"] | None = None
+    ai_provider: str | None = None  # one of llm.PROVIDERS
+    ai_base_url: str | None = None  # empty: the provider's usual address
+    ai_api_key: str | None = None  # kept on this computer, never sent back to the page
+    ai_model: str | None = None
+    ai_context: Literal["full", "32k", "8k"] | None = None
     language: str | None = None  # the reader's first language, for translations
     name: str | None = None  # what the Library greets you with; empty means just "Good morning"
+
+
+def openai_settings() -> dict:
+    """The OpenAI-compatible model choice, without the key itself (only whether one is set)."""
+    cfg = llm.openai_config()
+    return {"ai_provider": cfg["provider"], "ai_base_url": cfg["base_url"], "ai_model": cfg["model"],
+            "ai_key_set": bool(cfg["api_key"]), "ai_context": setting("ai_context") or "full",
+            "ai_name": llm.ai_name(), "providers": llm.PROVIDERS}
 
 
 def settings() -> dict:
@@ -557,6 +570,7 @@ def settings() -> dict:
     return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
             "suggested": str(Path.home() / "Documents" / "Papers"),
             "ai_backend": llm.backend(), "ai_ready": llm.configured(), "claude_binary": llm.claude_binary() or "",
+            **openai_settings(),
             "language": setting("language"), "name": setting("name"),
             "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))}
 
@@ -571,6 +585,12 @@ def save_settings(body: SettingsIn):
     with db.connect() as conn:
         if body.ai_backend:
             conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
+        for key in ("ai_provider", "ai_base_url", "ai_api_key", "ai_model", "ai_context"):
+            value = getattr(body, key)
+            if value is not None:
+                conn.execute("insert or replace into settings (key, value) values (?, ?)", (key, value.strip()))
+        if body.ai_provider is not None and body.ai_base_url is None:
+            conn.execute("delete from settings where key = 'ai_base_url'")  # a new provider starts at its usual address
         if body.language is not None:
             conn.execute("insert or replace into settings (key, value) values ('language', ?)", (body.language.strip(),))
         if body.name is not None:
@@ -593,8 +613,20 @@ def test_ai():
         llm.search_queries("checking the connection")
     except llm.AIError as e:
         return {"ok": False, "message": str(e)}
+    if llm.backend() == "openai":
+        cfg = llm.openai_config()
+        return {"ok": True, "message": f"{cfg['model']} answered through {cfg['name']}."}
     via = "Claude Code" if llm.backend() == "claude-code" else "the API"
     return {"ok": True, "message": f"Claude answered through {via}."}
+
+
+@app.get("/api/ai/models")
+def ai_models():
+    """The models the chosen OpenAI-compatible server offers, to pick from in Settings."""
+    try:
+        return {"models": llm.list_models()}
+    except llm.AIError as e:
+        raise HTTPException(400, str(e))
 
 
 _inbox_skipped: set[tuple] = set()  # files that aren't importable; don't retry until they change
