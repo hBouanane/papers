@@ -958,3 +958,15 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .reader-bar-inner > .reader-pct { margin-left: auto; } /* % read and Ask & notes stay at the right, also on a second row */
 @media (max-width: 1240px) { .reader-bar .jump { max-width: 130px; } }
 @media (max-width: 1100px) { .reader-bar .switch-label { display: none; } .reader-bar .jump { max-width: 110px; } }
+
+/* Settings: AI model */
+#ai-form select { width: 100%; font: 16px var(--ui); color: var(--graphite); background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--r-control); padding: 9px 10px; }
+.ai-field { display: grid; gap: 8px; }
+.ai-field[hidden] { display: none; }
+.model-row { display: flex; gap: 8px; align-items: center; }
+.model-row .button { flex-shrink: 0; }
+.model-row .button[hidden] { display: none; }
+#ai-form .advanced { display: grid; gap: 8px; margin-top: 4px; }
+.ai-actions { gap: 8px; }
+#ai-about code { font-size: 13px; }

@@ -23,16 +23,20 @@ arXiv because of rate limits), `PAPERS_MODEL` (default `claude-opus-5-5`), `PAPE
 
 ## Choosing an AI model
 
-Settings > AI model offers three ways:
+Settings > AI model has one list of providers; each is set up the same way (key if it needs one, then
+**List models** and pick one). Each provider keeps its own key and model, so you can switch freely.
 
-- **My Claude subscription** (Pro, Max): runs Claude Code on your computer, signed in with your account. For your own use only.
-- **API key**: Claude on the Anthropic API (`ANTHROPIC_API_KEY`).
-- **Another model**: any OpenAI-compatible provider. Pick one, paste its key, click **List models** and choose:
-  OpenAI (ChatGPT), Google Gemini, Mistral, Groq, OpenRouter (hundreds of models), or a model on your own computer
-  with [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) (no key, nothing leaves your machine).
-  Under *More options* you can point it at any other server (vLLM, llama.cpp, a company gateway) and, for small local
-  models, send only the first part of long papers.
+- **Use your subscription**: Claude (Pro, Max) through [Claude Code](https://claude.com/claude-code), or
+  ChatGPT (Plus, Pro) through OpenAI's [Codex CLI](https://developers.openai.com/codex/cli/reference)
+  (`npm install -g @openai/codex`, then `codex login`). Both run on your computer with your own account,
+  for your own use.
+- **Pay per use with an API key**: Anthropic, OpenAI, Google Gemini (has a free tier), Mistral, Groq, or
+  OpenRouter (hundreds of models).
+- **On this computer**: [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai). Free, and nothing
+  leaves your machine.
+- **Other**: any OpenAI-compatible server (vLLM, llama.cpp, a company gateway), by its address.
 
+Small local models can't read a whole paper; *More options* can send just its beginning.
 Keys are stored only in your local database (`data/papers.db`) and never sent back to the page.
 
 ## Using your Claude subscription

@@ -310,6 +310,29 @@ export async function mapPage(stale) {
 }
 
 // ---------- Settings ----------
+// ---------- Settings: AI providers ----------
+const AI_GROUPS = [["subscription", "Use your subscription"], ["key", "Pay per use with an API key"],
+  ["local", "On this computer (free, private)"], ["other", "Other"]];
+const KEY_PAGES = {
+  anthropic: "console.anthropic.com", openai: "platform.openai.com/api-keys", gemini: "aistudio.google.com/apikey",
+  mistral: "console.mistral.ai", groq: "console.groq.com/keys", openrouter: "openrouter.ai/keys",
+};
+// What each provider needs, in a sentence or two.
+function aboutProvider(p, s) {
+  const link = (host) => `<a href="https://${host}" target="_blank" rel="noopener">${host}</a>`;
+  if (p.id === "claude-plan") return `Runs Claude Code on this computer, signed in with your Claude account; usage counts toward your plan.
+    ${s.claude_binary ? `Found it at <code>${esc(s.claude_binary)}</code>.` : `Install it from ${link("claude.com/claude-code")}.`}
+    First time: in a terminal run <code>claude</code>, type <code>/login</code> and sign in. For your own use only.`;
+  if (p.id === "chatgpt-plan") return `Runs OpenAI's Codex on this computer, signed in with your ChatGPT account; usage counts toward your plan.
+    ${s.codex_binary ? `Found it at <code>${esc(s.codex_binary)}</code>.` : `Install it with <code>npm install -g @openai/codex</code>.`}
+    First time: in a terminal run <code>codex login</code>. Answers arrive all at once rather than word by word. For your own use only.`;
+  if (p.group === "key") return `Paid per use. Get a key at ${link(KEY_PAGES[p.id])}${p.id === "gemini" ? " (it has a free tier)" : ""}, paste it below,
+    then List models and pick one.`;
+  if (p.group === "local") return `Free and private: the model runs on this computer and nothing leaves it. Install
+    ${p.id === "ollama" ? link("ollama.com") : link("lmstudio.ai")}, download a model in it and keep it running, then List models.`;
+  return "Any server that speaks the OpenAI chat API (vLLM, llama.cpp, a company gateway). Set its address under More options.";
+}
+
 export async function settingsPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const s = await api("/settings");
@@ -335,47 +358,36 @@ export async function settingsPage(stale) {
     </form>
     <form class="sheet form" id="ai-form">
       <h2>AI model</h2>
-      <p class="hint">Key points, explanations, vocabulary, questions and recall are written by an AI model. Choose which one.</p>
-      <label class="choice"><input type="radio" name="ai" value="claude-code" ${s.ai_backend === "claude-code" ? "checked" : ""}>
-        <span><span><strong>My Claude subscription</strong> (Pro, Max)</span>
-        <span class="hint">Runs Claude Code on this computer, signed in with your Claude account. Usage counts toward your plan's limits.
-        For your own use only: don't host the app for other people with your subscription.
-        ${s.claude_binary ? `Found Claude Code at <code>${esc(s.claude_binary)}</code>.`
-          : "Claude Code isn't installed yet: get it from claude.com/claude-code."}
-        First time: open a terminal, run <code>claude</code>, type <code>/login</code> and sign in.</span></span></label>
-      <label class="choice"><input type="radio" name="ai" value="api" ${s.ai_backend === "api" ? "checked" : ""}>
-        <span><strong>API key</strong>
-        <span class="hint">Claude, paid per use on the Anthropic API. Set <code>ANTHROPIC_API_KEY</code> before starting the app.
-        ${s.api_key_set ? "A key is set." : "No key is set."}</span></span></label>
-      <label class="choice"><input type="radio" name="ai" value="openai" ${s.ai_backend === "openai" ? "checked" : ""}>
-        <span><strong>Another model</strong>
-        <span class="hint">ChatGPT, Gemini, Mistral, Groq, hundreds more through OpenRouter, or a model running on this computer
-        (Ollama, LM Studio), so nothing leaves it.</span></span></label>
-      <div class="other-model" id="other-model" ${s.ai_backend === "openai" ? "" : "hidden"}>
-        <label for="ai-provider">Provider</label>
-        <select id="ai-provider">${s.providers.map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>
+      <p class="hint">Key points, explanations, vocabulary, questions and recall are written by an AI model. Use any provider.</p>
+      <label for="ai-provider">Provider</label>
+      <select id="ai-provider">${AI_GROUPS.map(([group, label]) => `<optgroup label="${label}">${s.providers.filter((p) => p.group === group)
+        .map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+      <p class="hint" id="ai-about"></p>
+      <div class="ai-field" id="ai-key-field">
         <label for="ai-key">API key</label>
-        <input id="ai-key" type="password" autocomplete="off" placeholder="${s.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key"}">
-        <p class="hint" id="ai-key-hint"></p>
-        <label for="ai-model">Model</label>
-        <div class="model-row"><input id="ai-model" list="ai-models" value="${esc(s.ai_model)}" placeholder="Pick from the list or type its name">
-          <button type="button" class="button secondary small" id="list-models">List models</button></div>
-        <datalist id="ai-models"></datalist>
-        <details class="advanced"><summary>More options</summary>
+        <input id="ai-key" type="password" autocomplete="off">
+        <p class="hint">Kept on this computer only.</p>
+      </div>
+      <label for="ai-model">Model</label>
+      <div class="model-row"><input id="ai-model" list="ai-models" value="${esc(s.ai_model)}">
+        <button type="button" class="button secondary small" id="list-models">List models</button></div>
+      <datalist id="ai-models"></datalist>
+      <details class="advanced"><summary>More options</summary>
+        <div class="ai-field" id="ai-base-field">
           <label for="ai-base">Server address</label>
           <input id="ai-base" value="${esc(s.ai_base_url)}" placeholder="https://…/v1">
           <p class="hint">Filled in for the provider you picked. Change it only for another server or port.</p>
-          <label for="ai-context">How much of a paper to send</label>
-          <select id="ai-context">
-            <option value="full" ${s.ai_context === "full" ? "selected" : ""}>The whole paper (large cloud models)</option>
-            <option value="32k" ${s.ai_context === "32k" ? "selected" : ""}>About 32k tokens (most local models)</option>
-            <option value="8k" ${s.ai_context === "8k" ? "selected" : ""}>About 8k tokens (small local models)</option>
-          </select>
-          <p class="hint">Models with a small memory can't read a whole paper at once; they get the beginning of it.</p>
-        </details>
-        <div class="form-foot"><button class="button" id="ai-save">Save</button></div>
-      </div>
-      <div class="form-foot"><button type="button" class="button secondary" id="ai-test">Test connection</button></div>
+        </div>
+        <label for="ai-context">How much of a paper to send</label>
+        <select id="ai-context">
+          <option value="full" ${s.ai_context === "full" ? "selected" : ""}>The whole paper (large models)</option>
+          <option value="32k" ${s.ai_context === "32k" ? "selected" : ""}>About 32k tokens (most local models)</option>
+          <option value="8k" ${s.ai_context === "8k" ? "selected" : ""}>About 8k tokens (small local models)</option>
+        </select>
+        <p class="hint">Models with a small memory can't read a whole paper at once; they get its beginning.</p>
+      </details>
+      <div class="form-foot ai-actions"><button type="button" class="button secondary" id="ai-test">Test connection</button>
+        <button class="button" id="ai-save">Save</button></div>
       <p id="ai-status" class="hint" role="status"></p>
     </form>
     <form class="sheet form" id="folder-form">
@@ -412,58 +424,64 @@ export async function settingsPage(stale) {
       toast(saved.language ? `Translations will be in ${saved.language}.` : "Translations turned off.");
     });
   };
-  const aiStatus = app.querySelector("#ai-status");
+  // ----- AI model: one list of providers, each set up the same way -----
+  const q = (sel) => app.querySelector(sel);
+  const aiStatus = q("#ai-status");
   const say = (text, ok = true) => { aiStatus.className = ok ? "hint" : "error"; aiStatus.textContent = text; };
-  const $ = (id) => app.querySelector(id);
-  const preset = () => s.providers.find((p) => p.id === $("#ai-provider").value);
-  const keyHint = () => {
-    const p = preset();
-    $("#ai-key-hint").textContent = p.id === "ollama" || p.id === "lmstudio"
-      ? "Not needed: the model runs on this computer. Start it first, and download a model in it."
-      : p.key ? "Kept on this computer only. Get one from the provider's website." : "Only if your server asks for one.";
+  let ai = s;
+  const showProvider = () => {
+    const p = ai.providers.find((x) => x.id === ai.ai_provider);
+    const subscription = p.group === "subscription";
+    q("#ai-about").innerHTML = aboutProvider(p, ai);
+    q("#ai-key-field").hidden = !p.key;
+    q("#ai-key").value = "";
+    q("#ai-key").placeholder = ai.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key";
+    q("#ai-model").value = ai.ai_model;
+    q("#ai-model").placeholder = subscription ? "Leave empty for the default model" : "Pick from the list or type its name";
+    q("#list-models").hidden = subscription;
+    q("#ai-models").innerHTML = "";
+    q("#ai-base-field").hidden = p.kind !== "openai";
+    q("#ai-base").value = ai.ai_base_url;
   };
-  keyHint();
-  // The choice between Claude (subscription or API) and another model is saved as soon as you pick it.
-  app.querySelector("#ai-form").addEventListener("change", async (e) => {
-    if (e.target.name === "ai") {
-      $("#other-model").hidden = e.target.value !== "openai";
-      const saved = await api("/settings", { method: "PUT", json: { ai_backend: e.target.value } });
-      say(saved.ai_ready ? "Saved. Use Test connection to check it works."
-        : saved.ai_backend === "api" ? "Saved, but no API key is set."
-        : saved.ai_backend === "openai" ? "Now choose a provider and a model." : "Saved, but Claude Code wasn't found on this computer.");
-    } else if (e.target.id === "ai-provider") {
-      $("#ai-base").value = preset().base_url;
-      $("#ai-model").value = "";
-      $("#ai-models").innerHTML = "";
-      keyHint();
-    }
-  });
-  const saveModel = () => {
-    const json = { ai_provider: $("#ai-provider").value, ai_base_url: $("#ai-base").value, ai_model: $("#ai-model").value,
-      ai_context: $("#ai-context").value };
-    if ($("#ai-key").value) json.ai_api_key = $("#ai-key").value;
-    return api("/settings", { method: "PUT", json });
+  showProvider();
+  // Picking a provider switches to it at once; its own key and model come back as you left them.
+  q("#ai-provider").onchange = async (e) => {
+    ai = await api("/settings", { method: "PUT", json: { ai_provider: e.target.value } });
+    showProvider();
+    say(ai.ai_ready ? "Switched. Use Test connection to check it works." : "Now finish setting it up below, then Save.");
   };
-  $("#ai-save").onclick = (e) => busy(e.currentTarget, "Saving…", async () => {
-    const saved = await saveModel();
-    $("#ai-key").value = "";
-    $("#ai-key").placeholder = saved.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key";
-    say(saved.ai_ready ? "Saved. Use Test connection to check it works." : !saved.ai_model ? "Saved. Now choose a model." : "Saved, but an API key is still needed.");
-  });
+  const saveAi = async () => {
+    const p = ai.providers.find((x) => x.id === ai.ai_provider);
+    const json = { ai_model: q("#ai-model").value, ai_context: q("#ai-context").value };
+    if (p.kind === "openai") json.ai_base_url = q("#ai-base").value;
+    if (q("#ai-key").value) json.ai_api_key = q("#ai-key").value;
+    ai = await api("/settings", { method: "PUT", json });
+    return ai;
+  };
+  q("#ai-form").onsubmit = (e) => {
+    e.preventDefault();
+    busy(q("#ai-save"), "Saving…", async () => {
+      await saveAi();
+      showProvider();
+      say(ai.ai_ready ? "Saved. Use Test connection to check it works."
+        : ai.providers.find((x) => x.id === ai.ai_provider).group === "subscription" ? "Saved, but its app isn't installed yet (see above)."
+        : !ai.ai_model ? "Saved. Now choose a model." : "Saved, but an API key is still needed.");
+    });
+  };
   // Ask the provider which models it has, so you pick a real name instead of guessing one.
-  $("#list-models").onclick = (e) => busy(e.currentTarget, "Asking…", async () => {
-    await saveModel();
+  q("#list-models").onclick = (e) => busy(e.currentTarget, "Asking…", async () => {
+    await saveAi();
     try {
       const { models } = await api("/ai/models");
-      $("#ai-models").innerHTML = models.map((m) => `<option value="${esc(m)}">`).join("");
+      q("#ai-models").innerHTML = models.map((m) => `<option value="${esc(m)}">`).join("");
       say(models.length ? `${models.length} models available. Click the Model box to pick one, then Save.` : "The provider listed no models.");
-      $("#ai-model").focus();
+      q("#ai-model").focus();
     } catch (err) { say(err.message, false); }
   });
-  app.querySelector("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking the model…", async () => {
+  q("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking the model…", async () => {
+    await saveAi();
     const r = await api("/ai/test", { method: "POST" });
-    aiStatus.className = r.ok ? "hint ok" : "error";
-    aiStatus.textContent = r.message;
+    say(r.message, r.ok);
   });
   app.querySelector("#folder-form").onsubmit = (e) => {
     e.preventDefault();
