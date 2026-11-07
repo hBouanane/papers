@@ -342,7 +342,7 @@ export async function readerPage(id, stale) {
   app.innerHTML = `
     <div class="reader-bar" id="bar">
       <div class="reader-bar-inner">
-        <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
+        <a href="#/papers/${id}" class="reader-back" title="Back to ${esc(p.title)}" aria-label="Back to the paper's page"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
@@ -357,6 +357,8 @@ export async function readerPage(id, stale) {
         ${readingPrefsMenu()}
         <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span><span class="switch-label">Skimming</span></button>
         ${pageToneControl()}
+        <details class="menu bar-more" id="bar-more" hidden><summary class="button secondary small" title="More tools" aria-label="More tools">⋯</summary>
+          <div class="menu-list sheet bar-more-list" id="bar-more-list"></div></details>
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
         <button class="button secondary small" id="toggle-notes" title="Ask the AI, words, your notes (n)">Ask &amp; notes</button>
       </div>
@@ -431,6 +433,43 @@ export async function readerPage(id, stale) {
   let pdf = null;
   let targets = []; // "Go to…" destinations for the current view: { label, go, page? }
 
+  // Where you are: the page you opened the paper from, the paper, and Reading. Shown above the paper.
+  const origin = cameFrom(`/papers/${id}`) || "/";
+  const ORIGIN = { "/": "Library", "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
+  let originLabel = ORIGIN[origin] || (/^\/goals\/\d+$/.test(origin) ? "Goal" : /^\/papers\/\d+$/.test(origin) ? "Previous paper" : "Library");
+  const routeLine = () => `<nav class="reader-route" aria-label="Where you are"><a href="#${ORIGIN[origin] || /^\/(goals|papers)\/\d+$/.test(origin) ? origin : "/"}" data-origin>${esc(originLabel)}</a>
+      <span aria-hidden="true">›</span><a href="#/papers/${id}">${esc(p.title)}</a><span aria-hidden="true">›</span><span>Reading</span></nav>`;
+  if (/^\/goals\/\d+$/.test(origin)) api("/topics").then((goals) => {
+    const g = goals.find((x) => `/goals/${x.id}` === origin);
+    if (g) { originLabel = g.goal; scroller.querySelectorAll("[data-origin]").forEach((a) => (a.textContent = g.goal)); }
+  }).catch(() => {});
+
+  // The bar stays one row: when it doesn't fit, the less-used tools move into the ⋯ menu, least used first,
+  // and come back when there's room again.
+  const OVERFLOW = ["#page-tone", "#skim", "#zoom", ".prefs-menu", "#jump"];
+  const homes = new Map();
+  const fitBar = () => {
+    const inner = app.querySelector(".reader-bar-inner");
+    const more = $("#bar-more"), list = $("#bar-more-list");
+    if (!inner || !more) return;
+    OVERFLOW.forEach((sel) => {
+      const el = app.querySelector(sel);
+      if (!el) return;
+      if (!homes.has(sel)) { const mark = document.createComment(sel); el.before(mark); homes.set(sel, mark); }
+      homes.get(sel).after(el);
+    });
+    more.hidden = true;
+    for (const sel of OVERFLOW) {
+      if (inner.scrollWidth <= inner.clientWidth) break;
+      const el = app.querySelector(sel);
+      if (!el || el.hidden) continue;
+      more.hidden = false;
+      list.append(el);
+    }
+    if (!more.querySelector(".bar-more-list > *:not([hidden])")) more.hidden = true;
+  };
+  new ResizeObserver(() => fitBar()).observe(app.querySelector(".reader-bar-inner"));
+
   // Your notes and highlights: the list in the side panel and the marks on the paper.
   const notes = noteStore(id);
   const drawMarks = () => (view === "text" ? drawText(scroller.querySelector("#article"), notes.items) : drawPdf(scroller, notes.items));
@@ -448,7 +487,7 @@ export async function readerPage(id, stale) {
     if (view === "text") {
       prepareTerms(p.glossary);
       const { html, headings } = renderPaperText(p, markTerms);
-      scroller.innerHTML = `<article class="page-sheet" id="article">${html}${endBox}</article>`;
+      scroller.innerHTML = `${routeLine()}<article class="page-sheet" id="article">${html}${endBox}</article>`;
       targets = headings.map((h) => ({
         label: `${h.level === 3 ? "  " : ""}${h.label}`, go: () => scrollToElement(scroller.querySelector(`#${h.id}`)),
       }));
@@ -456,7 +495,7 @@ export async function readerPage(id, stale) {
       scroller.innerHTML = loading("Opening the PDF");
       try {
         pdf = await openPdf(`/api/papers/${id}/file`, scroller,
-          { zoom: savedZoom(), after: endBox, dark: pdfPagesDark() });
+          { zoom: savedZoom(), before: routeLine(), after: endBox, dark: pdfPagesDark() });
         pdf.onZoom((zoom) => {
           $("#zoom .zoom-value").textContent = pct(zoom);
           saveZoom(zoom);
@@ -484,6 +523,7 @@ export async function readerPage(id, stale) {
     if (pdf) pdf.onPageRendered((n, div) => drawPdfPage(div, n, notes.items));
     drawMarks();
     setTimeout(() => (settling = false), 800); // callers put you back where you were in the meantime
+    fitBar();
   };
 
   // Open the paper, then go back to where the reader stopped.

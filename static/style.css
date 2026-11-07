@@ -994,3 +994,33 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .lightbox-inner img { width: 100%; max-height: 70vh; object-fit: contain; background: #fff; border-radius: 6px; }
 .lightbox-caption { font-size: 15px; line-height: 1.55; max-width: 80ch; }
 .lightbox-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Reader bar, one row: a back arrow, the tools, and a ⋯ menu for those that don't fit. The route
+   (Library › paper › Reading) sits above the paper instead of a title in the bar. */
+.reader-bar-inner { flex-wrap: nowrap; height: 56px; min-height: 0; padding: 0 24px; }
+.reader-bar-inner > .reader-back { flex: 0 0 auto; min-width: 0; width: 34px; height: 34px; justify-content: center; border-radius: 999px; }
+.reader-bar-inner > .reader-back:hover { background: var(--raised); }
+.reader-bar-inner > #views { margin-right: auto; }
+.reader-bar-inner > .reader-pct { margin-left: 0; }
+.bar-more[hidden] { display: none; }
+.bar-more > summary { min-width: 34px; font-size: 18px; line-height: 1; }
+.bar-more-list { left: auto; right: 0; min-width: 240px; padding: 10px; gap: 10px; display: grid; justify-items: start; }
+.bar-more-list > * { flex-shrink: 0; }
+.bar-more-list .jump { max-width: none; width: 100%; }
+.bar-more-list .page-tone-label, .bar-more-list .switch-label { display: inline; }
+.reader-route { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 920px; margin: 0 auto; padding: 14px 4px 12px;
+  font-size: 14px; color: var(--pencil); }
+.reader-route a { color: var(--pencil); text-decoration: none; max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-route a:hover { color: var(--ink); text-decoration: underline; }
+.view-text .reader-route { max-width: calc(var(--read-width, 680px) + 144px); padding-top: 0; }
+@media (max-width: 760px) { .reader-route { padding: 10px 16px; } }
+
+/* The highlighter's colours open as a small panel under it, so the bar never changes width. */
+.hl-tool { position: relative; }
+.hl-tool-colors { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 30; max-width: none;
+  padding: 8px 10px; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.hl-tool.on .hl-tool-colors { max-width: none; padding: 8px 10px; opacity: 0; }
+.hl-tool:hover .hl-tool-colors, .hl-tool:focus-within .hl-tool-colors { max-width: none; padding: 8px 10px; opacity: 1; pointer-events: auto; }
+.hl-tool-colors::before { content: ""; position: absolute; inset: -10px 0 auto; height: 10px; } /* keeps the hover while moving down to it */
+.reader-bar-inner > * { order: 0; } /* the old narrow-screen reordering isn't needed with the ⋯ menu */
