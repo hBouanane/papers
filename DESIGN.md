@@ -43,6 +43,11 @@ None. Labels are words. The only glyph is the back chevron in the reader bar, dr
 ## Components
 
 - Panels: white sheet, 8px radius, 1px border, no drop shadows (except floating UI: popover, side panel, toast).
+- Paper covers: the first page of the PDF, drawn small (`static/js/covers.js`), 3px radius with a soft paper shadow
+  (`--shadow-cover`) that lifts on hover. The only other drop shadow. Papers without a PDF get a typeset cover:
+  title in STIX on `--cover-paper` (white in light mode, `--raised` in dim and dark) under a 3px ink rule.
+  The Library opens with a STIX greeting ("Good evening", plus your name if set in Settings), the paper you opened
+  last as a big cover with Continue reading, then up to four more covers in a row (two on phones).
 - Buttons: 6px radius, 38px tall. Primary = ink, secondary = sheet with border, quiet = text only.
 - Status chips: text only. "Reading" is ink on ink-tint, "Read" is green, the rest neutral.
 - Progress: 6px bar in ink.

@@ -6,15 +6,43 @@ const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168";
 const MAX_WIDTH = 920; // px: wider pages are hard to read line by line
 const CSS_PER_PDF_UNIT = 96 / 72; // PDF.js scale 1 shows a page at 96 dpi
 let libs;
+let core;
+
+// Just the PDF library (enough to draw a page), without the viewer component.
+function loadCore() {
+  core ??= import(`${PDFJS}/pdf.min.mjs`).then((pdfjs) => {
+    pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
+    globalThis.pdfjsLib = pdfjs; // the viewer module reads the library from here
+    return pdfjs;
+  });
+  return core;
+}
 
 async function load() {
   if (!libs) {
-    const pdfjs = await import(`${PDFJS}/pdf.min.mjs`);
-    pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
-    globalThis.pdfjsLib = pdfjs; // the viewer module reads the library from here
+    const pdfjs = await loadCore();
     libs = { pdfjs, viewer: await import(`${PDFJS}/pdf_viewer.mjs`) };
   }
   return libs;
+}
+
+// Draws the first page of a PDF into `canvas`, `width` CSS pixels wide (sharp on high-density screens).
+// Used for the paper covers in the Library and on a paper's page.
+export async function renderThumbnail(url, canvas, width) {
+  const pdfjs = await loadCore();
+  // Range requests only: fetch the parts page 1 needs, not the whole file.
+  const doc = await pdfjs.getDocument({ url, disableAutoFetch: true, disableStream: true }).promise;
+  try {
+    const page = await doc.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: (width * Math.min(devicePixelRatio || 1, 2)) / base.width });
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  } finally {
+    doc.destroy();
+  }
+  return canvas;
 }
 
 // `container` must be absolutely positioned and scrollable; the viewer scrolls inside it.
