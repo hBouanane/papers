@@ -5,6 +5,22 @@ const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal])
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const shorten = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, "")}…` : s);
 
+// A paper as its first page (with a sheet tilted behind it), its title and how far you've read.
+// Hovering lifts the page, fans the sheet and turns "x% read" into "Continue →".
+const paperCard = (p, note = "") => `<a class="shelf-card" href="#/papers/${p.id}">
+    <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
+    <span class="shelf-info">
+      <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
+      ${note ? `<span class="shelf-note">${note}</span>` : ""}
+      <span class="shelf-foot">${progressBar(p)}<span class="foot-swap"><span class="foot-pct num">${p.status === "read" ? "Read" : `${pct(p.progress)} read`}</span>
+        <span class="foot-go" aria-hidden="true">${p.status === "new" ? "Open" : "Continue"} <span class="arrow">→</span></span></span></span>
+    </span>
+  </a>`;
+
+// Up to three covers fanned out like cards in a hand; they spread a little more on hover.
+const coverFan = (papers) => `<span class="cover-fan" aria-hidden="true">${papers.length
+  ? papers.slice(0, 3).map((p) => cover(p, "small")).join("") : `<span class="fan-empty">No papers yet</span>`}</span>`;
+
 // "Good evening, Ada", or just "Good evening" until a name is set in Settings.
 function greeting(name) {
   const h = new Date().getHours();
@@ -48,15 +64,7 @@ export async function libraryPage(stale) {
         <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
       </div>
     </div>`;
-  // A card with a small stage on top: the paper's first page peeking up, a second sheet tilted behind it.
-  const shelfItem = (p) => `<a class="shelf-card" href="#/papers/${p.id}">
-      <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
-      <span class="shelf-info">
-        <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
-        <span class="shelf-foot">${progressBar(p)}<span class="foot-swap"><span class="foot-pct num">${pct(p.progress)} read</span>
-          <span class="foot-go" aria-hidden="true">Continue <span class="arrow">→</span></span></span></span>
-      </span>
-    </a>`;
+  const shelfItem = (p) => paperCard(p);
   const goalLine = (g) => {
     const mine = papers.filter((p) => p.topic_id === g.id);
     const done = mine.filter((p) => p.status === "read").length;
@@ -160,24 +168,32 @@ export async function goalsPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const [goals, papers] = await Promise.all([api("/topics"), api("/papers")]);
   if (stale()) return;
-  app.innerHTML = `<div class="container page narrow">
+  const card = (g) => {
+    const ps = papers.filter((p) => p.topic_id === g.id);
+    const read = ps.filter((p) => p.status === "read").length;
+    const share = ps.length ? read / ps.length : 0;
+    return `<a class="goal-card sheet" href="#/goals/${g.id}">
+      ${coverFan([...ps].sort((a, b) => (b.status === "reading") - (a.status === "reading")))}
+      <span class="goal-card-text">
+        <span class="goal-card-title">${esc(g.goal)}</span>
+        <span class="goal-card-count">${plural(ps.length, "paper")}, ${read} finished</span>
+        <span class="goal-card-foot"><span class="bar"><span style="width:${Math.round(share * 100)}%"></span></span>
+          <span class="goal-card-go">Open <span class="arrow" aria-hidden="true">→</span></span></span>
+      </span></a>`;
+  };
+  app.innerHTML = `<div class="container page">
     <div class="page-head">
-      <h1>Goals</h1>
-      <p class="lede">Describe what you need to understand. Papers get found and grouped around it.</p>
+      <h1 class="page-title">Goals</h1>
+      <p class="lede">What you're trying to understand, with the papers that help. Describe a new one and papers get found for it.</p>
     </div>
-    <form class="sheet form" id="goal-form">
-      <label for="goal">What are you working on?</label>
+    ${goals.length ? `<div class="goal-cards">${goals.map(card).join("")}</div>` : ""}
+    <form class="sheet form new-goal" id="goal-form">
+      <label for="goal">${goals.length ? "A new goal" : "What are you working on?"}</label>
       <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
       <div class="form-foot"><button class="button">Create goal</button></div>
     </form>
-    ${goals.length ? `<div class="sheet list">${goals.map((g) => {
-      const ps = papers.filter((p) => p.topic_id === g.id);
-      const read = ps.filter((p) => p.status === "read").length;
-      return `<a class="goal" href="#/goals/${g.id}">
-        <span class="goal-text">${esc(g.goal)}</span>
-        <span class="goal-count">${plural(ps.length, "paper")}, ${read} finished</span></a>`;
-    }).join("")}</div>` : ""}
   </div>`;
+  drawCovers(app.querySelector(".goal-cards") || app);
   app.querySelector("#goal-form").onsubmit = (e) => {
     e.preventDefault();
     busy(e.submitter, "Creating…", async () => {
@@ -197,13 +213,20 @@ export async function goalPage(id, stale) {
 
   const mine = (list) => list.length ? tableHead + list.map((p) => paperRow(p)).join("")
     : `<p class="faint pad">No papers yet. Find some below.</p>`;
+  const shelf = (list) => list.length ? `<div class="shelf goal-shelf">${list.map((p) => paperCard(p)).join("")}</div>`
+    : `<div class="desk-empty">No papers yet. Search below, or add one.</div>`;
+  const read = papers.filter((p) => p.status === "read").length;
 
   app.innerHTML = `<div class="container page">
-    <h1 class="goal-title">${esc(goal.goal)}</h1>
-    <section class="section">
-      <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2>
-        <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span></div>
-      <div class="sheet table" id="mine">${mine(papers)}</div>
+    <div class="page-head page-head-split">
+      <div><h1 class="page-title goal-title">${esc(goal.goal)}</h1>
+      <p class="lede">${plural(papers.length, "paper")}, ${read} finished.</p></div>
+      <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span>
+    </div>
+    <section>
+      <div id="shelf">${shelf(papers)}</div>
+      <details class="as-list"><summary>Show as a list (archive, delete)</summary>
+        <div class="sheet table" id="mine">${mine(papers)}</div></details>
     </section>
     <section class="section">
       <div class="section-bar">
@@ -214,6 +237,7 @@ export async function goalPage(id, stale) {
     </section></div>`;
 
   bindAddPaper();
+  drawCovers(app.querySelector("#shelf"));
   bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
@@ -240,7 +264,8 @@ export async function goalPage(id, stale) {
         b.outerHTML = `<span class="in-library">In library</span>`;
         const list = await api(`/papers?topic_id=${id}`);
         app.querySelector("#mine").innerHTML = mine(list);
-        app.querySelector("#count").textContent = list.length;
+        app.querySelector("#shelf").innerHTML = shelf(list);
+        drawCovers(app.querySelector("#shelf"));
       });
     };
   });
@@ -250,7 +275,7 @@ export async function goalPage(id, stale) {
 export async function recallPage() {
   app.innerHTML = `<div class="container page narrow">
     <div class="page-head">
-      <h1>Where did I read that?</h1>
+      <h1 class="page-title">Where did I read that?</h1>
       <p class="lede">Describe the idea in your own words. Searches every paper, your notes and the explanations you asked for; finished papers come first.</p>
     </div>
     <form id="recall" class="sheet form">
@@ -260,7 +285,6 @@ export async function recallPage() {
     </form>
     <div id="results"></div></div>`;
   const input = app.querySelector("#idea");
-  input.focus();
   input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); app.querySelector("#recall").requestSubmit(); } };
   app.querySelector("#recall").onsubmit = (e) => {
     e.preventDefault();
@@ -269,12 +293,14 @@ export async function recallPage() {
       box.innerHTML = loading("Looking through your papers");
       try {
         const found = await api("/recall", { method: "POST", json: { idea: input.value.trim() } });
-        box.innerHTML = found.length ? `<div class="sheet list">${found.map((m) => `
-          <a class="match" href="#/papers/${m.paper.id}">
-            <span class="paper-name">${esc(m.paper.title)}</span>
+        box.innerHTML = found.length ? `<div class="recall-results">${found.map((m) => `
+          <a class="match match-card sheet" href="#/papers/${m.paper.id}">
+            <span class="match-cover" aria-hidden="true">${cover(m.paper, "small")}</span>
+            <span class="match-text"><span class="paper-name">${esc(m.paper.title)}</span>
             <span class="result-cite">${cite(m.paper)}</span>
-            <span class="match-reason">${esc(m.reason)}</span></a>`).join("")}</div>`
+            <span class="match-reason">${esc(m.reason)}</span></span></a>`).join("")}</div>`
           : empty("Nothing in your library matches that. Try other words for the same idea.");
+        drawCovers(box);
       } catch (err) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
     });
   };
@@ -298,7 +324,7 @@ export async function mapPage(stale) {
 
   app.innerHTML = `<div class="container page">
     <div class="page-head">
-      <h1>Map</h1>
+      <h1 class="page-title">Map</h1>
       <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
     </div>
     ${trees.length ? trees.map((t) => `<div class="sheet tree-sheet"><ul class="tree">${node(t)}</ul></div>`).join("")
@@ -338,7 +364,7 @@ export async function settingsPage(stale) {
   const s = await api("/settings");
   if (stale()) return;
   app.innerHTML = `<div class="container page narrow">
-    <div class="page-head"><h1>Settings</h1></div>
+    <div class="page-head"><h1 class="page-title">Settings</h1></div>
     <form class="sheet form" id="name-form">
       <h2>Your name</h2>
       <p class="hint">The Library greets you with it. Leave it empty for just "Good morning".</p>
