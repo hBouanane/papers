@@ -1099,27 +1099,22 @@ body.reading #toast { bottom: 64px; }
 .match-card:hover .match-cover .cover { transform: translateY(-3px) rotate(-1.5deg); }
 .match-text { display: grid; gap: 3px; min-width: 0; }
 
-/* Recall: your papers' first pages scattered behind the page, faded, clearer at the edges than behind the
-   search; they drift slowly, and a wave of light passes over them while a search runs. */
+/* Recall: one of your papers, large, behind the page: its first page with the glass sheet, tilted and
+   faded towards the bottom. It drifts slowly, and glows gently while a search runs. */
 .recall-page { position: relative; z-index: 1; }
-.recall-backdrop { position: fixed; inset: 56px 0 0; z-index: 0; overflow: hidden; pointer-events: none;
-  -webkit-mask-image: radial-gradient(ellipse 46% 52% at 50% 34%, transparent 0 35%, #000 82%);
-  mask-image: radial-gradient(ellipse 46% 52% at 50% 34%, transparent 0 35%, #000 82%); }
-.rb-item { position: absolute; left: var(--x); top: var(--y); width: clamp(90px, 9vw, 140px); opacity: .5;
-  transform: rotate(var(--r)); animation: rb-drift 16s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -1.7s);
-  transition: opacity .6s ease; }
-.rb-item .cover-sheet { display: none; }
-.rb-item .cover { box-shadow: 0 10px 26px -10px rgb(0 0 0 / .45); }
-@keyframes rb-drift {
-  from { transform: rotate(var(--r)) translate(0, 0); }
-  to { transform: rotate(calc(var(--r) * -0.4)) translate(6px, -14px); }
+.recall-backdrop { position: fixed; inset: 56px 0 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.recall-hero { position: absolute; right: max(4vw, calc((100vw - 1120px) / 2 - 40px)); top: 70px; width: min(440px, 38vw); opacity: .55;
+  transform: rotate(6deg); animation: recall-drift 18s ease-in-out infinite alternate; transition: opacity .8s ease, filter .8s ease;
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 96%); mask-image: linear-gradient(to bottom, #000 45%, transparent 96%); }
+.recall-hero .cover { box-shadow: 0 30px 60px -20px rgb(0 0 0 / .5); }
+@keyframes recall-drift {
+  from { transform: rotate(6deg) translate(0, 0); }
+  to { transform: rotate(3.5deg) translate(-10px, -16px); }
 }
-.recall-backdrop.searching .rb-item { animation: rb-scan 1.8s ease-in-out infinite; animation-delay: calc(var(--i) * .11s); }
-@keyframes rb-scan {
-  0%, 100% { opacity: .45; transform: rotate(var(--r)) translateY(0); }
-  45% { opacity: .95; transform: rotate(calc(var(--r) * .5)) translateY(-12px) scale(1.04); }
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .rb-item { opacity: .32; } }
-:root[data-theme="dark"] .rb-item, :root[data-theme="dim"] .rb-item { opacity: .32; }
-@media (max-width: 640px) { .rb-item { width: 70px; } }
-@media (prefers-reduced-motion: reduce) { .rb-item, .recall-backdrop.searching .rb-item { animation: none; } }
+.recall-backdrop.searching .recall-hero { opacity: .85; filter: drop-shadow(0 0 28px color-mix(in srgb, var(--ink) 45%, transparent));
+  animation: recall-drift 18s ease-in-out infinite alternate, recall-glow 1.6s ease-in-out infinite; }
+@keyframes recall-glow { 50% { filter: drop-shadow(0 0 44px color-mix(in srgb, var(--ink) 65%, transparent)); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .recall-hero { opacity: .35; } }
+:root[data-theme="dark"] .recall-hero, :root[data-theme="dim"] .recall-hero { opacity: .35; }
+@media (max-width: 900px) { .recall-hero { width: 60vw; right: -12vw; top: 140px; opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .recall-hero, .recall-backdrop.searching .recall-hero { animation: none; } }

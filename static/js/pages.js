@@ -272,20 +272,11 @@ export async function goalPage(id, stale) {
 }
 
 // ---------- Recall ----------
-// Your papers' first pages scattered behind Recall, since that's what it searches. They drift slowly,
-// and while a search runs a wave of light passes over them.
+// One of your papers, large, behind Recall (since that's what it searches): its first page with the glass
+// sheet behind it, tilted and faded. It drifts slowly, and glows gently while a search runs.
 function recallBackdrop(papers) {
-  if (!papers.length) return "";
-  const slots = 16;
-  const items = Array.from({ length: slots }, (_, i) => {
-    const p = papers[i % papers.length];
-    const col = i % 8, row = Math.floor(i / 8);
-    const x = 2 + col * 12.5 + ((i * 37) % 5) - 2; // across the page, a little irregular
-    const y = row ? 52 + ((i * 53) % 18) : 4 + ((i * 29) % 16);
-    const tilt = ((i * 47) % 25) - 12;
-    return `<span class="rb-item" style="--i:${i};--x:${x}%;--y:${y}%;--r:${tilt}deg">${cover(p, "small")}</span>`;
-  });
-  return `<div class="recall-backdrop" id="backdrop" aria-hidden="true">${items.join("")}</div>`;
+  const p = papers.find((x) => x.has_pdf && x.status === "reading") || papers.find((x) => x.has_pdf) || papers[0];
+  return p ? `<div class="recall-backdrop" id="backdrop" aria-hidden="true"><span class="recall-hero">${cover(p, "large")}</span></div>` : "";
 }
 
 export async function recallPage() {
@@ -303,8 +294,7 @@ export async function recallPage() {
   const input = app.querySelector("#idea");
   api("/papers").then((papers) => {
     if (!app.querySelector(".recall-page")) return; // left the page meanwhile
-    const withPages = papers.filter((p) => p.has_pdf); // real first pages look best; typeset covers only if needed
-    app.insertAdjacentHTML("afterbegin", recallBackdrop(withPages.length >= 3 ? withPages : papers));
+    app.insertAdjacentHTML("afterbegin", recallBackdrop(papers));
     drawCovers(app.querySelector("#backdrop"));
   }).catch(() => {});
   input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); app.querySelector("#recall").requestSubmit(); } };
