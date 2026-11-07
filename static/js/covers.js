@@ -49,11 +49,7 @@ async function fill(el) {
   if (!src || !el.isConnected || el.querySelector("img")) return;
   const img = new Image();
   img.alt = "";
-  img.onload = () => {
-    el.classList.add("has-page");
-    const sheet = el.parentElement?.querySelector(".cover-sheet");
-    if (sheet) { sheet.style.setProperty("--sheet-page", `url("${src}")`); sheet.classList.add("has-page"); }
-  };
+  img.onload = () => el.classList.add("has-page");
   img.src = src;
   el.append(img);
 }

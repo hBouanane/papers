@@ -908,10 +908,6 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .cover-sheet { background: var(--sheet-glass); border: 0; -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%);
   box-shadow: 0 10px 24px -10px rgb(0 0 0 / .35); }
 
-/* The sheet behind a cover: a soft, blurred copy of the page (frosted), not a flat colour. */
-.cover-sheet.has-page { background: var(--sheet-glass), var(--sheet-page) center top / cover no-repeat;
-  filter: blur(2.5px) saturate(115%); opacity: .8; }
-
 /* Hovering a paper: the page lifts, and its text answers too. The title's underline draws in, the
    reading bar gets a light sweep, and "7% read" slides away for "Continue →". On Continue reading the
    whole card counts as hovering the paper. */
