@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app import bibtex, db, index, library, llm, notes, pdf, scholar
+from app import bibtex, db, figures, index, library, llm, notes, pdf, scholar
 
 
 @asynccontextmanager
@@ -96,6 +96,8 @@ def get_paper(paper_id: int) -> dict:
     paper["has_pdf"] = db.pdf_path(paper_id).exists()
     paper["preparing"] = paper_id in PREPARING
     paper["main_end"] = main_text_end(paper["text"] or "")
+    own = pdf.abstract_from(paper["text"] or "")
+    paper["paper_abstract"], paper["abstract_from_paper"] = (own, True) if own else (paper["abstract"] or "", False)
     paper["can_fetch_pdf"] = not paper["has_pdf"] and pdf_source(paper) is not None
     return paper
 
@@ -150,6 +152,7 @@ def search_topic(topic_id: int):
 
 
 def save_pdf(paper_id: int, data: bytes):
+    figures.forget(paper_id)
     path = db.pdf_path(paper_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -348,6 +351,7 @@ def delete_paper(paper_id: int):
     library.remove(paper)
     index.remove(paper_id)
     db.pdf_path(paper_id).unlink(missing_ok=True)
+    figures.forget(paper_id)
     with db.connect() as conn:
         conn.execute("delete from explanations where paper_id = ?", (paper_id,))
         conn.execute("delete from notes where paper_id = ?", (paper_id,))
@@ -356,6 +360,21 @@ def delete_paper(paper_id: int):
     if paper["source_paper_id"]:
         library.sync_paper(paper["source_paper_id"], follow_parent=False)  # drop it from "Led to"
     return Response(status_code=204)
+
+
+@app.get("/api/papers/{paper_id}/figures")
+def paper_figures(paper_id: int):
+    """The figures cut out of the paper's PDF, with their captions (worked out once, then kept)."""
+    get_paper(paper_id)
+    return [{**f, "url": f"/api/papers/{paper_id}/figures/{f['number']}.png"} for f in figures.for_paper(paper_id)]
+
+
+@app.get("/api/papers/{paper_id}/figures/{number}.png")
+def paper_figure(paper_id: int, number: int):
+    path = figures.folder(paper_id) / f"{number}.png"
+    if not path.exists():
+        raise HTTPException(404, "No such figure")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
 
 
 @app.get("/api/papers/{paper_id}/bibtex", response_class=PlainTextResponse)
@@ -403,9 +422,20 @@ def pdf_source(p: dict) -> str | None:
     return None
 
 
+class PrepareIn(BaseModel):
+    # Parts to write again with the model chosen now (a better model can do better).
+    redo: list[Literal["skim", "glossary", "quiz"]] = []
+
+
 @app.post("/api/papers/{paper_id}/prepare")
-def prepare(paper_id: int, background: BackgroundTasks):
-    """Fill in whatever Claude hasn't prepared yet for this paper (runs in the background)."""
+def prepare(paper_id: int, background: BackgroundTasks, body: PrepareIn | None = None):
+    """Fill in whatever the AI hasn't prepared yet for this paper (runs in the background)."""
+    get_paper(paper_id)
+    if body and body.redo:
+        if not llm.configured():
+            raise HTTPException(400, "Choose an AI model in Settings first.")
+        with db.connect() as conn:  # cleared here, written again by prepare_paper below
+            conn.execute(f"update papers set {', '.join(f'{f} = null' for f in body.redo)} where id = ?", (paper_id,))
     background.add_task(prepare_paper, paper_id)
     return get_paper(paper_id)
 
