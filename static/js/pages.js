@@ -48,10 +48,13 @@ export async function libraryPage(stale) {
         <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading</a>
       </div>
     </div>`;
-  const shelfItem = (p) => `<a class="shelf-item" href="#/papers/${p.id}">
-      ${cover(p, "small")}
-      <span class="shelf-title paper-name">${esc(p.title)}</span>
-      <span class="shelf-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>
+  // A card with a small stage on top: the paper's first page peeking up, a second sheet tilted behind it.
+  const shelfItem = (p) => `<a class="shelf-card" href="#/papers/${p.id}">
+      <span class="shelf-stage" aria-hidden="true"><span class="shelf-sheet"></span>${cover(p, "small")}</span>
+      <span class="shelf-info">
+        <span class="shelf-title paper-name">${esc(p.title)}</span>
+        <span class="shelf-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>
+      </span>
     </a>`;
   const goalLine = (g) => {
     const mine = papers.filter((p) => p.topic_id === g.id);
