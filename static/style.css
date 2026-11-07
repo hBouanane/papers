@@ -1099,22 +1099,25 @@ body.reading #toast { bottom: 64px; }
 .match-card:hover .match-cover .cover { transform: translateY(-3px) rotate(-1.5deg); }
 .match-text { display: grid; gap: 3px; min-width: 0; }
 
-/* Recall: one of your papers, large, behind the page: its first page with the glass sheet, tilted and
-   faded towards the bottom. It drifts slowly, and glows gently while a search runs. */
+/* Recall: three of your papers fanned out, big, behind the page (the Goals cards' fan, enlarged). They
+   drift slowly; while a search runs they spread out and glow. */
 .recall-page { position: relative; z-index: 1; }
 .recall-backdrop { position: fixed; inset: 56px 0 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.recall-hero { position: absolute; right: max(4vw, calc((100vw - 1120px) / 2 - 40px)); top: 70px; width: min(440px, 38vw); opacity: .55;
-  transform: rotate(6deg); animation: recall-drift 18s ease-in-out infinite alternate; transition: opacity .8s ease, filter .8s ease;
-  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 96%); mask-image: linear-gradient(to bottom, #000 45%, transparent 96%); }
-.recall-hero .cover { box-shadow: 0 30px 60px -20px rgb(0 0 0 / .5); }
-@keyframes recall-drift {
-  from { transform: rotate(6deg) translate(0, 0); }
-  to { transform: rotate(3.5deg) translate(-10px, -16px); }
-}
-.recall-backdrop.searching .recall-hero { opacity: .85; filter: drop-shadow(0 0 28px color-mix(in srgb, var(--ink) 45%, transparent));
-  animation: recall-drift 18s ease-in-out infinite alternate, recall-glow 1.6s ease-in-out infinite; }
-@keyframes recall-glow { 50% { filter: drop-shadow(0 0 44px color-mix(in srgb, var(--ink) 65%, transparent)); } }
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .recall-hero { opacity: .35; } }
-:root[data-theme="dark"] .recall-hero, :root[data-theme="dim"] .recall-hero { opacity: .35; }
-@media (max-width: 900px) { .recall-hero { width: 60vw; right: -12vw; top: 140px; opacity: .25; } }
-@media (prefers-reduced-motion: reduce) { .recall-hero, .recall-backdrop.searching .recall-hero { animation: none; } }
+.recall-hero { position: absolute; right: max(2vw, calc((100vw - 1120px) / 2 - 80px)); top: 60px; width: min(560px, 46vw); opacity: .6;
+  animation: recall-drift 18s ease-in-out infinite alternate; transition: opacity .8s ease, filter .8s ease; }
+.recall-hero .cover-fan { height: min(520px, 42vw); }
+.recall-hero .cover-fan .cover-wrap { width: 44%; }
+.recall-hero .cover-fan .cover-wrap:nth-child(1) { transform: translateX(-50%) rotate(-12deg) translateX(-34%); }
+.recall-hero .cover-fan .cover-wrap:nth-child(2) { transform: translateX(-50%) rotate(0deg) translateY(-4%); }
+.recall-hero .cover-fan .cover-wrap:nth-child(3) { transform: translateX(-50%) rotate(12deg) translateX(34%); }
+.recall-hero .cover .cover-title { font-size: clamp(16px, 2vw, 26px); }
+.recall-hero .cover { box-shadow: 0 30px 60px -20px rgb(0 0 0 / .45); }
+@keyframes recall-drift { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(-10px, -14px) rotate(-1.5deg); } }
+.recall-backdrop.searching .recall-hero { opacity: .9; filter: drop-shadow(0 0 30px color-mix(in srgb, var(--ink) 40%, transparent)); }
+.recall-backdrop.searching .cover-fan .cover-wrap:nth-child(1) { transform: translateX(-50%) rotate(-20deg) translateX(-54%) translateY(-3%); }
+.recall-backdrop.searching .cover-fan .cover-wrap:nth-child(2) { transform: translateX(-50%) rotate(0deg) translateY(-10%); }
+.recall-backdrop.searching .cover-fan .cover-wrap:nth-child(3) { transform: translateX(-50%) rotate(20deg) translateX(54%) translateY(-3%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .recall-hero { opacity: .4; } }
+:root[data-theme="dark"] .recall-hero, :root[data-theme="dim"] .recall-hero { opacity: .4; }
+@media (max-width: 900px) { .recall-hero { width: 70vw; right: -14vw; top: 150px; opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .recall-hero, .recall-hero .cover-wrap { animation: none; transition: none; } }

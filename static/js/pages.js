@@ -272,11 +272,11 @@ export async function goalPage(id, stale) {
 }
 
 // ---------- Recall ----------
-// One of your papers, large, behind Recall (since that's what it searches): its first page with the glass
-// sheet behind it, tilted and faded. It drifts slowly, and glows gently while a search runs.
+// Your papers, big, behind Recall (since that's what it searches): three first pages fanned out like the
+// Goals cards. They drift slowly; while a search runs they spread out and glow.
 function recallBackdrop(papers) {
-  const p = papers.find((x) => x.has_pdf && x.status === "reading") || papers.find((x) => x.has_pdf) || papers[0];
-  return p ? `<div class="recall-backdrop" id="backdrop" aria-hidden="true"><span class="recall-hero">${cover(p, "large")}</span></div>` : "";
+  const order = [...papers].sort((a, b) => (b.status === "reading") - (a.status === "reading") || b.has_pdf - a.has_pdf);
+  return order.length ? `<div class="recall-backdrop" id="backdrop" aria-hidden="true"><span class="recall-hero">${coverFan(order)}</span></div>` : "";
 }
 
 export async function recallPage() {
