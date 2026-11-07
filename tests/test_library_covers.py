@@ -12,7 +12,7 @@ def test_paper_list_says_which_papers_have_a_pdf_for_the_cover(client):
 
 def test_name_for_the_greeting_is_optional(client):
     assert client.get("/api/settings").json()["name"] == ""
-    assert client.put("/api/settings", json={"name": "  Haitam "}).json()["name"] == "Haitam"
+    assert client.put("/api/settings", json={"name": "  Ada "}).json()["name"] == "Ada"
     # saving other settings leaves the name alone; an empty name clears it
-    assert client.put("/api/settings", json={"language": "French"}).json()["name"] == "Haitam"
+    assert client.put("/api/settings", json={"language": "French"}).json()["name"] == "Ada"
     assert client.put("/api/settings", json={"name": ""}).json()["name"] == ""

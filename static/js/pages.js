@@ -5,7 +5,7 @@ const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal])
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const shorten = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, "")}…` : s);
 
-// "Good evening, Haitam", or just "Good evening" until a name is set in Settings.
+// "Good evening, Ada", or just "Good evening" until a name is set in Settings.
 function greeting(name) {
   const h = new Date().getHours();
   const part = h >= 5 && h < 12 ? "morning" : h >= 12 && h < 18 ? "afternoon" : "evening";
