@@ -17,6 +17,20 @@ const paperCard = (p, note = "") => `<a class="shelf-card" href="#/papers/${p.id
     </span>
   </a>`;
 
+// A paper that isn't in a goal yet: its card, and on hover (always on touch screens) a way to add it
+// to a goal and a shortcut to read it.
+const looseCard = (p, goals) => `<div class="shelf-card loose-card" data-paper="${p.id}">
+    <a class="loose-open" href="#/papers/${p.id}">
+      <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
+      <span class="shelf-title paper-name">${esc(p.title)}</span>
+    </a>
+    <div class="loose-actions">
+      ${goals.length ? `<details class="menu loose-goal"><summary class="button small">Add to goal</summary>
+        <div class="menu-list sheet" role="menu">${goals.map((g) => `<button role="menuitem" data-goal="${g.id}">${esc(shorten(g.goal, 60))}</button>`).join("")}</div></details>` : ""}
+      ${p.has_pdf ? `<a class="button secondary small" href="#/papers/${p.id}/read">Read</a>` : ""}
+    </div>
+  </div>`;
+
 // Up to three covers fanned out like cards in a hand; they spread a little more on hover.
 const coverFan = (papers) => `<span class="cover-fan" aria-hidden="true">${papers.length
   ? papers.slice(0, 3).map((p) => cover(p, "small")).join("") : `<span class="fan-empty">No papers yet</span>`}</span>`;
@@ -196,11 +210,22 @@ export async function goalsPage(stale) {
       const loose = papers.filter((p) => !p.topic_id);
       return loose.length ? `<section class="page-section">
         <h2>Not in a goal yet</h2>
-        <p class="hint">Open one and choose its goal under More, Edit details, so it joins the others it belongs with.</p>
-        <div class="shelf goal-shelf">${loose.slice(0, 10).map((p) => paperCard(p)).join("")}</div></section>` : "";
+        <p class="hint">Point at one to add it to a goal or start reading it.</p>
+        <div class="shelf goal-shelf" id="loose">${loose.slice(0, 12).map((p) => looseCard(p, goals)).join("")}</div></section>` : "";
     })()}
   </div>`;
   drawCovers(app);
+  // Add a paper to a goal from its card; the page redraws, so it moves into that goal's fan.
+  app.querySelector("#loose")?.addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-goal]");
+    if (!pick) return;
+    const card = pick.closest("[data-paper]");
+    busy(pick, "Adding…", async () => {
+      await api(`/papers/${card.dataset.paper}`, { method: "PATCH", json: { topic_id: Number(pick.dataset.goal) } });
+      toast(`Added to "${shorten(goals.find((g) => g.id === Number(pick.dataset.goal)).goal, 50)}".`);
+      goalsPage(stale);
+    });
+  });
   app.querySelector("#goal-form").onsubmit = (e) => {
     e.preventDefault();
     busy(e.submitter, "Creating…", async () => {

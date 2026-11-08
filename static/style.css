@@ -1197,3 +1197,17 @@ body.reading #toast { bottom: 64px; }
   .map-hero .map-backdrop { position: relative; height: 220px; margin-top: 10px; opacity: .55;
     -webkit-mask-image: none; mask-image: none; }
 }
+
+/* Goals > Not in a goal yet: on hover a card offers Add to goal and Read (always shown on touch screens). */
+.loose-card { position: relative; gap: 10px; }
+.loose-open { display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: inherit; }
+.loose-open .shelf-title { font-size: 15px; line-height: 1.3; color: var(--heading); display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; transition: color .3s; }
+.loose-card:hover .shelf-title { color: var(--ink); }
+.loose-card:hover .shelf-stage .cover, .loose-card:focus-within .shelf-stage .cover { transform: translateY(-6px) rotate(-1.5deg); }
+.loose-actions { display: flex; flex-wrap: wrap; gap: 6px; opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity .25s ease, transform .3s cubic-bezier(.3, .8, .25, 1); }
+.loose-card:hover .loose-actions, .loose-card:focus-within .loose-actions { opacity: 1; transform: none; pointer-events: auto; }
+.loose-goal .menu-list { min-width: 240px; max-width: 320px; }
+.loose-goal .menu-list button { white-space: normal; text-align: left; }
+@media (hover: none) { .loose-actions { opacity: 1; transform: none; pointer-events: auto; } }
