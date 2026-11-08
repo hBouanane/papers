@@ -357,8 +357,8 @@ export async function recallPage() {
 // ---------- Map ----------
 // Behind the Map: your papers spread out like a map and joined by curved lines, a reference chain if you
 // have one. Dashes flow along the lines from paper to paper, and a light spreads outward from the first.
-const MAP_SLOTS = [{ x: 12, y: 50, d: 0 }, { x: 45, y: 20, d: 1 }, { x: 45, y: 80, d: 1 },
-  { x: 82, y: 9, d: 2 }, { x: 84, y: 47, d: 2 }, { x: 80, y: 88, d: 2 }];
+const MAP_SLOTS = [{ x: 46, y: 52, d: 0 }, { x: 64, y: 24, d: 1 }, { x: 64, y: 78, d: 1 },
+  { x: 84, y: 14, d: 2 }, { x: 88, y: 50, d: 2 }, { x: 82, y: 86, d: 2 }];
 const MAP_EDGES = [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5]];
 
 function mapBackdrop(papers, children, trees) {
@@ -399,10 +399,13 @@ export async function mapPage(stale) {
     <a class="node" href="#/papers/${p.id}"><span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>
     ${children[p.id] ? `<ul>${children[p.id].map(node).join("")}</ul>` : ""}</li>`;
 
-  app.innerHTML = `${mapBackdrop(papers, children, trees)}<div class="container page map-page">
-    <div class="page-head">
-      <h1 class="page-title">Map</h1>
-      <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
+  app.innerHTML = `<div class="container page map-page">
+    <div class="map-hero">
+      ${mapBackdrop(papers, children, trees)}
+      <div class="page-head map-hero-text">
+        <h1 class="page-title">Map</h1>
+        <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
+      </div>
     </div>
     ${trees.length ? trees.map((t) => `<div class="sheet tree-sheet"><ul class="tree">${node(t)}</ul></div>`).join("")
       : empty("No chains yet. They appear when you follow a reference from one paper to another.")}

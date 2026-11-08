@@ -1182,3 +1182,18 @@ body.reading #toast { bottom: 64px; }
   font: 14px/1.35 var(--ui); cursor: pointer; text-align: left; max-width: 100%; transition: border-color .2s, color .2s, transform .2s; }
 .try-idea:hover { border-color: var(--ink); color: var(--ink); transform: translateY(-1px); }
 .recall-extras { margin-top: 34px; }
+
+/* Map: the network of papers in a wide band at the top, title on the left, the chains below at full width.
+   Nothing covers it; it fades in from behind the title. */
+.map-hero { position: relative; height: clamp(260px, 30vw, 340px); margin-bottom: 26px; }
+.map-hero-text { position: relative; z-index: 1; max-width: 420px; padding-top: 18px; }
+.map-hero .map-backdrop { position: absolute; inset: 0; top: 0; right: 0; width: 100%; height: 100%; z-index: 0; opacity: .8;
+  -webkit-mask-image: linear-gradient(to right, transparent 26%, #000 52%); mask-image: linear-gradient(to right, transparent 26%, #000 52%); }
+.map-hero .mb-node { width: clamp(64px, 7vw, 96px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-hero .map-backdrop { opacity: .6; } }
+:root[data-theme="dark"] .map-hero .map-backdrop, :root[data-theme="dim"] .map-hero .map-backdrop { opacity: .6; }
+@media (max-width: 760px) {
+  .map-hero { height: auto; }
+  .map-hero .map-backdrop { position: relative; height: 220px; margin-top: 10px; opacity: .55;
+    -webkit-mask-image: none; mask-image: none; }
+}
