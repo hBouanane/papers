@@ -30,6 +30,15 @@ create table if not exists papers (
     updated_at text default current_timestamp
 );
 create virtual table if not exists papers_fts using fts5(title, abstract, text, summary);
+create table if not exists settings (key text primary key, value text);
+create table if not exists explanations (
+    id integer primary key,
+    paper_id integer references papers(id),
+    passage text not null,
+    question text default '',
+    answer text not null,
+    created_at text default current_timestamp
+);
 """
 
 
@@ -47,7 +56,7 @@ def pdf_path(paper_id: int) -> Path:
 
 
 # Columns added after the first release; created on startup when missing.
-NEW_COLUMNS = {"refs": "text", "read_slices": "text"}
+NEW_COLUMNS = {"refs": "text", "read_slices": "text", "mirror_path": "text"}
 JSON_FIELDS = ("skim", "quiz", "refs")
 
 

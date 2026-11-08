@@ -6,9 +6,11 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 // ---------- Library ----------
 export async function libraryPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
-  const [papers, goals] = await Promise.all([api("/papers"), api("/topics")]);
+  const [papers, goals, settings] = await Promise.all([api("/papers"), api("/topics"), api("/settings")]);
   if (stale()) return;
   const names = goalNames(goals);
+  const folderTip = settings.library_dir ? "" : `<p class="tip">Want your PDFs and notes in a folder on your computer?
+    <a href="#/settings">Choose a library folder</a></p>`;
   const count = (s) => papers.filter((p) => p.status === s).length;
 
   if (!papers.length) {
@@ -27,6 +29,7 @@ export async function libraryPage(stale) {
       <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p></div>
       ${addPaperControl()}
     </div>
+    ${folderTip}
     ${current ? `<a class="resume sheet" href="#/papers/${current.id}/read">
         <span class="resume-label">Pick up where you left off</span>
         <span class="resume-title">${esc(current.title)}</span>
@@ -228,4 +231,41 @@ export async function mapPage(stale) {
       <div class="sheet list">${loose.map((p) => `<a class="loose" href="#/papers/${p.id}">
         <span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>`).join("")}</div></section>` : ""}
   </div>`;
+}
+
+// ---------- Settings ----------
+export async function settingsPage(stale) {
+  app.innerHTML = `<div class="container page">${loading()}</div>`;
+  const s = await api("/settings");
+  if (stale()) return;
+  app.innerHTML = `<div class="container page narrow">
+    <div class="page-head"><h1>Settings</h1></div>
+    <form class="sheet form" id="folder-form">
+      <h2>Library folder</h2>
+      <p class="hint">Keep a copy of your library in a folder on this computer. Each goal gets a folder, each paper
+        its PDF plus a Markdown notes file with key points, explanations, quiz and links to related papers.
+        The notes open in any Markdown app, and in Obsidian the links between papers show up as a graph.</p>
+      <label for="folder">Folder</label>
+      <input id="folder" value="${esc(s.library_dir)}" placeholder="${esc(s.suggested)}">
+      <p class="hint">A full path. The folder is created if it doesn't exist. Leave it empty to stop keeping a copy.</p>
+      <div class="form-foot"><button class="button">Save</button></div>
+      <div id="folder-status"></div>
+    </form></div>`;
+  const status = (folder) => folder ? `<div class="folder-preview">
+      <p>Your library is kept in <strong>${esc(folder)}</strong>. Drop PDFs into the Inbox folder and they're added within a few seconds.</p>
+      <pre>${esc(folder)}
+  Inbox/            drop PDFs here
+  Unsorted/         papers without a goal
+  &lt;goal&gt;/
+    Vaswani et al. 2017 - Attention Is All You Need.pdf
+    Vaswani et al. 2017 - Attention Is All You Need.md</pre></div>` : "";
+  app.querySelector("#folder-status").innerHTML = status(s.library_dir);
+  app.querySelector("#folder-form").onsubmit = (e) => {
+    e.preventDefault();
+    busy(e.submitter, "Saving…", async () => {
+      const saved = await api("/settings", { method: "PUT", json: { library_dir: app.querySelector("#folder").value } });
+      app.querySelector("#folder-status").innerHTML = status(saved.library_dir);
+      toast(saved.library_dir ? "Library folder saved and filled." : "No longer keeping a copy in a folder.");
+    });
+  };
 }

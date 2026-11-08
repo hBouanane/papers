@@ -344,6 +344,13 @@ export async function readerPage(id, stale) {
     }
   };
 
+  // Earlier explanations for this paper, newest first.
+  api(`/papers/${id}/explanations`).then((items) => {
+    $("#answers").innerHTML = items.map((e) => `<div class="answer">
+      <p class="answer-quote">${esc(e.passage.length > 400 ? e.passage.slice(0, 400) + "…" : e.passage)}</p>
+      ${e.question ? `<p class="answer-q">${esc(e.question)}</p>` : ""}<div class="answer-body">${esc(e.answer)}</div></div>`).join("");
+  }).catch(() => {});
+
   // Mark explained passages in the reflowed text; the PDF text layer is absolutely positioned, so leave it alone.
   const highlight = (range) => {
     if (view !== "text") return;

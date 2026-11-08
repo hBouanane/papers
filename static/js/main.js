@@ -1,5 +1,5 @@
 import { app, esc } from "./core.js";
-import { goalPage, goalsPage, libraryPage, mapPage, recallPage } from "./pages.js";
+import { goalPage, goalsPage, libraryPage, mapPage, recallPage, settingsPage } from "./pages.js";
 import { paperPage, quizPage, readerPage } from "./paper.js";
 
 const routes = [
@@ -11,6 +11,7 @@ const routes = [
   [/^\/papers\/(\d+)\/quiz$/, quizPage, "library"],
   [/^\/recall$/, recallPage, "recall"],
   [/^\/map$/, mapPage, "map"],
+  [/^\/settings$/, settingsPage, "settings"],
 ];
 
 let cleanup = null;

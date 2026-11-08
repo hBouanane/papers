@@ -20,6 +20,14 @@ Optional env vars: `S2_API_KEY` (Semantic Scholar key; without it search often f
 arXiv because of rate limits), `PAPERS_MODEL` (default `claude-opus-5-5`), `PAPERS_DB`
 (default `data/papers.db`; uploaded and downloaded PDFs are kept next to it in `pdfs/`).
 
+## Library folder
+
+In Settings, choose a folder and the app keeps a copy of your library there: one folder per
+goal (`Unsorted` for the rest), each paper as `Author et al. Year - Title.pdf` with a `.md`
+notes file next to it (key points, explanations, quiz, `[[links]]` to related papers).
+PDFs dropped into its `Inbox` folder are imported within about 10 seconds
+(`PAPERS_INBOX_POLL` sets the interval; `0` turns the watcher off).
+
 ## Test
 
 ```bash
