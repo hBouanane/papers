@@ -1390,3 +1390,43 @@ body.reading #toast { bottom: 64px; }
 .chain-tree li > ol { gap: 22px; }
 .chain-tree .shelf-card { position: relative; }
 .chain-tree .shelf-card:hover, .chain-tree .shelf-card:focus-within { z-index: 3; }
+
+/* Searchable dropdown (components/combobox.js). */
+.combo { position: relative; max-width: 420px; }
+.combo-button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--heading);
+  font: inherit; cursor: pointer; transition: border-color .2s; }
+.combo-button:hover, .combo-button[aria-expanded="true"] { border-color: color-mix(in srgb, var(--ink) 55%, var(--line)); }
+.combo-caret { width: 8px; height: 8px; border: solid var(--pencil); border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg);
+  transition: transform .2s; flex-shrink: 0; }
+.combo-button[aria-expanded="true"] .combo-caret { transform: translateY(2px) rotate(-135deg); }
+.combo-hint { color: var(--pencil); font-size: .92em; margin-left: 6px; }
+.combo-pop { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; padding: 8px; display: grid; gap: 6px;
+  box-shadow: 0 16px 34px -14px rgb(0 0 0 / .35); }
+.combo-search { width: 100%; }
+.combo-list { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; }
+.combo-list li { display: flex; align-items: baseline; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--heading); }
+.combo-list li.active { background: var(--raised); }
+.combo-list li.chosen { font-weight: 700; }
+.combo-list li.chosen::after { content: "✓"; color: var(--ink); margin-left: auto; }
+.combo-list .combo-none { cursor: default; color: var(--pencil); }
+#lang-form .label { display: block; font-weight: 700; margin-bottom: 6px; }
+
+/* Library folder: a path you can type, or Choose… (components/folderpicker.js). */
+.folder-row { display: flex; gap: 10px; }
+.folder-row input { flex: 1; min-width: 0; }
+.folder-browser { width: min(560px, calc(100vw - 32px)); padding: 22px; border: 1px solid var(--line); color: var(--graphite); }
+.folder-browser::backdrop { background: rgb(0 0 0 / .35); }
+.folder-browser h2 { margin: 0 0 12px; }
+.fb-path { display: flex; gap: 8px; }
+.fb-where { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: 13px; }
+.fb-roots { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip-button { border: 1px solid var(--line); background: var(--raised); color: var(--graphite); border-radius: 999px;
+  padding: 3px 10px; font: 700 12px var(--ui); cursor: pointer; }
+.fb-list { list-style: none; margin: 0 0 14px; padding: 4px; height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.fb-list button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 7px 10px; border: 0;
+  border-radius: 6px; background: none; color: var(--heading); font: inherit; cursor: pointer; }
+.fb-list button:hover { background: var(--raised); }
+.fb-icon { width: 16px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--ink) 60%, transparent); position: relative; flex-shrink: 0; }
+.fb-icon::before { content: ""; position: absolute; left: 0; top: -3px; width: 7px; height: 4px; border-radius: 2px 2px 0 0; background: inherit; }
+.fb-note { padding: 10px; color: var(--pencil); }

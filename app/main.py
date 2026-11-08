@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app import bibtex, db, figures, index, library, llm, notes, pdf, scholar
+from app import bibtex, db, figures, folders, index, library, llm, notes, pdf, scholar
 
 
 @asynccontextmanager
@@ -647,6 +647,27 @@ def save_settings(body: SettingsIn):
     except OSError as e:
         raise HTTPException(400, f"Couldn't use that folder: {e}")
     return settings()
+
+
+class PickIn(BaseModel):
+    start: str = ""
+
+
+@app.post("/api/folders/pick")
+async def pick_folder(body: PickIn):
+    """Open the system's folder dialog; 501 when there isn't one (the page then shows its own browser)."""
+    try:
+        return {"path": await asyncio.to_thread(folders.pick, body.start)}
+    except folders.NoDialog:
+        raise HTTPException(501, "No folder dialog on this computer.")
+
+
+@app.get("/api/folders")
+def list_folders(path: str = ""):
+    try:
+        return folders.listing(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.post("/api/ai/test")

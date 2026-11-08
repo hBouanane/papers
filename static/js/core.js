@@ -31,7 +31,7 @@ export async function api(path, opts = {}) {
   }
   const res = await fetch(`/api${path}`, init);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error(data.detail || `Request failed (${res.status})`), { status: res.status });
   return data;
 }
 
