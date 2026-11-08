@@ -52,3 +52,19 @@ def test_grade_averages_scores(monkeypatch):
         llm.GradeItem(score=1, feedback="a"), llm.GradeItem(score=0.5, feedback="b")]))
     r = llm.grade({"title": "P"}, QUIZ, ["x", "y"])
     assert r["score"] == 0.75 and len(r["results"]) == 2
+
+
+def test_ai_errors_become_503(client, monkeypatch):
+    def fail(**kw):
+        raise TypeError("Could not resolve authentication method")
+
+    class Fake:
+        class messages:
+            parse = staticmethod(fail)
+            create = staticmethod(fail)
+
+    monkeypatch.setattr(llm, "_client", lambda: Fake)
+    p = make_paper(client)
+    r = client.post(f"/api/papers/{p['id']}/skim")
+    assert r.status_code == 503 and "ANTHROPIC_API_KEY" in r.json()["detail"]
+    assert client.post(f"/api/papers/{p['id']}/explain", json={"passage": "x"}).status_code == 503

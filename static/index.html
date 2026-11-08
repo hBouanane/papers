@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Papers</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Papers</h1>
+    <form id="recall-form">
+      <input id="recall-input" placeholder="Where did I read this idea?" required>
+      <button>Find</button>
+    </form>
+  </header>
+  <div class="layout">
+    <aside>
+      <form id="topic-form">
+        <textarea id="topic-goal" rows="3" placeholder="What do you need to work on?" required></textarea>
+        <button>Add goal</button>
+      </form>
+      <button class="link" id="all-papers">All papers</button>
+      <ul id="topics"></ul>
+    </aside>
+    <main id="main"><p class="muted">Add a goal to start finding papers.</p></main>
+  </div>
+  <div id="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

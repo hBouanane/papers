@@ -1,7 +1,11 @@
 import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, UploadFile
+import httpx
+from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import db, index, llm, pdf, scholar
@@ -14,6 +18,16 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Papers", lifespan=lifespan)
+
+
+@app.exception_handler(llm.AIError)
+def ai_error(_: Request, exc: llm.AIError):
+    return JSONResponse({"detail": str(exc)}, status_code=503)
+
+
+@app.exception_handler(httpx.HTTPError)
+def upstream_error(_: Request, exc: httpx.HTTPError):
+    return JSONResponse({"detail": f"Semantic Scholar request failed: {exc}"}, status_code=502)
 
 
 class TopicIn(BaseModel):
@@ -74,8 +88,12 @@ def search_topic(topic_id: int):
         topic = conn.execute("select * from topics where id = ?", (topic_id,)).fetchone()
     if not topic:
         raise HTTPException(404, "Topic not found")
+    try:
+        queries = llm.search_queries(topic["goal"])
+    except Exception:
+        queries = [topic["goal"]]
     seen, found = set(), []
-    for query in llm.search_queries(topic["goal"]):
+    for query in queries:
         for p in scholar.search(query, limit=10):
             if p["external_id"] not in seen:
                 seen.add(p["external_id"])
@@ -233,3 +251,6 @@ def paper_chain(paper_id: int):
     if not path:
         raise HTTPException(404, "Paper not found")
     return {"path": path, "children": children}
+
+
+app.mount("/", StaticFiles(directory=Path(__file__).parent.parent / "static", html=True), name="static")
