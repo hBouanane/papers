@@ -287,3 +287,11 @@ body.notes-open .notes { transform: none; visibility: visible; box-shadow: -16px
   .reader-back { flex-basis: 100%; }
   .reader-bar .segmented { margin-right: auto; }
 }
+
+/* Edit details */
+.edit-form { gap: 6px; }
+.edit-form label { margin-top: 6px; font-size: 14px; }
+.edit-row { display: grid; grid-template-columns: 140px 1fr; gap: 12px; }
+.edit-row > div { display: grid; gap: 6px; }
+select { width: 100%; height: 44px; font: 16px var(--ui); color: var(--graphite); background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-control); padding: 0 10px; }
+@media (max-width: 560px) { .edit-row { grid-template-columns: 1fr; } }

@@ -15,7 +15,7 @@ export async function paperPage(id, stale) {
 
   app.innerHTML = `<div class="container page">
     <nav class="crumbs">${goal ? `<a href="#/goals">Goals</a><span>/</span><a href="#/goals/${goal.id}">${esc(goal.goal)}</a>` : `<a href="#/">Library</a>`}</nav>
-    <header class="paper-header">
+    <header class="paper-header" id="header">
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
       <div class="actions">
@@ -23,6 +23,7 @@ export async function paperPage(id, stale) {
         ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
         <label class="button ${readable ? "quiet" : ""}"><span>${p.has_pdf ? "Replace PDF" : "Upload the PDF"}</span><input type="file" id="pdf" accept="application/pdf,.pdf" hidden></label>
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
+        <button class="button quiet" id="edit">Edit details</button>
       </div>
       ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
       ${p.has_pdf && !p.text ? `<p class="hint">This PDF has no selectable text, so it's probably a scan. You can read it,
@@ -35,11 +36,11 @@ export async function paperPage(id, stale) {
         <section class="section">
           <div class="section-bar">
             <h2>References</h2>
-            ${p.external_id ? `<button class="button secondary" id="refs-btn">Show references</button>` : ""}
+            ${p.external_id || p.text ? `<button class="button secondary" id="refs-btn">Show references</button>` : ""}
           </div>
-          <div id="refs"><p class="faint">${p.external_id
+          <div id="refs"><p class="faint">${p.external_id || p.text
             ? "Follow a reference to go deeper. The map remembers which paper led you where."
-            : "References are only available for papers found through search."}</p></div>
+            : "Upload the PDF to see this paper's references."}</p></div>
         </section>
       </div>
 
@@ -59,8 +60,38 @@ export async function paperPage(id, stale) {
     </div></div>`;
 
   renderSkim(p);
+  app.querySelector("#edit").onclick = () => editDetails(p, goals);
   app.querySelector("#pdf")?.addEventListener("change", (e) => uploadPdf(id, e.target.files[0]));
   app.querySelector("#refs-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Loading…", () => loadRefs(p)));
+}
+
+function editDetails(p, goals) {
+  const header = app.querySelector("#header");
+  header.innerHTML = `<form class="sheet form edit-form" id="edit-form">
+    <label for="f-title">Title</label><input id="f-title" required value="${esc(p.title)}">
+    <label for="f-authors">Authors</label><input id="f-authors" value="${esc(p.authors)}" placeholder="Comma-separated">
+    <div class="edit-row">
+      <div><label for="f-year">Year</label><input id="f-year" type="number" min="1600" max="2100" value="${p.year ?? ""}"></div>
+      <div><label for="f-goal">Goal</label><select id="f-goal"><option value="">No goal</option>
+        ${goals.map((g) => `<option value="${g.id}" ${g.id === p.topic_id ? "selected" : ""}>${esc(g.goal)}</option>`).join("")}</select></div>
+    </div>
+    <div class="form-foot"><button type="button" class="button quiet" id="f-cancel">Cancel</button><button class="button">Save</button></div>
+  </form>`;
+  header.querySelector("#f-cancel").onclick = () => paperPage(p.id, () => false);
+  header.querySelector("#edit-form").onsubmit = (e) => {
+    e.preventDefault();
+    busy(e.submitter, "Saving…", async () => {
+      const year = header.querySelector("#f-year").value;
+      const goal = header.querySelector("#f-goal").value;
+      await api(`/papers/${p.id}`, { method: "PATCH", json: {
+        title: header.querySelector("#f-title").value,
+        authors: header.querySelector("#f-authors").value,
+        year: year ? Number(year) : null,
+        topic_id: goal ? Number(goal) : null,
+      } });
+      paperPage(p.id, () => false);
+    });
+  };
 }
 
 async function uploadPdf(id, file) {

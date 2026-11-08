@@ -1,4 +1,5 @@
 import json
+import re
 import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,7 +8,7 @@ import httpx
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app import db, index, llm, pdf, scholar
 
@@ -41,6 +42,18 @@ def upstream_error(_: Request, exc: httpx.HTTPError):
 
 class TopicIn(BaseModel):
     goal: str
+
+
+class PaperEdit(BaseModel):
+    title: str | None = Field(None, min_length=1)
+    authors: str | None = None
+    year: int | None = None
+    topic_id: int | None = None
+
+    @field_validator("title", "authors", mode="before")
+    @classmethod
+    def strip(cls, v):
+        return v.strip() if isinstance(v, str) else v
 
 
 class PaperIn(BaseModel):
@@ -126,6 +139,22 @@ def read_pdf(data: bytes) -> str:
         return ""  # unreadable text layer (e.g. scanned); the PDF can still be viewed
 
 
+def describe_pdf(data: bytes, text: str, filename: str | None) -> dict:
+    """Title and friends for an uploaded PDF, from the most to the least reliable source."""
+    for identifier in pdf.find_ids(text):
+        if found := scholar.lookup(identifier):
+            return {k: v for k, v in found.items() if k != "pdf_url"}
+    if text:
+        try:
+            if meta := {k: v for k, v in llm.paper_metadata(text[:3000]).items() if v}:
+                return meta
+        except llm.AIError:
+            pass  # no AI configured: fall back to the layout
+    title = pdf.title_from_spans(pdf.first_page_spans(data))
+    fallback = (filename or "Untitled paper").removesuffix(".pdf")
+    return {"title": title or pdf.guess_title(pdf.metadata(data), text, fallback)}
+
+
 def insert_paper(fields: dict) -> int:
     with db.connect() as conn:
         cur = conn.execute(
@@ -137,6 +166,10 @@ def insert_paper(fields: dict) -> int:
 
 @app.post("/api/papers")
 def create_paper(body: PaperIn):
+    if not body.external_id and not body.pdf_url:
+        # A reference read from a PDF: find the real paper so it gets an abstract, PDF and references.
+        if match := scholar.resolve(body.title):
+            body = body.model_copy(update={k: v for k, v in match.items() if v})
     data = b""
     if body.pdf_url:
         try:
@@ -154,15 +187,7 @@ def create_paper(body: PaperIn):
 async def upload_paper(file: UploadFile, topic_id: int | None = Form(None)):
     data = await file.read()
     text = read_pdf(data)
-    fallback = (file.filename or "Untitled paper").removesuffix(".pdf")
-    fields = {"title": pdf.guess_title(pdf.metadata(data), text, fallback)}
-    if text:
-        try:
-            meta = llm.paper_metadata(text[:3000])
-            fields = {k: v for k, v in meta.items() if v} or fields
-        except llm.AIError:
-            pass  # no AI configured: keep the guessed title
-    paper_id = insert_paper({**fields, "topic_id": topic_id, "text": text})
+    paper_id = insert_paper({**describe_pdf(data, text, file.filename), "topic_id": topic_id, "text": text})
     save_pdf(paper_id, data)
     return get_paper(paper_id)
 
@@ -194,6 +219,13 @@ def list_papers(topic_id: int | None = None):
 @app.get("/api/papers/{paper_id}")
 def read_paper(paper_id: int):
     return get_paper(paper_id)
+
+
+@app.patch("/api/papers/{paper_id}")
+def edit_paper(paper_id: int, body: PaperEdit):
+    get_paper(paper_id)
+    fields = body.model_dump(exclude_unset=True)
+    return update_paper(paper_id, **fields) if fields else get_paper(paper_id)
 
 
 @app.post("/api/papers/{paper_id}/pdf")
@@ -300,13 +332,33 @@ def recall(body: RecallIn):
 @app.get("/api/papers/{paper_id}/references")
 def paper_references(paper_id: int):
     paper = get_paper(paper_id)
-    if not paper["external_id"]:
-        raise HTTPException(400, "Paper has no Semantic Scholar id")
-    refs = scholar.references(paper["external_id"])
+    refs = None
+    if paper["external_id"]:
+        try:
+            refs = scholar.references(paper["external_id"])
+        except httpx.HTTPError:
+            if not paper["text"]:
+                raise
+    if refs is None:
+        if not paper["text"]:
+            raise HTTPException(400, "This paper has no text to read references from. Upload its PDF.")
+        if paper["refs"] is None:
+            paper["refs"] = llm.extract_references(references_section(paper["text"]))
+            update_paper(paper_id, refs=json.dumps(paper["refs"]))
+        refs = [{**r, "external_id": ""} for r in paper["refs"]]
     with db.connect() as conn:
-        known = {r["external_id"]: r["id"] for r in conn.execute(
-            "select id, external_id from papers where external_id != ''")}
-    return [{**r, "library_id": known.get(r["external_id"])} for r in refs]
+        rows = conn.execute("select id, external_id, title from papers").fetchall()
+    by_id = {r["external_id"]: r["id"] for r in rows if r["external_id"]}
+    by_title = {scholar.norm_title(r["title"]): r["id"] for r in rows}
+    return [{**r, "library_id": by_id.get(r["external_id"]) or by_title.get(scholar.norm_title(r["title"]))}
+            for r in refs]
+
+
+def references_section(text: str) -> str:
+    """The bibliography at the end of a paper (or its tail if there is no heading)."""
+    heads = list(re.finditer(r"(?m)^(references|bibliography)\s*$", text, re.IGNORECASE))
+    section = text[heads[-1].start():] if heads else text[-15000:]
+    return section[:40000]
 
 
 @app.get("/api/papers/{paper_id}/chain")

@@ -74,6 +74,25 @@ def paper_metadata(head: str) -> dict:
     return _parse(prompt, Metadata, effort="low").model_dump()
 
 
+class Reference(BaseModel):
+    title: str
+    authors: str
+    year: int | None
+
+
+class References(BaseModel):
+    references: list[Reference]
+
+
+def extract_references(section: str) -> list[dict]:
+    prompt = (
+        f"<references_section>\n{section}\n</references_section>\n\n"
+        "This is the reference list of a research paper, extracted from its PDF. List every cited work "
+        "with its exact title, its authors as a comma-separated list, and its year (null if missing)."
+    )
+    return [r.model_dump() for r in _parse(prompt, References, effort="low").references]
+
+
 class Skim(BaseModel):
     problem: str
     contributions: list[str]

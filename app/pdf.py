@@ -51,4 +51,48 @@ def guess_title(meta: dict, text: str, fallback: str) -> str:
 def _looks_like_title(line: str) -> bool:
     words = line.split()
     noise = ("@", "http", "arxiv:", "©", "copyright")
-    return 2 <= len(words) <= 20 and not line.endswith(".") and not any(n in line.lower() for n in noise)
+    return (2 <= len(words) <= 20 and not line.endswith(".") and not SECTION.match(line)
+            and not any(n in line.lower() for n in noise))
+
+
+SECTION = re.compile(r"\d+(\.\d+)*\.?\s")  # "2 Method", "3.1 Setup"
+
+
+def first_page_spans(data: bytes) -> list[tuple[float, str]]:
+    """(font size, text) for each run of text on page 1, in reading order."""
+    spans = []
+
+    def visit(text, cm, tm, font, size):
+        if text.strip():
+            spans.append((abs(size * tm[0]), text.strip()))
+
+    try:
+        PdfReader(io.BytesIO(data)).pages[0].extract_text(visitor_text=visit)
+    except Exception:
+        return []
+    return spans
+
+
+def title_from_spans(spans: list[tuple[float, str]]) -> str:
+    """The title is the biggest text on the first page; it may wrap over several runs."""
+    spans = [(size, text) for size, text in spans
+             if len(text) >= 4 and not SECTION.match(text) and "arxiv" not in text.lower()]
+    if not spans:
+        return ""
+    biggest = max(size for size, _ in spans)
+    parts, started = [], False
+    for size, text in spans:
+        if size >= biggest - 0.5:
+            parts.append(text)
+            started = True
+        elif started:
+            break
+    return " ".join(parts)[:300]
+
+
+def find_ids(text: str) -> list[str]:
+    """arXiv IDs and DOIs printed near the start of a paper, as lookup keys."""
+    head = text[:5000]
+    ids = [f"arXiv:{m}" for m in re.findall(r"arXiv:(\d{4}\.\d{4,5})", head)]
+    ids += [f"DOI:{m.rstrip('.,;)')}" for m in re.findall(r"\b(10\.\d{4,9}/[^\s\"<>]+)", head)]
+    return list(dict.fromkeys(ids))

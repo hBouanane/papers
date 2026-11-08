@@ -73,6 +73,32 @@ def search_arxiv(query: str, limit: int = 10) -> list[dict]:
     return parse_arxiv(r.text)
 
 
+def lookup(identifier: str) -> dict | None:
+    """Official metadata for "arXiv:<id>", "DOI:<doi>" or a Semantic Scholar paper id."""
+    try:
+        if identifier.startswith("arXiv:"):
+            r = httpx.get("https://export.arxiv.org/api/query", params={"id_list": identifier[6:]}, timeout=30)
+            r.raise_for_status()
+            found = parse_arxiv(r.text)
+            return found[0] if found and found[0]["title"] else None
+        return normalize(_get(f"/paper/{identifier}", fields=FIELDS))
+    except (httpx.HTTPError, ET.ParseError):
+        return None
+
+
+def norm_title(title: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", title.lower())
+
+
+def resolve(title: str) -> dict | None:
+    """Find the search result that is this exact paper (by title), if any."""
+    try:
+        results = search(title, limit=5)
+    except httpx.HTTPError:
+        return None
+    return next((r for r in results if norm_title(r["title"]) == norm_title(title)), None)
+
+
 def references(external_id: str) -> list[dict]:
     data = _get(f"/paper/{external_id}/references", fields=FIELDS, limit=100)
     return [normalize(r["citedPaper"]) for r in data.get("data", []) if r.get("citedPaper", {}).get("title")]
