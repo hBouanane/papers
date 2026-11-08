@@ -154,6 +154,7 @@ export async function libraryPage(stale) {
       || `<p class="faint pad">${hits ? "No papers match that search."
         : filter === "archived" ? "Nothing archived. Archive papers that turn out not to be relevant from their More menu."
         : "No papers with this status."}</p>`;
+    drawCovers(rows);
   };
   show();
   app.querySelector("#all-reading")?.addEventListener("click", () => {
@@ -283,6 +284,7 @@ export async function goalPage(id, stale) {
   bindAddPaper();
   drawCovers(app);
   bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  app.querySelector(".as-list")?.addEventListener("toggle", () => drawCovers(app.querySelector("#mine")));
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
     const box = app.querySelector("#suggestions");
@@ -426,7 +428,7 @@ export async function mapPage(stale) {
   const size = (p) => 1 + (children[p.id] || []).reduce((n, c) => n + size(c), 0);
   const readIn = (p) => (p.status === "read" ? 1 : 0) + (children[p.id] || []).reduce((n, c) => n + readIn(c), 0);
   const chain = (t) => `<section class="chain">
-      <p class="chain-head"><span class="chain-label">Chain</span> Started from <strong class="paper-name">${esc(shorten(t.title, 70))}</strong>
+      <p class="chain-head">Started from <strong class="paper-name">${esc(shorten(t.title, 70))}</strong>
         <span class="faint">· ${plural(size(t), "paper")}, ${readIn(t)} read</span></p>
       <div class="chain-scroll"><ol class="chain-tree">${node(t)}</ol></div></section>`;
 
