@@ -27,7 +27,7 @@ export async function libraryPage(stale) {
     <div class="page-head page-head-split">
       <div><h1>Library</h1>
       <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p></div>
-      ${addPaperControl()}
+      ${addPaperControl("", goals)}
     </div>
     ${folderTip}
     ${current ? `<a class="resume sheet" href="#/papers/${current.id}/read">

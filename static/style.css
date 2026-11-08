@@ -324,3 +324,10 @@ select { width: 100%; height: 44px; font: 16px var(--ui); color: var(--graphite)
 .folder-preview { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line-soft); display: grid; gap: 10px; }
 .folder-preview pre { margin: 0; padding: 12px 14px; background: var(--desk); border-radius: var(--r-control); font-size: 13px; overflow-x: auto; }
 .tip { margin: -12px 0 24px; font-size: 15px; color: var(--pencil); }
+
+/* Capture */
+.add-goal { display: grid; gap: 6px; font-size: 14px; }
+.add-hint { font-size: 13px; color: var(--pencil); }
+#drop-zone { position: fixed; inset: 12px; z-index: 60; display: grid; place-items: center; border: 3px dashed var(--ink);
+  border-radius: 12px; background: color-mix(in srgb, var(--sheet) 88%, transparent); pointer-events: none; }
+#drop-zone p { font-size: 22px; font-weight: 800; color: var(--ink); }

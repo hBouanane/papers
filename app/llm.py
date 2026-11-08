@@ -8,6 +8,10 @@ from pydantic import BaseModel
 MODEL = os.environ.get("PAPERS_MODEL", "claude-opus-5-5")
 
 
+def configured() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+
 @cache
 def _client() -> anthropic.Anthropic:
     return anthropic.Anthropic()
