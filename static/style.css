@@ -385,3 +385,13 @@ kbd { font: 700 11px var(--ui); padding: 1px 5px; border-radius: 3px; border: 1p
 .shortcuts dt { width: 34px; }
 .shortcuts dd { margin: 0; }
 .shortcuts kbd { opacity: 1; font-size: 13px; padding: 2px 7px; margin: 0; }
+
+/* Settings: Claude */
+.form + .form { margin-top: 16px; }
+.choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-control); font-weight: 400; cursor: pointer; }
+.choice:has(input:checked) { border-color: var(--ink); background: var(--ink-tint); }
+.choice input { width: auto; margin-top: 4px; accent-color: var(--ink); }
+.choice > span { display: grid; gap: 4px; }
+.choice .hint { font-size: 14px; }
+code { font-size: 13px; background: var(--desk); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.hint.ok { color: var(--done); font-weight: 700; }

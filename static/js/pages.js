@@ -257,6 +257,23 @@ export async function settingsPage(stale) {
   if (stale()) return;
   app.innerHTML = `<div class="container page narrow">
     <div class="page-head"><h1>Settings</h1></div>
+    <form class="sheet form" id="ai-form">
+      <h2>Claude</h2>
+      <p class="hint">Skimming, explanations, quizzes and recall are done by Claude. Choose how the app reaches it.</p>
+      <label class="choice"><input type="radio" name="ai" value="claude-code" ${s.ai_backend === "claude-code" ? "checked" : ""}>
+        <span><span><strong>My Claude subscription</strong> (Pro, Max)</span>
+        <span class="hint">Runs Claude Code on this computer, signed in with your Claude account. Usage counts toward your plan's limits.
+        For your own use only: don't host the app for other people with your subscription.
+        ${s.claude_binary ? `Found Claude Code at <code>${esc(s.claude_binary)}</code>.`
+          : "Claude Code isn't installed yet: get it from claude.com/claude-code."}
+        First time: open a terminal, run <code>claude</code>, type <code>/login</code> and sign in.</span></span></label>
+      <label class="choice"><input type="radio" name="ai" value="api" ${s.ai_backend === "api" ? "checked" : ""}>
+        <span><strong>API key</strong>
+        <span class="hint">Pay per use on the Anthropic API. Set <code>ANTHROPIC_API_KEY</code> before starting the app.
+        ${s.api_key_set ? "A key is set." : "No key is set."}</span></span></label>
+      <div class="form-foot"><button type="button" class="button secondary" id="ai-test">Test connection</button></div>
+      <p id="ai-status" class="hint" role="status"></p>
+    </form>
     <form class="sheet form" id="folder-form">
       <h2>Library folder</h2>
       <p class="hint">Keep a copy of your library in a folder on this computer. Each goal gets a folder, each paper
@@ -277,6 +294,19 @@ export async function settingsPage(stale) {
     Vaswani et al. 2017 - Attention Is All You Need.pdf
     Vaswani et al. 2017 - Attention Is All You Need.md</pre></div>` : "";
   app.querySelector("#folder-status").innerHTML = status(s.library_dir);
+  const aiStatus = app.querySelector("#ai-status");
+  app.querySelector("#ai-form").onchange = async (e) => {
+    if (e.target.name !== "ai") return;
+    const saved = await api("/settings", { method: "PUT", json: { ai_backend: e.target.value } });
+    aiStatus.className = "hint";
+    aiStatus.textContent = saved.ai_ready ? "Saved. Use Test connection to check it works."
+      : saved.ai_backend === "api" ? "Saved, but no API key is set." : "Saved, but Claude Code wasn't found on this computer.";
+  };
+  app.querySelector("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking Claude…", async () => {
+    const r = await api("/ai/test", { method: "POST" });
+    aiStatus.className = r.ok ? "hint ok" : "error";
+    aiStatus.textContent = r.message;
+  });
   app.querySelector("#folder-form").onsubmit = (e) => {
     e.preventDefault();
     busy(e.submitter, "Saving…", async () => {
