@@ -103,8 +103,11 @@ export function setupVocab(r) {
     refresh,
     markPage,
     // A click on the page: open the card if it's on a marked word (and the switch is on).
+    // In the PDF, PDF.js lays a helper over the text while you press, so the click can land on the text layer
+    // instead of the word: look for the word under the pointer too, so one click always does it.
     openAt(e) {
-      const abbr = e.target.closest?.("abbr.term");
+      const abbr = e.target.closest?.("abbr.term")
+        || document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches?.("abbr.term"));
       if (!abbr || !document.body.classList.contains("vocab-on")) return false;
       if (abbr === open) close(); else show(abbr);
       return true;

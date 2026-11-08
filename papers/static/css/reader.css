@@ -128,11 +128,15 @@ body.skimming .strip { opacity: .35; }
 /* Hard words (reader/vocab.js): marked only while the Words switch is on; otherwise plain text. In the PDF the
    text layer is transparent over the drawn page, so the underline gets its own colour and the tint shows through. */
 abbr.term { text-decoration: none; cursor: inherit; }
-body.vocab-on abbr.term { text-decoration: underline dotted; text-decoration-color: var(--ink); text-underline-offset: 3px;
-  text-decoration-thickness: 1.5px; background: color-mix(in srgb, var(--ink) 9%, transparent); border-radius: 3px; cursor: pointer;
-  transition: background .15s; }
-body.vocab-on abbr.term:hover, body.vocab-on abbr.term.open { background: color-mix(in srgb, var(--ink) 20%, transparent); }
-body.vocab-on .textLayer abbr.term { text-decoration-thickness: 2px; text-underline-offset: 2px; }
+body.vocab-on abbr.term { --term-tint: 17%; text-decoration: underline solid; text-decoration-color: color-mix(in srgb, var(--ink) 75%, transparent);
+  text-underline-offset: 3px; text-decoration-thickness: 2px; background: color-mix(in srgb, var(--ink) var(--term-tint), transparent);
+  border-radius: 3px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); cursor: pointer; transition: background .15s; }
+body.vocab-on abbr.term:hover, body.vocab-on abbr.term.open { --term-tint: 32%; }
+body.vocab-on .textLayer abbr.term { text-decoration-thickness: 2.5px; text-underline-offset: 2px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) body.vocab-on abbr.term { --term-tint: 26%; } }
+:root[data-theme="dark"] body.vocab-on abbr.term, :root[data-theme="dim"] body.vocab-on abbr.term { --term-tint: 26%; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) body.vocab-on abbr.term:hover, :root:not([data-theme]) body.vocab-on abbr.term.open { --term-tint: 42%; } }
+:root[data-theme="dark"] body.vocab-on abbr.term:is(:hover, .open), :root[data-theme="dim"] body.vocab-on abbr.term:is(:hover, .open) { --term-tint: 42%; }
 .word-card { position: fixed; z-index: 40; width: min(340px, calc(100vw - 16px)); padding: 14px 16px 12px; display: grid; gap: 8px;
   box-shadow: 0 18px 40px -16px rgb(0 0 0 / .4); font: 15px/1.5 var(--ui); color: var(--graphite); }
 .word-card-head { display: flex; align-items: center; gap: 8px; }
