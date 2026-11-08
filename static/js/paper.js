@@ -218,6 +218,9 @@ export async function readerPage(id, stale) {
         <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
       </div>
       <div class="strip" id="strip" title="Read parts of the paper. Click to jump."><span class="strip-view" id="strip-view"></span></div>
+      <div class="skim-note nudge" id="nudge" hidden>You've read most of this paper.
+        <button class="button small" id="nudge-finish">Mark as finished</button>
+        <button class="button quiet small" id="nudge-later">Not yet</button></div>
       <div class="skim-note" id="skim-note" hidden>Skimming: nothing you do here counts as reading.
         <button class="button quiet small" id="back-to-saved">Back to where you stopped</button></div>
     </div>
@@ -301,9 +304,12 @@ export async function readerPage(id, stale) {
   const tracker = startTracker({ article, paper: p, words, onRead: () => paintStrip() });
   // Papers tracked the old way keep their percentage until real reading overtakes it (same rule as the server).
   const legacy = p.read_slices ? 0 : p.progress;
+  let nudged = p.status === "read"; // offer to finish once, when most of the paper has been read
   const paintStrip = () => {
+    const read = Math.max(legacy, tracker.bits.filter((b) => b === "1").length / SLICES);
     $("#strip").style.background = stripBackground(tracker.bits);
-    $("#pct").textContent = `${pct(Math.max(legacy, tracker.bits.filter((b) => b === "1").length / SLICES))} read`;
+    $("#pct").textContent = `${pct(read)} read`;
+    if (!nudged && read >= 0.9) { nudged = true; $("#nudge").hidden = false; }
   };
   const paintView = () => {
     const height = article.offsetHeight;
@@ -419,6 +425,8 @@ export async function readerPage(id, stale) {
     const done = await api(`/papers/${id}/finish`, { method: "POST" });
     location.hash = done.quiz?.length ? `#/papers/${id}/quiz` : `#/papers/${id}`;
   });
+  $("#nudge-finish").onclick = finish;
+  $("#nudge-later").onclick = () => ($("#nudge").hidden = true);
   $("#finish").onclick = p.status === "read" ? () => (location.hash = `#/papers/${id}`) : finish;
   $("#finish-end").onclick = finish;
 
@@ -433,18 +441,20 @@ export async function readerPage(id, stale) {
   };
 }
 
-// ---------- Quiz ----------
+// ---------- Review (flashcards) ----------
+const RATINGS = [[1, "Got it"], [0.5, "Partly"], [0, "Missed it"]];
+
 export async function quizPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const p = await api(`/papers/${id}`);
   if (stale()) return;
-  const head = `<nav class="crumbs"><a href="#/papers/${id}">${esc(p.title)}</a></nav>
-    <div class="page-head"><h1>Check your understanding</h1>
-    <p class="lede">Answer in your own words. Answers are graded against the paper, not against exact wording.</p></div>`;
+  const crumbs = `<nav class="crumbs"><a href="#/papers/${id}">${esc(p.title)}</a></nav>`;
 
   if (!p.quiz?.length) {
-    app.innerHTML = `<div class="container page narrow">${head}
-      <div class="empty"><p>No quiz for this paper yet.</p><button class="button" id="gen">Write a quiz</button></div></div>`;
+    app.innerHTML = `<div class="container page narrow">${crumbs}
+      <div class="page-head"><h1>Test yourself</h1></div>
+      <div class="empty"><p>No questions for this paper yet. Claude writes them from the paper.</p>
+        <button class="button" id="gen">Write questions</button></div></div>`;
     app.querySelector("#gen").onclick = (e) => busy(e.currentTarget, "Writing questions…", async () => {
       await api(`/papers/${id}/quiz`, { method: "POST" });
       quizPage(id, stale);
@@ -452,7 +462,69 @@ export async function quizPage(id, stale) {
     return;
   }
 
-  app.innerHTML = `<div class="container page narrow">${head}
+  const ratings = [];
+  let revealed = false;
+  const card = () => {
+    const i = ratings.length;
+    if (i === p.quiz.length) return finish();
+    const q = p.quiz[i];
+    revealed = false;
+    app.innerHTML = `<div class="container page narrow">${crumbs}
+      <p class="card-count">Card ${i + 1} of ${p.quiz.length}</p>
+      <div class="sheet flashcard">
+        <p class="card-question">${esc(q.question)}</p>
+        <div id="answer" hidden><p class="card-answer">${esc(q.answer)}</p></div>
+      </div>
+      <div class="card-actions" id="actions">
+        <button class="button" id="reveal">Show answer <kbd>Space</kbd></button>
+      </div>
+      <p class="card-alt">Think of your answer, then reveal it and rate yourself honestly.
+        Prefer to write? <button class="link-button" id="typed">Type answers for Claude to grade</button></p>
+    </div>`;
+    app.querySelector("#reveal").onclick = reveal;
+    app.querySelector("#typed").onclick = () => typedQuiz(p, crumbs);
+  };
+  const reveal = () => {
+    if (revealed) return;
+    revealed = true;
+    app.querySelector("#answer").hidden = false;
+    app.querySelector("#actions").innerHTML = RATINGS.map(([value, label], k) =>
+      `<button class="button ${k ? "secondary" : ""}" data-rate="${value}">${label} <kbd>${k + 1}</kbd></button>`).join("");
+    app.querySelector("#actions").onclick = (e) => {
+      const b = e.target.closest("[data-rate]");
+      if (b) rate(Number(b.dataset.rate));
+    };
+  };
+  const rate = (value) => { ratings.push(value); card(); };
+  const finish = async () => {
+    removeEventListener("keydown", onKey);
+    app.innerHTML = `<div class="container page narrow">${crumbs}${loading("Saving")}</div>`;
+    try {
+      const done = await api(`/papers/${id}/review`, { method: "POST", json: { ratings } });
+      const days = Math.round((new Date(done.review_due) - new Date(new Date().toISOString().slice(0, 10))) / 86400000);
+      app.innerHTML = `<div class="container page narrow">${crumbs}
+        <div class="sheet flashcard done">
+          <p class="card-question">You knew ${ratings.filter((r) => r === 1).length} of ${ratings.length}${ratings.includes(0.5) ? `, partly ${ratings.filter((r) => r === 0.5).length} more` : ""}.</p>
+          <p class="card-answer">Next review in ${days} day${days === 1 ? "" : "s"}. The Library will remind you.</p>
+        </div>
+        <div class="card-actions"><a class="button" href="#/">Back to library</a><a class="button secondary" href="#/papers/${id}">Paper</a></div>
+      </div>`;
+    } catch (e) { toast(e.message); }
+  };
+  const onKey = (e) => {
+    if (e.target.closest?.("input, textarea")) return;
+    if (e.key === " " && !revealed) { e.preventDefault(); reveal(); }
+    else if (revealed && ["1", "2", "3"].includes(e.key)) rate(RATINGS[Number(e.key) - 1][0]);
+  };
+  addEventListener("keydown", onKey);
+  card();
+  return () => removeEventListener("keydown", onKey);
+}
+
+function typedQuiz(p, crumbs) {
+  app.innerHTML = `<div class="container page narrow">${crumbs}
+    <div class="page-head"><h1>Test yourself</h1>
+    <p class="lede">Answer in your own words. Claude grades each answer against the paper, not against exact wording.</p></div>
     <form id="quiz" class="quiz">${p.quiz.map((q, i) => `<div class="sheet question">
       <label for="a${i}"><span class="q-num">Question ${i + 1} of ${p.quiz.length}</span>${esc(q.question)}</label>
       <textarea id="a${i}" rows="3"></textarea>
@@ -464,7 +536,7 @@ export async function quizPage(id, stale) {
     e.preventDefault();
     busy(e.submitter, "Grading…", async () => {
       const answers = p.quiz.map((_, i) => app.querySelector(`#a${i}`).value);
-      const r = await api(`/papers/${id}/quiz/grade`, { method: "POST", json: { answers } });
+      const r = await api(`/papers/${p.id}/quiz/grade`, { method: "POST", json: { answers } });
       r.results.forEach((res, i) => {
         const level = res.score >= 0.8 ? "good" : res.score >= 0.4 ? "partial" : "miss";
         app.querySelector(`#fb${i}`).innerHTML = `<p class="grade"><span class="score-pill score-${level} num">${pct(res.score)}</span><span>${esc(res.feedback)}</span></p>

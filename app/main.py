@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import date, timedelta
 import os
 from typing import Literal
 import re
@@ -460,9 +461,47 @@ def import_inbox() -> int:
 
 @app.post("/api/papers/{paper_id}/quiz")
 def make_quiz(paper_id: int):
-    questions = llm.quiz(get_paper(paper_id))
-    update_paper(paper_id, quiz=json.dumps(questions))
+    paper = get_paper(paper_id)
+    questions = llm.quiz(paper)
+    update_paper(paper_id, quiz=json.dumps(questions), review_due=paper["review_due"] or date.today().isoformat())
     return questions
+
+
+REVIEW_DAYS = [1, 3, 7, 21, 60]  # wait before the next review, by how many reviews went well
+
+
+def schedule_review(paper_id: int, score: float) -> dict:
+    """Spaced review: good recall waits longer next time, poor recall starts over."""
+    step = get_paper(paper_id)["review_step"] or 0
+    if score >= 0.7:
+        step = min(step + 1, len(REVIEW_DAYS) - 1)
+    elif score < 0.4:
+        step = 0
+    due = date.today() + timedelta(days=REVIEW_DAYS[step])
+    return update_paper(paper_id, understanding=score, review_step=step, review_due=due.isoformat())
+
+
+class RatingsIn(BaseModel):
+    ratings: list[Literal[0, 0.5, 1]]  # missed, partly, got it; one per question
+
+
+@app.post("/api/papers/{paper_id}/review")
+def review_paper(paper_id: int, body: RatingsIn):
+    paper = get_paper(paper_id)
+    if not paper["quiz"] or len(body.ratings) != len(paper["quiz"]):
+        raise HTTPException(400, "Rate every question of this paper's quiz.")
+    return schedule_review(paper_id, sum(body.ratings) / len(body.ratings))
+
+
+@app.get("/api/reviews/due")
+def reviews_due():
+    with db.connect() as conn:
+        rows = conn.execute(
+            "select id, title, authors, year, review_due, quiz from papers"
+            " where quiz is not null and review_due <= ? and coalesce(archived, 0) = 0 order by review_due",
+            (date.today().isoformat(),)).fetchall()
+    return [{**{k: r[k] for k in ("id", "title", "authors", "year", "review_due")}, "questions": len(json.loads(r["quiz"]))}
+            for r in rows]
 
 
 @app.post("/api/papers/{paper_id}/quiz/grade")
@@ -471,7 +510,7 @@ def grade_quiz(paper_id: int, body: AnswersIn):
     if not paper["quiz"]:
         raise HTTPException(400, "Generate a quiz first")
     result = llm.grade(paper, paper["quiz"], body.answers)
-    update_paper(paper_id, understanding=result["score"])
+    schedule_review(paper_id, result["score"])
     return result
 
 
@@ -512,7 +551,8 @@ def finish_paper(paper_id: int):
         questions = json.dumps(llm.quiz(paper))
     except llm.AIError:
         questions = None  # still mark it read; the quiz can be written later
-    return update_paper(paper_id, status="read", progress=1.0, read_slices="1" * SLICES, quiz=questions)
+    due = date.today().isoformat() if questions else None  # first review right away, while it's fresh
+    return update_paper(paper_id, status="read", progress=1.0, read_slices="1" * SLICES, quiz=questions, review_due=due)
 
 
 @app.get("/api/search")

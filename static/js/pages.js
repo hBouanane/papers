@@ -6,7 +6,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 // ---------- Library ----------
 export async function libraryPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
-  const [papers, goals, settings] = await Promise.all([api("/papers"), api("/topics"), api("/settings")]);
+  const [papers, goals, settings, due] = await Promise.all([api("/papers"), api("/topics"), api("/settings"), api("/reviews/due")]);
   if (stale()) return;
   const names = goalNames(goals);
   const folderTip = settings.library_dir ? "" : `<p class="tip">Want your PDFs and notes in a folder on your computer?
@@ -30,6 +30,12 @@ export async function libraryPage(stale) {
       ${addPaperControl("", goals)}
     </div>
     ${folderTip}
+    ${due.length ? `<section class="sheet due">
+      <h2>Due for review</h2>
+      <p class="hint">A couple of minutes now keeps these from fading. Flashcards, no typing.</p>
+      ${due.map((d) => `<a class="due-item" href="#/papers/${d.id}/quiz"><span class="paper-name">${esc(d.title)}</span>
+        <span class="faint">${d.questions} cards</span></a>`).join("")}
+    </section>` : ""}
     ${current ? `<a class="resume sheet" href="#/papers/${current.id}/read">
         <span class="resume-label">Pick up where you left off</span>
         <span class="resume-title">${esc(current.title)}</span>
