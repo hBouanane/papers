@@ -1,0 +1,229 @@
+/* The reader (paper/reader.js and paper/reader/): a focused, full-screen view of the paper, the PDF or its
+   reflowed text, with the bar on top, the route pill at the bottom and the Ask, Words and Notes panel. */
+
+body.reading .site-header { display: none; }
+body.reading #toast { bottom: 64px; }
+
+/* ---------- The bar ---------- */
+/* One row: a back arrow, the tools, and a ⋯ menu for those that don't fit (reader/bar.js). Every control keeps
+   its natural size (the Original/Text switch stays on one line). */
+.reader-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 15; background: var(--header); border-bottom: 1px solid var(--line); }
+.reader-bar-inner { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px 10px; height: 56px; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.reader-bar-inner > * { flex-shrink: 0; }
+/* The back arrow (base.css) as a pill that names where it goes. */
+.reader-bar-inner > .reader-back { flex: 0 0 auto; min-width: 0; justify-content: center; gap: 2px; height: 34px; padding: 0 10px 0 6px; border-radius: 999px; }
+.reader-bar-inner > .reader-back:hover { background: var(--raised); }
+.reader-back-label { font-size: 14px; }
+.reader-bar-inner > #views { margin-right: auto; }
+.reader-bar .segmented { flex-wrap: nowrap; }
+.reader-bar .segmented button { white-space: nowrap; }
+.reader-pct { font-size: 14px; color: var(--pencil); white-space: nowrap; }
+.jump { width: auto; max-width: 180px; height: 34px; font-size: 14px; font-weight: 700; }
+@media (max-width: 1240px) { .page-tone-label { display: none; } .reader-bar .jump { max-width: 130px; } }
+@media (max-width: 1100px) { .reader-bar .switch-label { display: none; } .reader-bar .jump { max-width: 110px; } }
+/* Narrow: zoom and the reading settings go last, and in the ⋯ menu "Go to…" comes first. */
+@media (max-width: 760px) {
+  .reader-bar .zoom, .reader-bar .prefs-menu, .bar-more-list .switch, .bar-more-list .page-tone { order: 3; }
+  .page-tone-label { display: none; }
+}
+@media (max-width: 560px) { .reader-bar-inner { column-gap: 6px; } .reader-pct { display: none; } .reader-bar .segmented { margin-right: auto; } }
+/* The ⋯ menu */
+.bar-more > summary { min-width: 34px; font-size: 18px; line-height: 1; }
+.bar-more-list { left: auto; right: 0; min-width: 240px; padding: 10px; gap: 10px; display: grid; justify-items: start; }
+.bar-more-list > * { flex-shrink: 0; }
+.bar-more-list .jump { max-width: none; width: 100%; font-size: 15px; font-weight: 400; } /* like the other menu items */
+.bar-more-list .page-tone-label, .bar-more-list .switch-label { display: inline; }
+
+/* Under the bar, the parts you've read: click to jump. */
+.strip { position: relative; height: 6px; background: var(--line); cursor: pointer; }
+.strip-view { position: absolute; top: -2px; height: 10px; border: 2px solid var(--graphite); border-radius: 2px; pointer-events: none; }
+body.skimming .strip { opacity: .35; }
+.skim-note { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 6px 16px;
+  font-size: 14px; color: var(--pencil); background: var(--desk); border-top: 1px solid var(--line); }
+
+/* The Skimming switch */
+.switch { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 6px; cursor: pointer;
+  font: 700 14px var(--ui); color: var(--pencil); white-space: nowrap; }
+.switch:hover { color: var(--graphite); }
+.switch-track { position: relative; width: 30px; height: 18px; border-radius: 999px; background: var(--line); transition: background .15s; }
+.switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--sheet); box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: transform .15s; }
+.switch[aria-checked=true] { color: var(--graphite); }
+.switch[aria-checked=true] .switch-track { background: var(--selected); }
+.switch[aria-checked=true] .switch-track::after { transform: translateX(12px); background: var(--on-selected); }
+
+/* Zoom and the reading settings (Aa) */
+.zoom { display: flex; align-items: center; }
+.zoom .button { min-width: 34px; padding: 0 8px; }
+.zoom .zoom-value { min-width: 56px; color: var(--pencil); font-weight: 700; }
+.prefs-menu .menu-list { left: auto; right: 0; min-width: 270px; padding: 14px; gap: 6px; }
+.prefs .pref-label { font-size: 13px; font-weight: 700; color: var(--pencil); margin-top: 6px; }
+.prefs .segmented { display: flex; }
+.prefs .segmented button { flex: 1; text-align: center; padding: 6px 8px; }
+.prefs .pref-value { align-self: center; padding: 0 10px; font-size: 13px; }
+.menu-list.prefs > * { padding: 0; }
+.menu-list.prefs > .segmented { padding: 3px; }
+
+/* PDF pages: white, dimmed or dark, the knob sliding like the theme switch. */
+.page-tone { display: inline-flex; align-items: center; gap: 8px; font: 700 14px var(--ui); color: var(--pencil); white-space: nowrap; }
+.tone-pill { position: relative; display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--desk); }
+.tone-pill button { position: relative; z-index: 1; display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0;
+  background: transparent; border-radius: 999px; color: var(--pencil); cursor: pointer; transition: color .4s; }
+.tone-pill button:hover { color: var(--graphite); }
+.tone-pill button.active { color: var(--on-selected); }
+.tone-pill svg { width: 15px; height: 15px; }
+.tone-thumb { position: absolute; top: 2px; left: 2px; width: 28px; height: 24px; border-radius: 999px; background: var(--selected);
+  transition: transform .5s cubic-bezier(.3, .8, .25, 1); }
+.page-tone[data-at="dim"] .tone-thumb { transform: translateX(28px); }
+.page-tone[data-at="dark"] .tone-thumb { transform: translateX(56px); }
+@media (prefers-reduced-motion: reduce) { .tone-thumb, .tone-pill button { transition: none; } }
+
+/* The highlighter tool. Its colours open as a small panel under it, so the bar never changes width. */
+.hl-tool { position: relative; display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.hl-tool-btn { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 8px 0 7px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--pencil); cursor: pointer; }
+.hl-tool-btn:hover { color: var(--graphite); }
+.hl-tool-btn .hl-dot { width: 10px; height: 10px; }
+.hl-tool.on .hl-tool-btn { background: var(--selected); color: var(--on-selected); }
+.hl-tool-colors { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 30;
+  display: inline-flex; gap: 8px; max-width: none; padding: 8px 10px; overflow: hidden;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.hl-tool:hover .hl-tool-colors, .hl-tool:focus-within .hl-tool-colors { opacity: 1; pointer-events: auto; }
+.hl-tool-colors::before { content: ""; position: absolute; inset: -10px 0 auto; height: 10px; } /* keeps the hover while moving down to it */
+.hl-tool-colors .hl-dot { width: 14px; height: 14px; border: 0; padding: 0; cursor: pointer; flex-shrink: 0; }
+.hl-tool-colors .hl-dot.active { box-shadow: 0 0 0 2px var(--header), 0 0 0 3.5px var(--dot); }
+
+/* ---------- The paper ---------- */
+/* It scrolls in this panel below the reader bar (PDF.js's viewer needs its own scroll container). */
+.reader-scroll { z-index: 0; isolation: isolate; /* PDF link boxes stay below the bar's menus */ position: absolute; top: var(--reader-top, 96px); left: 0; right: 0; bottom: 0; overflow: auto; background: var(--desk); transition: right .2s ease; }
+.reader-scroll.view-text { padding: 32px 24px 96px; }
+.reader-scroll .loading { padding: 32px; }
+/* While the highlighter is on, the pointer is a marker in its colour over the paper. */
+.reader-scroll.highlighting, .reader-scroll.highlighting .textLayer, .reader-scroll.highlighting .textLayer span,
+.reader-scroll.highlighting #article, .reader-scroll.highlighting #article * { cursor: var(--hl-cursor), text !important; }
+
+/* The Text view */
+.page-sheet { max-width: calc(var(--read-width, 680px) + 144px); margin: 0 auto; background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; padding: 64px 72px 48px; }
+.paper-front { text-align: center; padding-bottom: 28px; margin-bottom: 32px; border-bottom: 1px solid var(--line-soft); }
+.page-sheet h1 { font-size: 32px; line-height: 1.2; }
+.article-cite { color: var(--pencil); margin: 14px auto 0; max-width: 60ch; font-size: 15px; }
+.article-body { color: var(--reading); font-family: var(--read-font, var(--paper)); font-size: var(--read-size, 19px); line-height: var(--read-leading, 1.75);
+  max-width: var(--read-width, 680px); margin: 0 auto; hyphens: auto; text-wrap: pretty; }
+.article-body p { margin: 0 0 1em; }
+.article-body p.short { margin-bottom: 0.35em; }
+.article-body .section-head { font-family: var(--ui); font-weight: 800; letter-spacing: -0.01em; margin: 2.2em 0 0.6em; scroll-margin-top: 90px; }
+.article-body h2.section-head { font-size: 1.2em; padding-top: 0.6em; border-top: 1px solid var(--line-soft); }
+.article-body h3.section-head { font-size: 1.02em; color: var(--graphite); }
+.abstract-box { background: var(--raised); border-radius: var(--r-panel); padding: 20px 24px; margin: 0 0 2em; }
+.abstract-box h2 { font-family: var(--ui); font-size: 0.8em; font-weight: 800; color: var(--pencil); margin-bottom: 8px; scroll-margin-top: 90px; }
+.abstract-box p { margin-bottom: 0.6em; }
+.article-body p.caption { font-family: var(--ui); font-size: 0.8em; line-height: 1.55; color: var(--pencil); background: var(--raised);
+  border-radius: var(--r-control); padding: 10px 14px; margin: 1.2em 0; }
+.article-body p.math { font-family: "STIX Two Text", serif; font-style: italic; text-align: center; color: var(--graphite); margin: 1em 0; overflow-x: auto; }
+.refs-list { font-family: var(--ui); font-size: 0.72em; line-height: 1.5; color: var(--pencil); padding-left: 1.4em; display: grid; gap: 6px; }
+.article-body ::selection { background: var(--ink-tint); }
+/* Hard words are underlined; tap or point at one to see what it means. */
+abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset: 3px; text-decoration-thickness: 1.5px; cursor: help; }
+/* Passages you asked about stay marked with a quiet underline. */
+mark.explained { background: none; color: inherit; text-decoration: underline 2px var(--ink); text-underline-offset: 4px; text-decoration-skip-ink: none; }
+.article-end { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--pencil); }
+@media (max-width: 760px) { .reader-scroll.view-text { padding: 0; } .page-sheet { border: 0; border-radius: 0; padding: 32px 18px 40px; } .page-sheet h1 { font-size: 24px; } .abstract-box { padding: 16px; } }
+
+/* The PDF view. Pages are dimmed in dark mode by default; the page tone in the bar lets you choose. Dark pages
+   are recoloured by PDF.js itself (text and lines only, images keep their colours). */
+.view-pdf .pdfViewer { padding: 16px 0 8px; }
+.view-pdf .pdfViewer .page { padding: 0; border: 0; margin: 0 auto 16px; box-sizing: content-box; box-shadow: 0 0 0 1px var(--line), var(--shadow-soft); }
+.view-pdf .article-end { max-width: 760px; margin: 8px auto 64px; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 20px 24px; }
+@media (max-width: 760px) { .view-pdf .pdfViewer .page { margin-bottom: 8px; } .view-pdf .article-end { border-radius: 0; border-left: 0; border-right: 0; } }
+.view-pdf .pdfViewer .page canvas { filter: var(--page-filter); }
+body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
+body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }
+body.pages-dark .view-pdf .pdfViewer .page canvas { filter: none; }
+body.pages-dark .view-pdf .pdfViewer .page { background: var(--dark-page); } /* like the cards in dim and dark mode */
+.view-pdf .pdfViewer .page .textLayer { z-index: 2; }
+
+/* Highlights on the paper. In the Text view they're marks in the text; in the PDF they sit in a layer under
+   the text, and are found by position when clicked. */
+mark.hl { background: var(--hl); color: inherit; border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+mark.hl[data-note] { cursor: pointer; }
+.hl-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.hl-layer .hl { position: absolute; background: var(--hl); border-radius: 2px; mix-blend-mode: multiply; }
+body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
+@keyframes hl-flash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 4px var(--dot); } }
+.hl.flash { animation: hl-flash 1.1s ease-in-out 1; }
+
+/* ---------- Popovers over the paper ---------- */
+/* The selection bar: four colour dots, then the actions. The same bar opens on a highlight you click. */
+.sel-bar { position: fixed; z-index: 30; display: flex; gap: 2px; padding: 4px; border-radius: var(--r-panel);
+  background: var(--pop); box-shadow: var(--shadow-pop); }
+.sel-bar button { border: 0; background: transparent; color: var(--on-pop); font: 700 14px var(--ui); padding: 7px 11px; border-radius: 5px; cursor: pointer; }
+.sel-bar button:hover { background: color-mix(in srgb, var(--on-pop) 14%, transparent); }
+.sel-colors { display: inline-flex; align-items: center; gap: 0; padding-right: 4px; margin-right: 2px; border-right: 1px solid color-mix(in srgb, var(--on-pop) 20%, transparent); }
+.sel-bar .sel-dot { padding: 7px 6px; display: inline-grid; place-items: center; }
+.sel-bar .sel-dot .hl-dot { width: 16px; height: 16px; transition: transform .15s; }
+.sel-bar .sel-dot:hover .hl-dot { transform: scale(1.18); }
+.hl-pop .sel-dot.active .hl-dot { box-shadow: 0 0 0 2px var(--pop), 0 0 0 3.5px var(--dot); }
+
+/* Finishing: asked at the end of the paper. */
+.finish-card { position: fixed; z-index: 45; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(440px, calc(100vw - 32px));
+  padding: 18px 20px; display: grid; gap: 10px; box-shadow: var(--shadow-pop); }
+.finish-q { font-weight: 800; font-size: 17px; }
+.finish-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Where you are: Library › paper › Reading, floating at the bottom, out of the way of the paper (reader/route.js). */
+.reader-route { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 12; max-width: min(720px, calc(100% - 140px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 14px; margin: 0; border-radius: 999px; font-size: 13px; color: var(--pencil);
+  background: color-mix(in srgb, var(--sheet) 82%, transparent); border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); white-space: nowrap; }
+.reader-route a { color: var(--pencil); text-decoration: none; max-width: none; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-route a.route-paper { color: var(--graphite); font-weight: 700; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.reader-route a:hover { color: var(--ink); text-decoration: underline; }
+.reader-route:empty { display: none; }
+@media (max-width: 760px) { .reader-route { bottom: 12px; max-width: calc(100% - 96px); padding: 5px 12px; } }
+
+/* ---------- The side panel: Ask, Words and Notes (reader/panel.js) ---------- */
+.notes { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; z-index: 40; background: var(--sheet); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; padding: 0; overflow-y: auto; transform: translateX(100%); transition: transform .2s ease; visibility: hidden; }
+body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(--shadow-panel); }
+/* On wide screens the paper and the route make room for it. */
+@media (min-width: 1300px) { body.notes-open .reader-scroll { right: 420px; } body.notes-open .reader-route { left: calc((100% - 420px) / 2); } }
+.notes-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.notes .hint { font-size: 14px; margin-bottom: 14px; }
+.notes .notes-box { padding-bottom: 6px; }
+.notes .note-item { background: var(--raised); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 0 16px; border-bottom: 1px solid var(--line); }
+.panel-tabs { display: flex; gap: 2px; }
+.panel-tabs [role=tab] { border: 0; background: none; padding: 10px 12px; font: 700 15px var(--ui); color: var(--pencil); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.panel-tabs [role=tab][aria-selected=true] { color: var(--graphite); border-bottom-color: var(--ink); }
+.pane { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px; }
+.reader-vocab .vocab .term-name { font-size: 16px; }
+.reader-vocab .section-bar { margin-bottom: 0; }
+/* An older Ask form. */
+.ask { display: grid; gap: 8px; justify-items: end; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.ask textarea, .ask input { font-size: 15px; }
+
+/* Ask: a conversation, what you asked on the right, the answer on the left, the box to ask at the bottom. */
+.pane-ask { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.thread { flex: 1; overflow-y: auto; padding: 16px 18px; display: grid; align-content: start; gap: 16px; }
+.thread-empty { color: var(--pencil); display: grid; gap: 8px; padding: 8px 2px; }
+.thread-empty strong { color: var(--graphite); }
+.turn { display: grid; gap: 8px; }
+.msg { border-radius: 12px; padding: 10px 14px; line-height: 1.55; font-size: 15px; }
+.msg-you { justify-self: end; max-width: 88%; background: var(--ink-tint); border-bottom-right-radius: 4px; }
+.msg-you .answer-quote { margin: 4px 0 0; font-size: 15px; }
+.msg-action { font-size: 12px; font-weight: 800; color: var(--ink); }
+.msg-claude { background: var(--raised); border-bottom-left-radius: 4px; }
+.msg-claude p { margin: 0 0 .6em; }
+.msg-claude p:last-of-type { margin-bottom: 0; }
+.msg-claude ul, .msg-claude ol { margin: 0 0 .6em; padding-left: 20px; }
+.msg-listen { font-size: 13px; margin-top: 6px; }
+.typing { color: var(--pencil); animation: pulse 1.2s ease-in-out infinite; }
+/* A streaming answer: a soft blinking caret where the text is still coming. */
+.caret { display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: text-bottom; border-radius: 1px;
+  background: var(--ink); animation: caret 1s steps(2, start) infinite; }
+@keyframes caret { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; opacity: .6; } }
+.composer { display: flex; gap: 8px; align-items: flex-end; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--sheet); }
+.composer textarea { resize: none; font-size: 15px; }

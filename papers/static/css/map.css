@@ -1,0 +1,156 @@
+/* Map (pages/map.js): how your papers led to each other, as chains, with one big paper in the corner. */
+
+.map-page { position: relative; z-index: 1; }
+
+/* ---------- The corner paper ---------- */
+/* One of your papers, big, half out of the bottom-right corner, with dashed lines flowing out of it across the
+   page to softly pulsing dots. Behind everything, and far enough back that it never crowds the cards; the
+   content keeps its full width. Opening the Map, it glides up into the corner and the lines appear one after
+   another; then the dashes flow, the dots ripple and the paper drifts. */
+.map-corner { position: fixed; top: auto; right: 0; bottom: 0; width: min(980px, 78vw); height: min(680px, calc(100vh - 56px)); z-index: 0;
+  pointer-events: none; opacity: .45;
+  -webkit-mask-image: radial-gradient(ellipse 120% 120% at 100% 100%, #000 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 120% 120% at 100% 100%, #000 45%, transparent 100%); }
+.map-rays { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.map-rays path { fill: none; stroke: var(--ink); stroke-width: 1.6; vector-effect: non-scaling-stroke; opacity: .5;
+  stroke-dasharray: 5 8; animation: map-line-in .8s ease-out both, map-flow 2.6s linear infinite;
+  animation-delay: calc(.5s + var(--i) * .15s), calc(var(--i) * -0.4s); }
+.map-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--ink); opacity: .55;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ink) 50%, transparent); animation: map-dot-in .5s ease-out both, map-dot 3.2s ease-out infinite;
+  animation-delay: calc(.9s + var(--i) * .15s), calc(1.4s + var(--i) * .5s); }
+.map-corner-paper { position: absolute; right: -22%; top: auto; bottom: -34%; width: 48%; transform: rotate(8deg);
+  animation: corner-enter 1.1s cubic-bezier(.2, .8, .2, 1) both, corner-float 9s ease-in-out 1.1s infinite alternate; }
+.map-corner-paper .cover { box-shadow: 0 40px 80px -24px rgb(0 0 0 / .55); }
+.map-corner-paper .cover-title { font-size: clamp(18px, 2.4vw, 32px); }
+@keyframes map-flow { to { stroke-dashoffset: -26; } }
+@keyframes map-line-in { from { opacity: 0; } to { opacity: .5; } }
+@keyframes map-dot { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ink) 50%, transparent); } 70%, 100% { box-shadow: 0 0 0 14px transparent; } }
+@keyframes map-dot-in { from { opacity: 0; transform: scale(.3); } to { opacity: .55; transform: none; } }
+@keyframes corner-enter { from { transform: translate(18%, 30%) rotate(18deg); opacity: 0; } to { transform: rotate(8deg); opacity: 1; } }
+@keyframes corner-float {
+  0% { transform: rotate(8deg) translate(0, 0); }
+  50% { transform: rotate(6deg) translate(-10px, -16px); }
+  100% { transform: rotate(9.5deg) translate(-4px, -6px); }
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-corner { opacity: .35; } }
+:root[data-theme="dark"] .map-corner, :root[data-theme="dim"] .map-corner { opacity: .35; }
+@media (max-width: 760px) { .map-corner { width: 110vw; } .map-corner-paper { width: 60%; } }
+@media (prefers-reduced-motion: reduce) { .map-rays path, .map-dot, .map-corner-paper { animation: none; } }
+
+/* ---------- The network of papers (map-hero) ---------- */
+/* In a wide band at the top, title on the left: the papers spread out and joined like a map. Dashes flow along
+   the lines, a light spreads outward from the first paper, and each paper floats gently. Nothing covers it;
+   it fades in from behind the title. */
+.map-hero { position: relative; height: clamp(260px, 30vw, 340px); margin-bottom: 26px; }
+.map-hero-text { position: relative; z-index: 1; max-width: 420px; padding-top: 18px; }
+.map-backdrop { position: fixed; top: 90px; right: max(0px, calc((100vw - 1180px) / 2)); width: min(760px, 62vw); height: min(560px, 52vw);
+  z-index: 0; pointer-events: none; opacity: .65; }
+.map-hero .map-backdrop { position: absolute; inset: 0; top: 0; right: 0; width: 100%; height: 100%; z-index: 0; opacity: .8;
+  -webkit-mask-image: linear-gradient(to right, transparent 26%, #000 52%); mask-image: linear-gradient(to right, transparent 26%, #000 52%); }
+.map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.map-lines path { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; opacity: .55;
+  stroke-dasharray: 6 7; animation: map-flow 2.4s linear infinite, map-line-light 6s ease-in-out infinite;
+  animation-delay: 0s, calc(var(--d) * 0.9s); }
+@keyframes map-line-light { 0%, 100% { opacity: .35; } 18% { opacity: .9; } }
+.mb-node { position: absolute; left: var(--x); top: var(--y); width: clamp(70px, 8vw, 112px); transform: translate(-50%, -50%) rotate(calc((var(--i) - 2.5) * 3deg));
+  animation: map-light 6s ease-in-out infinite; animation-delay: calc(var(--d) * 0.9s); }
+.map-hero .mb-node { width: clamp(64px, 7vw, 96px); }
+.mb-node .cover-sheet { display: none; }
+.mb-node .cover { box-shadow: 0 14px 30px -12px rgb(0 0 0 / .5); animation: map-float 7s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -1.3s); }
+@keyframes map-float { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-10px) rotate(1.5deg); } }
+@keyframes map-light {
+  0%, 100% { filter: none; }
+  15% { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--ink) 70%, transparent)) brightness(1.08); }
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-backdrop { opacity: .45; } }
+:root[data-theme="dark"] .map-backdrop, :root[data-theme="dim"] .map-backdrop { opacity: .45; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-hero .map-backdrop { opacity: .6; } }
+:root[data-theme="dark"] .map-hero .map-backdrop, :root[data-theme="dim"] .map-hero .map-backdrop { opacity: .6; }
+@media (max-width: 900px) { .map-backdrop { opacity: .25; } }
+@media (max-width: 760px) {
+  .map-hero { height: auto; }
+  .map-hero .map-backdrop { position: relative; height: 220px; margin-top: 10px; opacity: .55;
+    -webkit-mask-image: none; mask-image: none; }
+}
+@media (prefers-reduced-motion: reduce) { .map-lines path, .mb-node, .mb-node .cover { animation: none; } }
+
+/* ---------- Chains ---------- */
+/* A chain is the same paper cards as everywhere, left to right, joined by dashed arrows to the papers each one
+   led to. Compact: small cards, and long branches fold after three. A card you point at lifts above its
+   neighbours. */
+.chain { padding: 0; margin: 6px 0 34px; }
+.chain-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 14px; color: var(--pencil); margin-bottom: 18px; }
+.chain-head strong { color: var(--heading); font-size: 15px; }
+.chain-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
+  background: var(--ink-tint); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
+.chain-scroll { overflow-x: auto; padding-bottom: 6px; }
+.chain-tree, .chain-tree ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.chain-tree li { display: flex; align-items: flex-start; position: relative; }
+.chain-tree li > ol { position: relative; padding-left: 52px; gap: 22px; }
+/* The line out of a paper, and the vertical spine its branches hang from. The arrows meet each paper at the
+   middle of its first page. */
+.chain-tree li > ol::before { content: ""; position: absolute; left: 0; top: 65px; width: 26px; border-top: 2px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
+.chain-tree ol > li::before { content: ""; position: absolute; left: -26px; top: 65px; width: 22px; border-top: 2px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
+.chain-tree ol > li::after { content: ""; position: absolute; left: -8px; top: 60px; border: 5px solid transparent;
+  border-left: 7px solid color-mix(in srgb, var(--ink) 75%, transparent); }
+/* Several branches: a dashed spine joins them, from the middle of the first to the middle of the last
+   (or down to the "+N more" link). */
+.chain-tree li > ol:has(> li + li)::after { content: ""; position: absolute; left: 25px; top: 65px; bottom: auto; height: calc(100% - 130px);
+  border-left: 2px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
+.chain-tree li > ol.folded::after { height: auto; bottom: 20px; }
+.chain-tree .shelf-card { position: relative; width: 128px; flex-shrink: 0; gap: 8px; }
+.chain-tree .shelf-card:hover, .chain-tree .shelf-card:focus-within { z-index: 3; }
+.chain-tree .shelf-card .shelf-title { font-size: 13px; }
+.chain-tree .shelf-card .shelf-foot { font-size: 12px; }
+.chain-tree ol.folded > .chain-extra { display: none; }
+.chain-tree .chain-more { align-items: center; min-height: 40px; }
+.chain-tree .chain-more::before { top: 50%; }
+.chain-tree .chain-more::after { top: calc(50% - 5px); }
+.chain-tree .chain-more .link { font-size: 14px; padding: 6px 2px; }
+@media (max-width: 640px) {
+  .chain-tree .shelf-card { width: 110px; }
+  .chain-tree li > ol::before, .chain-tree ol > li::before { top: 56px; }
+  .chain-tree ol > li::after { top: 51px; }
+  .chain-tree li > ol:has(> li + li)::after { top: 56px; height: calc(100% - 112px); }
+}
+/* An older chain card with a small first page. */
+.chain-paper { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; width: 290px; flex-shrink: 0;
+  padding: 10px 14px 10px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); text-decoration: none; color: inherit;
+  transition: transform .3s cubic-bezier(.3, .8, .25, 1), border-color .2s, box-shadow .3s; }
+.chain-paper:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--ink) 50%, var(--line)); box-shadow: var(--shadow-soft); }
+.chain-paper:hover .chain-title { color: var(--ink); }
+.chain-text { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.chain-title { font-size: 15px; line-height: 1.3; color: var(--heading); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere; transition: color .2s; }
+.chain-cite { font-size: 13px; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+@media (max-width: 640px) { .chain-paper { width: 240px; } }
+
+/* ---------- Papers on no chain: a list with a tiny first page ---------- */
+.loose { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 14px; align-items: center; justify-content: space-between;
+  text-decoration: none; color: inherit; padding: 14px 20px; }
+.loose .paper-name { font-size: 17px; }
+.loose:hover .paper-name { color: var(--ink); }
+.loose-text { display: grid; gap: 2px; min-width: 0; }
+.loose-text .paper-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Tiny covers (chain cards, list thumbnails): the typeset fallback shows just a hint of its title. */
+.chain-cover .cover-sheet, .loose-thumb .cover-sheet { display: none; }
+.chain-cover .cover-type, .loose-thumb .cover-type { padding: 14% 10%; gap: 3px; }
+.chain-cover .cover-title, .loose-thumb .cover-title { font-size: 6px; -webkit-line-clamp: 5; line-height: 1.2; }
+.chain-cover .cover-rule, .chain-cover .cover-cite, .loose-thumb .cover-rule, .loose-thumb .cover-cite { display: none; }
+.chain-tree .cover-title { font-size: 10px; -webkit-line-clamp: 6; }
+.chain-tree .cover-cite { font-size: 9px; }
+.chain-tree .cover-type { padding: 14% 10% 10%; gap: 5px; }
+
+/* ---------- The older tree view ---------- */
+.tree-sheet { padding: 18px 22px; }
+.tree-sheet + .tree-sheet { margin-top: 12px; }
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul { margin-left: 8px; padding-left: 22px; border-left: 2px solid var(--line); }
+.tree li { padding: 3px 0; }
+.tree ul > li { position: relative; }
+.tree ul > li::before { content: ""; position: absolute; left: -22px; top: 21px; width: 16px; border-top: 2px solid var(--line); }
+.node { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 12px; text-decoration: none; color: inherit; padding: 8px 0; }
+.node .paper-name { font-size: 17px; }
+.node:hover .paper-name { color: var(--ink); }

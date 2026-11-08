@@ -1,0 +1,129 @@
+/* Design tokens for the three themes. See DESIGN.md for the reasoning behind them.
+   Surfaces go by depth: desk (page) < sheet (cards) < raised (areas inside cards, hovers) < pop (floating UI).
+   In dark mode each layer is a little lighter than the one below it; fields sit a little below the sheet.
+   The theme follows the system until one is picked (data-theme on <html>: light, dim or dark). */
+
+/* Light */
+:root {
+  --desk: #eceef1;
+  --sheet: #ffffff;
+  --raised: #f1f3f6;
+  --field: #ffffff;
+  --header: #ffffff;
+  --pop: #262a31;
+  --on-pop: #ffffff;
+  --selected: #262a31;
+  --on-selected: #ffffff;
+  --graphite: #262a31;
+  --heading: #111418;
+  --reading: #262a31;
+  --pencil: #666d78;
+  --line: #d9dde3;
+  --line-soft: #e8ebef;
+  --ink: #1d3fbb;
+  --ink-hover: #15308f;
+  --ink-fill: #1d3fbb;
+  --ink-fill-hover: #15308f;
+  --on-ink: #ffffff;
+  --ink-tint: #e8ecfa;
+  --done: #1d7a4e;
+  --partial: #8a6100;
+  --miss: #b42318;
+  --shadow-pop: 0 12px 32px rgb(20 24 32 / .14);
+  --shadow-panel: -16px 0 40px rgb(20 24 32 / .12);
+  --shadow-soft: 0 2px 8px rgb(20 24 32 / .06);
+  --shadow-card: 0 1px 2px rgb(20 24 32 / .04), 0 2px 8px rgb(20 24 32 / .03);
+  --page-filter: none;
+  --dark-page: #1b1e23; /* dark PDF pages: a real dark page even in light mode */
+  --ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --paper: "STIX Two Text", "Times New Roman", serif;
+  --r-panel: 8px;
+  --r-control: 6px;
+  /* Covers: a page of paper with a soft shadow that lifts a little on hover. */
+  --shadow-cover: 0 1px 1px rgb(20 24 32 / .08), 0 6px 18px -6px rgb(20 24 32 / .28);
+  --shadow-cover-lift: 0 2px 3px rgb(20 24 32 / .08), 0 14px 28px -8px rgb(20 24 32 / .34);
+  --cover-page: none;
+  --cover-paper: #ffffff;
+  --cover-sheet: #d3d9e3;
+  /* The sheet behind each paper cover is glass: see-through and frosted, no border. */
+  --sheet-glass: linear-gradient(135deg, rgb(255 255 255 / .55), rgb(214 223 240 / .25));
+  --sheet-glass-rim: rgb(255 255 255 / .9);
+  --sheet-glass-line: rgb(120 140 180 / .35);
+  /* Highlights: the colour behind the text, and the dot that stands for it. */
+  --hl-yellow: rgb(255 208 0 / .42); --hl-green: rgb(60 200 110 / .32); --hl-blue: rgb(70 150 255 / .3); --hl-pink: rgb(255 100 170 / .32);
+  --dot-yellow: #f0c000; --dot-green: #34b36a; --dot-blue: #3d8bf0; --dot-pink: #e0609e;
+}
+
+/* Dark: the reverse of light mode. Light has a grey desk with white cards and bar; dark has a grey desk
+   with black cards and bar. Raised things are lit from above (a bright top edge, a surface a little lighter
+   at the top) and cast a deep shadow onto the dark grey desk below them.
+   The same values twice: for the system's dark mode, and for Dark picked in the app. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --dark-page: #1c1e22; --desk: #141518; --sheet: #212328; --raised: #2a2d33; --field: #17181b; --header: #0b0c0e;
+    --sheet-fill: linear-gradient(180deg, #2d3036 0%, #222429 40%, #1c1e22 100%); --sheet-edge: rgb(255 255 255 / .14);
+    --pop: #f2f4f6; --on-pop: #050607;
+    --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
+    --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
+    --line: #32363d; --line-soft: #2a2d33;
+    --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
+    --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
+    --shadow-pop: inset 0 1px 0 rgb(255 255 255 / .08), 0 0 0 1px rgb(255 255 255 / .06), 0 18px 40px -10px rgb(0 0 0 / .85);
+    --shadow-panel: -1px 0 0 rgb(255 255 255 / .06), -24px 0 48px -12px rgb(0 0 0 / .8);
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / .6), 0 10px 24px -8px rgb(0 0 0 / .75);
+    --shadow-card: inset 0 1px 0 rgb(255 255 255 / .06), 0 1px 2px rgb(0 0 0 / .6), 0 10px 22px -8px rgb(0 0 0 / .7), 0 28px 56px -18px rgb(0 0 0 / .8);
+    --page-filter: none;
+    --shadow-cover: 0 0 0 1px rgb(255 255 255 / .07), 0 2px 4px rgb(0 0 0 / .6), 0 18px 36px -10px rgb(0 0 0 / .85);
+    --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .1), 0 4px 8px rgb(0 0 0 / .6), 0 28px 50px -12px rgb(0 0 0 / .9);
+    --cover-page: brightness(.88); --cover-paper: var(--raised); --cover-sheet: #3d4657;
+    --sheet-glass: linear-gradient(135deg, rgb(255 255 255 / .2), rgb(255 255 255 / .05));
+    --sheet-glass-rim: rgb(255 255 255 / .45); --sheet-glass-line: rgb(255 255 255 / .16);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --dark-page: #1c1e22; --desk: #141518; --sheet: #212328; --raised: #2a2d33; --field: #17181b; --header: #0b0c0e;
+  --sheet-fill: linear-gradient(180deg, #2d3036 0%, #222429 40%, #1c1e22 100%); --sheet-edge: rgb(255 255 255 / .14);
+  --pop: #f2f4f6; --on-pop: #050607;
+  --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
+  --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
+  --line: #32363d; --line-soft: #2a2d33;
+  --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
+  --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
+  --shadow-pop: inset 0 1px 0 rgb(255 255 255 / .08), 0 0 0 1px rgb(255 255 255 / .06), 0 18px 40px -10px rgb(0 0 0 / .85);
+  --shadow-panel: -1px 0 0 rgb(255 255 255 / .06), -24px 0 48px -12px rgb(0 0 0 / .8);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / .6), 0 10px 24px -8px rgb(0 0 0 / .75);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .06), 0 1px 2px rgb(0 0 0 / .6), 0 10px 22px -8px rgb(0 0 0 / .7), 0 28px 56px -18px rgb(0 0 0 / .8);
+  --page-filter: none;
+  --shadow-cover: 0 0 0 1px rgb(255 255 255 / .07), 0 2px 4px rgb(0 0 0 / .6), 0 18px 36px -10px rgb(0 0 0 / .85);
+  --shadow-cover-lift: 0 0 0 1px rgb(255 255 255 / .1), 0 4px 8px rgb(0 0 0 / .6), 0 28px 50px -12px rgb(0 0 0 / .9);
+  --cover-page: brightness(.88); --cover-paper: var(--raised); --cover-sheet: #3d4657;
+  --sheet-glass: linear-gradient(135deg, rgb(255 255 255 / .2), rgb(255 255 255 / .05));
+  --sheet-glass-rim: rgb(255 255 255 / .45); --sheet-glass-line: rgb(255 255 255 / .16);
+}
+
+/* Dim: between light and dark. Deep navy instead of grey: the cards are a clearly lighter blue than the
+   background, so they read as raised, like white cards on grey in light mode. They're lit from above too
+   (a navy a little lighter at the top, a bright top edge, a deep shadow). */
+:root[data-theme="dim"] {
+  color-scheme: dark;
+  --dark-page: #152238; --desk: #0e1726; --sheet: #152238; --raised: #1c2c46; --field: #111b2e; --header: #152238;
+  --sheet-fill: linear-gradient(180deg, #1d2e4a 0%, #16243b 40%, #132034 100%); --sheet-edge: rgb(255 255 255 / .12);
+  --pop: #f2f5fa; --on-pop: #0e1726;
+  --selected: #f2f5fa; --on-selected: #0e1726;
+  --graphite: #e1e8f2; --heading: #ffffff; --reading: #d6dfeb; --pencil: #93a5bf;
+  --line: #283b59; --line-soft: #1f3049;
+  --ink: #9cb8ff; --ink-hover: #bfd0ff; --ink-fill: #3f6ce4; --ink-fill-hover: #4d79ec; --on-ink: #ffffff;
+  --ink-tint: #223a66; --done: #6acb98; --partial: #e6bd5c; --miss: #f59a92;
+  --shadow-pop: 0 16px 40px rgb(2 8 20 / .5), 0 0 0 1px rgb(255 255 255 / .08);
+  --shadow-panel: -16px 0 40px rgb(2 8 20 / .45);
+  --shadow-soft: 0 2px 10px rgb(2 8 20 / .4);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .05), 0 1px 2px rgb(2 8 20 / .5), 0 10px 22px -8px rgb(2 8 20 / .6), 0 28px 56px -18px rgb(2 8 20 / .7);
+  --page-filter: none;
+  --shadow-cover: 0 1px 2px rgb(0 0 0 / .5), 0 8px 22px -6px rgb(0 0 0 / .7);
+  --shadow-cover-lift: 0 2px 3px rgb(0 0 0 / .5), 0 16px 32px -8px rgb(0 0 0 / .8);
+  --cover-page: brightness(.88); --cover-paper: var(--raised); --cover-sheet: #50607e;
+  --sheet-glass: linear-gradient(135deg, rgb(255 255 255 / .2), rgb(255 255 255 / .05));
+  --sheet-glass-rim: rgb(255 255 255 / .45); --sheet-glass-line: rgb(255 255 255 / .16);
+}

@@ -1,0 +1,142 @@
+/* Library (pages/library.js): the reading desk, the paper list, adding papers. */
+
+/* ---------- The reading desk ---------- */
+/* A calm home: a serif greeting, the paper you opened last as a big cover, the others as a row of covers. */
+.library-head { margin-bottom: 36px; }
+.greeting { font-family: var(--paper); font-weight: 500; font-size: 46px; line-height: 1.1; letter-spacing: -0.005em; }
+.library-head .lede { max-width: 60ch; margin-top: 10px; }
+.lede-paper { font-family: var(--paper); font-style: italic; color: var(--graphite); }
+@media (max-width: 640px) { .greeting { font-size: 36px; } .library-head { margin-bottom: 24px; } }
+
+/* The heading sits above both columns, so the first card and the side boxes start on the same line.
+   Long titles in the side boxes shorten with "…" instead of widening them. */
+.desk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 24px; row-gap: 12px; align-items: start; }
+.desk-heading { grid-column: 1; }
+.desk-main { grid-column: 1; min-width: 0; }
+.desk-side { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } .desk-side { grid-column: 1; grid-row: auto; margin-top: 20px; } }
+.desk-main h2, .desk-box h2 { font-size: 17px; }
+.desk-box { padding: 16px 18px; }
+.desk-box h2 { margin-bottom: 12px; }
+.desk-box .hint { font-size: 14px; }
+.desk-item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; text-decoration: none; color: inherit;
+  border-top: 1px solid var(--line-soft); font-size: 15px; }
+.desk-item:hover .desk-item-title { color: var(--ink); }
+.desk-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desk-link { margin-top: 8px; padding: 0; }
+.desk-empty { border: 1px dashed var(--line); border-radius: var(--r-panel); padding: 28px; color: var(--pencil); text-align: center; }
+.card-goal { font-size: 12px; font-weight: 700; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-cite { font-size: 14px; color: var(--pencil); }
+.card-quote { font-family: var(--paper); font-style: italic; color: var(--pencil); font-size: 15px; line-height: 1.55; margin-top: 8px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card-foot { margin-top: auto; padding-top: 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--pencil); }
+.card-foot .bar { flex: 1; width: auto; max-width: 240px; }
+
+/* Continue reading: the paper you opened last. Hovering anywhere on the card counts as hovering the paper. */
+.continue { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 28px; padding: 24px; align-items: start; }
+.continue-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-self: stretch; }
+.continue-title { font-size: 26px; line-height: 1.2; color: var(--heading); text-decoration: none; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.continue-title:hover { color: var(--ink); }
+.continue .card-foot { margin-top: auto; padding-top: 16px; }
+.continue-go { align-self: flex-start; margin-top: 14px; }
+.continue:hover .continue-title { color: var(--ink); }
+.continue:hover .cover-wrap .cover { transform: translateY(-6px) rotate(-1.5deg); box-shadow: 0 3px 6px rgb(0 0 0 / .2), 0 24px 40px -10px rgb(0 0 0 / .5); }
+.continue:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
+@media (max-width: 560px) {
+  .continue { grid-template-columns: 104px minmax(0, 1fr); gap: 16px; padding: 16px; }
+  .continue-title { font-size: 20px; }
+  .continue .card-quote { -webkit-line-clamp: 2; }
+  .cover-large .cover-title { font-size: 12px; -webkit-line-clamp: 6; }
+  .cover-large .cover-cite { font-size: 10px; }
+}
+
+/* Also reading: a row of covers on the desk, title underneath. */
+.shelf-heading { margin: 32px 0 14px; }
+.shelf { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 22px; }
+@media (max-width: 560px) { .shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 18px; } }
+.shelf-item { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; min-width: 0; }
+.shelf-item .cover { margin-bottom: 8px; }
+.shelf-title { font-size: 15px; line-height: 1.3; color: var(--heading);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.shelf-item:hover .shelf-title { color: var(--ink); }
+.shelf-foot { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pencil); }
+.shelf-foot .bar { flex: 1; width: auto; }
+.shelf + .button { margin-top: 16px; }
+
+/* An older "continue reading" card. */
+.resume { display: grid; gap: 6px; padding: 22px 26px; text-decoration: none; color: inherit; max-width: 760px; }
+.resume:hover { border-color: var(--pencil); }
+.resume-label { font-size: 14px; font-weight: 700; color: var(--pencil); }
+.resume-title { font-family: var(--paper); font-weight: 600; font-size: 24px; line-height: 1.25; margin-top: 4px; }
+.resume-cite { color: var(--pencil); font-size: 15px; }
+.resume-quote { font-family: var(--paper); font-style: italic; font-size: 18px; line-height: 1.6; color: var(--pencil); margin: 10px 0 4px; max-width: 62ch; }
+.resume-foot { color: var(--ink); font-weight: 700; margin-top: 6px; }
+.also { margin-top: 12px; color: var(--pencil); font-size: 15px; }
+
+/* ---------- The paper list: light rows with a tiny first page, one progress cell, actions on hover ---------- */
+.table { overflow: hidden; }
+.row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 190px 90px 100px; gap: 18px; align-items: center; padding: 12px 20px; text-decoration: none; color: inherit; }
+.row + .row { border-top: 1px solid var(--line-soft); }
+.row.paper { cursor: pointer; }
+.row.paper:hover { background: var(--raised); }
+.row.paper:hover .row-title { color: var(--ink); }
+.row-head { padding-top: 10px; padding-bottom: 10px; font-size: 13px; font-weight: 700; color: var(--pencil); background: color-mix(in srgb, var(--raised) 60%, var(--sheet)); }
+.row-thumb { width: 36px; }
+.row-thumb .cover-sheet { display: none; }
+.row-thumb .cover { box-shadow: 0 2px 6px rgb(0 0 0 / .18); transition: transform .3s cubic-bezier(.3, .8, .25, 1); }
+.row.paper:hover .row-thumb .cover { transform: translateY(-2px) rotate(-2deg); }
+.row-thumb .cover-type { padding: 14% 10%; gap: 2px; }
+.row-thumb .cover-title { font-size: 5px; -webkit-line-clamp: 5; line-height: 1.2; }
+.row-thumb .cover-rule, .row-thumb .cover-cite { display: none; }
+.row-main { display: grid; gap: 3px; min-width: 0; }
+.row-title { color: inherit; text-decoration: none; font-family: var(--paper); font-weight: 600; font-size: 17px; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: var(--pencil); }
+.row-goal { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 700; color: var(--pencil); background: var(--raised); border-radius: 999px; padding: 1px 9px; }
+.row-snippet { font-family: var(--paper); font-size: 15px; color: var(--pencil); margin-top: 4px; }
+.row-snippet b { color: var(--graphite); font-weight: 600; }
+.row-cell { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.row-progress { display: grid; gap: 6px; font-size: 13px; }
+.row-status { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: var(--graphite); }
+.row-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.row-status.status-reading::before { background: var(--ink); }
+.row-status.status-read::before { background: var(--done); }
+.row-status.status-skimmed::before { background: var(--partial); }
+.row-bar { display: flex; align-items: center; gap: 10px; color: var(--pencil); }
+.row-bar .bar { flex: 1; width: auto; }
+.row-score { justify-content: flex-end; text-align: right; }
+.row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; opacity: .55; transition: opacity .1s; }
+.row-actions .danger { color: var(--miss); }
+@media (hover: none) { .row-actions { opacity: 1; } .row-open { display: none; } }
+@media (max-width: 760px) {
+  .row-head { display: none; }
+  .row { grid-template-columns: 36px minmax(0, 1fr); gap: 8px 14px; }
+  .row-thumb { grid-row: span 2; }
+  .row-main { grid-column: 1 / -1; }
+  .row-progress, .row-score { grid-column: 2; }
+  .row-score { justify-content: flex-start; }
+  .row-actions { grid-column: 2; justify-content: flex-start; opacity: 1; margin-left: -10px; }
+  .row-open { display: none; }
+}
+.search { flex: 1; min-width: 200px; max-width: 360px; height: 38px; padding: 0 12px; }
+
+/* ---------- Adding papers: the Add menu, upload, dropping files ---------- */
+.upload { cursor: pointer; }
+.empty-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.add-paper { position: relative; }
+.add-paper > summary { list-style: none; }
+.add-paper > summary::-webkit-details-marker { display: none; }
+.add-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 25; width: min(420px, calc(100vw - 32px));
+  padding: 16px; display: grid; gap: 10px; box-shadow: var(--shadow-pop); }
+.add-link { display: flex; gap: 8px; align-items: flex-end; }
+.add-link label { flex: 1; display: grid; gap: 6px; font-size: 14px; }
+.add-or { text-align: center; color: var(--pencil); font-size: 14px; }
+.add-file { cursor: pointer; }
+.add-status { font-size: 14px; color: var(--pencil); }
+.add-status:empty { display: none; }
+.add-goal { display: grid; gap: 6px; font-size: 14px; }
+.add-hint { font-size: 13px; color: var(--pencil); }
+.empty .add-panel { left: 50%; right: auto; transform: translateX(-50%); text-align: left; }
+@media (max-width: 560px) { .add-link { flex-direction: column; align-items: stretch; } }

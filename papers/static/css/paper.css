@@ -1,0 +1,138 @@
+/* A paper's page (paper/overview.js, figures.js) and its review (paper/review.js). */
+
+/* ---------- Header: the cover beside the title, details, actions ---------- */
+.paper-header { margin-bottom: 28px; }
+.paper-header:has(> .cover-link, > .cover-wrap) { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 32px; align-items: start; }
+.paper-header-text { min-width: 0; }
+.paper-h1 { font-size: 36px; line-height: 1.15; max-width: 28ch; }
+.paper-cite { color: var(--pencil); margin-top: 10px; font-size: 16px; max-width: 70ch; }
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.actions .menu { display: flex; } .actions .menu > summary { height: 38px; }
+.paper-header .hint { margin-top: 12px; }
+.bar-actions { display: flex; gap: 8px; align-items: center; }
+@media (max-width: 640px) {
+  .paper-header:has(> .cover-link, > .cover-wrap) { grid-template-columns: 84px minmax(0, 1fr); gap: 16px; }
+  .paper-header .cover-large .cover-title { font-size: 10px; }
+  .paper-header .cover-large .cover-cite { display: none; }
+  .actions .menu-list { left: auto; right: 0; }
+}
+
+/* The main column and the side boxes (details, the chain it's in). */
+.paper-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+.paper-side { display: grid; gap: 16px; position: sticky; top: 84px; }
+@media (max-width: 900px) { .paper-layout { grid-template-columns: minmax(0, 1fr); } .paper-side { order: -1; position: static; } .paper-h1 { font-size: 28px; } }
+.facts { padding: 6px 18px; }
+.facts > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; font-size: 15px; }
+.facts > div + div { border-top: 1px solid var(--line-soft); }
+.facts > div > span:first-child { color: var(--pencil); }
+.fact-bar { display: flex; align-items: center; gap: 10px; }
+.trail { padding: 16px 18px; display: grid; gap: 8px; }
+.trail h3 { font-size: 15px; color: var(--pencil); }
+.trail a { font-family: var(--paper); font-size: 16px; line-height: 1.35; text-decoration: none; }
+.trail a:hover { text-decoration: underline; }
+
+/* Editing details */
+.edit-form { gap: 6px; }
+.edit-form label { margin-top: 6px; font-size: 14px; }
+.edit-row { display: grid; grid-template-columns: 140px 1fr; gap: 12px; }
+.edit-row > div { display: grid; gap: 6px; }
+@media (max-width: 560px) { .edit-row { grid-template-columns: 1fr; } }
+
+/* ---------- Tabs ---------- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: -1px; position: relative; z-index: 1; }
+.tabs [role=tab] { border: 1px solid transparent; border-bottom: 0; background: none; padding: 10px 16px; border-radius: var(--r-panel) var(--r-panel) 0 0;
+  font: 700 15px var(--ui); color: var(--pencil); cursor: pointer; }
+.tabs [role=tab]:hover { color: var(--graphite); }
+.tabs [role=tab][aria-selected=true] { background: var(--sheet); border-color: var(--line); color: var(--graphite); }
+@media (max-width: 640px) { .tabs { overflow-x: auto; scrollbar-width: none; } .tabs [role=tab] { padding: 9px 11px; font-size: 14px; flex-shrink: 0; } }
+.tab-panel { border-top-left-radius: 0; min-height: 240px; }
+.tab-panel .ref { padding: 12px 0; }
+.tab-panel .list > * + * { border-top: 1px solid var(--line-soft); }
+
+/* ---------- Overview: the abstract first, then key points, then Regenerate ---------- */
+.abstract { margin-bottom: 20px; }
+.abstract h2 { margin-bottom: 8px; }
+.abstract p { font-family: var(--paper); font-size: 17px; line-height: 1.65; max-width: 70ch; }
+.abstract-first { margin-bottom: 26px; }
+.abstract-first h2 { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.abstract-source { font-size: 13px; font-weight: 700; }
+.abstract-first .fold-text { font-family: var(--paper); font-size: 17px; line-height: 1.65; max-width: 70ch; }
+.key-points-head { margin-bottom: 10px; }
+.skim-intro { color: var(--pencil); margin: 8px 0 18px; max-width: 62ch; }
+.verdict { font-family: var(--paper); font-size: 21px; line-height: 1.5; margin: 6px 0 4px; }
+.skim h3 { margin: 22px 0 6px; }
+.skim p, .skim li { font-family: var(--paper); font-size: 18px; line-height: 1.6; max-width: 68ch; }
+.skim ul { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+.tldr { font-family: var(--paper); font-size: 21px; line-height: 1.55; margin-bottom: 20px; }
+.callouts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 18px; }
+.callout { background: var(--raised); border-radius: var(--r-panel); padding: 14px 16px; }
+.callout p { line-height: 1.55; }
+.callout-label { display: block; font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.key-idea { font-family: var(--paper); font-size: 18px; line-height: 1.55; margin-bottom: 14px; }
+.key-idea .callout-label { font-family: var(--ui); }
+.fold { border-top: 1px solid var(--line-soft); }
+.fold > summary { list-style: none; cursor: pointer; padding: 14px 0; font: 700 16px var(--ui); color: var(--graphite); display: flex; justify-content: space-between; width: auto; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::after { content: "+"; color: var(--pencil); font-weight: 400; font-size: 20px; line-height: 1; }
+.fold[open] > summary::after { content: "−"; }
+.fold ul { margin: 0 0 16px; padding-left: 22px; display: grid; gap: 6px; }
+.fold li, .fold-text { font-family: var(--paper); font-size: 17px; line-height: 1.6; max-width: 68ch; }
+.fold-text { margin: 0 0 14px; }
+.regenerate { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line-soft); display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.regenerate .hint { font-size: 14px; }
+
+/* ---------- Figures and tables, and the lightbox that shows one big ---------- */
+.figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
+.figure { margin: 0; display: grid; gap: 8px; align-content: start; }
+.figure-img { display: block; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-panel); background: #fff;
+  cursor: zoom-in; transition: box-shadow .2s ease, transform .2s ease; }
+.figure-img:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px rgb(0 0 0 / .35); }
+.figure-img img { display: block; width: 100%; height: 200px; object-fit: contain; }
+.figure-img.table img { height: auto; max-height: 260px; }
+.figure figcaption { font-size: 14px; line-height: 1.45; color: var(--graphite); display: -webkit-box; -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical; overflow: hidden; }
+.figures-head { margin: 4px 0 12px; }
+.figures + .figures-head { margin-top: 30px; }
+.figures-note { margin-top: 22px; font-size: 13px; }
+.fig-link { font: inherit; font-weight: 700; }
+.lightbox { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / .72); display: grid; place-items: center; padding: 24px; }
+.lightbox-inner { max-width: min(1100px, 100%); max-height: 100%; display: grid; gap: 12px; background: var(--sheet); border-radius: 12px;
+  padding: 18px; overflow: auto; }
+.lightbox-inner img { width: 100%; max-height: 70vh; object-fit: contain; background: #fff; border-radius: 6px; }
+.lightbox-caption { font-size: 15px; line-height: 1.55; max-width: 80ch; }
+.lightbox-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ---------- Notes on the paper page ---------- */
+.my-notes-section { margin-bottom: 20px; }
+.my-notes-section h2 { margin-bottom: 10px; }
+.notes-box { display: grid; gap: 4px; }
+.my-notes { font-size: 15px; line-height: 1.6; }
+.save-state { font-size: 13px; min-height: 1.2em; }
+.ask-title { font-size: 17px; margin-top: 18px; }
+
+/* ---------- Review: the quiz and the flashcards ---------- */
+.quiz { display: grid; gap: 16px; }
+.question { padding: 20px; display: grid; gap: 12px; }
+.question label { font-family: var(--paper); font-size: 20px; font-weight: 400; line-height: 1.4; }
+.q-num { display: block; font-family: var(--ui); font-size: 13px; font-weight: 700; color: var(--pencil); margin-bottom: 4px; }
+.feedback:empty { display: none; }
+.grade { display: flex; gap: 12px; align-items: baseline; font-size: 15px; }
+.score-pill { flex-shrink: 0; min-width: 48px; text-align: center; padding: 1px 8px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.score-good { color: var(--done); background: color-mix(in srgb, var(--done) 12%, transparent); }
+.score-partial { color: var(--partial); background: color-mix(in srgb, var(--partial) 12%, transparent); }
+.score-miss { color: var(--miss); background: color-mix(in srgb, var(--miss) 10%, transparent); }
+.quiz-foot { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+.score strong { font-size: 22px; }
+.card-count { color: var(--pencil); font-weight: 700; font-size: 14px; margin: 8px 0 10px; }
+.flashcard { padding: 36px 32px; min-height: 220px; display: grid; gap: 20px; align-content: start; }
+.card-question { font-family: var(--paper); font-size: 24px; line-height: 1.4; }
+.card-answer { font-family: var(--paper); font-size: 19px; line-height: 1.6; color: var(--graphite);
+  padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.flashcard.done .card-answer { border: 0; padding: 0; color: var(--pencil); }
+.card-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.card-alt { margin-top: 28px; color: var(--pencil); font-size: 14px; }
+.due { padding: 18px 22px; margin-bottom: 24px; display: grid; gap: 8px; max-width: 760px; }
+.due-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; text-decoration: none; color: inherit; border-top: 1px solid var(--line-soft); }
+.due-item:hover .paper-name { color: var(--ink); }
+@media (max-width: 560px) { .flashcard { padding: 24px 20px; } .card-question { font-size: 20px; } }

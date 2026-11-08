@@ -55,14 +55,25 @@ papers/
   bibtex.py         BibTeX entries
 
   static/           the web app (no build step; ES modules loaded by the browser)
-    index.html  style.css
+    index.html        the page shell; links the stylesheets below in order
+    css/              styles by area, each file building on the ones before it:
+                        tokens (colours, shadows, fonts for light, dim and dark), base (type, page, top bar,
+                        theme switch, toast), components (buttons, cards, menus, covers, notes, vocabulary,
+                        combobox, folder picker), then one per screen: library, goals, recall, map, paper
+                        (overview, figures, review), reader, settings
     js/main.js        routes each #/address to a page; paste and drop anywhere to add papers
     js/core.js        shared helpers: api(), toast(), paper rows, markdown, the top bar
     js/pages/         one file per screen: library, goals, recall, map, settings (+ shared.js)
     js/paper/         a paper's screens: overview, reader, review, figures (+ shared.js)
+    js/paper/reader/  the reader's parts, wired together by readerPage() in reader.js; they share one
+                      state object (state.js: the paper, the page's elements, the open view):
+                        layout (markup), bar (one-row bar and its ⋯ menu), route (the pill at the bottom),
+                        views (PDF or Text, Go to…, back to where you stopped), progress (what you've read,
+                        skimming), selection (the bar on selected text), highlighter, panel (Ask, Words,
+                        Notes; streamed answers), finish, zoom, keys (shortcuts), terms (underlined words)
     js/components/    reusable widgets: combobox (searchable dropdown), folderpicker
-    js/*.js           the reader's parts: pdfview (PDF.js), textview, highlights, notes, tracker, speech,
-                      readprefs (font, size, page tone), covers (first-page thumbnails), theme
+    js/*.js           shared by the paper screens: pdfview (PDF.js), textview, highlights, notes, tracker,
+                      speech, readprefs (font, size, page tone), covers (first-page thumbnails), theme
 
 tests/              one file per feature, using FastAPI's test client against a temporary database
 ```
@@ -84,7 +95,9 @@ Two rules keep it easy to follow:
 | Add an API endpoint | the matching file in `papers/routes/` (a new area gets a new file, added to `routes/__init__.py`) |
 | Add a column or table | `SCHEMA` and the migrations in `papers/db.py` |
 | Add a screen | a file in `static/js/pages/` and a line in the `routes` list of `static/js/main.js` |
-| Change colours or spacing | the tokens at the top of `static/style.css` (see [DESIGN.md](DESIGN.md)) |
+| Change colours or spacing | `static/css/tokens.css` (see [DESIGN.md](DESIGN.md)) |
+| Change how a screen looks | its file in `static/css/`; shared pieces are in `components.css` |
+| Change something in the reader | its part in `static/js/paper/reader/` (each file says what it does at the top) |
 
 ## Style
 

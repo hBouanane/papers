@@ -1,0 +1,32 @@
+/* Settings (pages/settings.js): your name and language, the AI, the library folder. */
+
+.tip { margin: -12px 0 24px; font-size: 15px; color: var(--pencil); }
+.lang-row { display: flex; gap: 8px; } .lang-row input { flex: 1; }
+#lang-form .label { display: block; font-weight: 700; margin-bottom: 6px; }
+
+/* Choosing the AI: one choice per way of reaching a model, then its model and key. */
+.choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-control); font-weight: 400; cursor: pointer; }
+.choice:has(input:checked) { border-color: var(--ink); background: var(--ink-tint); }
+.choice input { width: auto; margin-top: 4px; accent-color: var(--ink); }
+.choice > span { display: grid; gap: 4px; }
+.choice .hint { font-size: 14px; }
+.other-model { display: grid; gap: 8px; padding: 4px 0 0 30px; }
+.other-model select { width: 100%; font: 16px var(--ui); color: var(--graphite); background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--r-control); padding: 9px 10px; }
+.other-model .advanced { margin-top: 4px; display: grid; gap: 8px; }
+.other-model .advanced[open] { padding-bottom: 4px; }
+@media (max-width: 560px) { .other-model { padding-left: 0; } }
+#ai-form select { width: 100%; font: 16px var(--ui); color: var(--graphite); background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--r-control); padding: 9px 10px; }
+#ai-form .advanced { display: grid; gap: 8px; margin-top: 4px; }
+.ai-field { display: grid; gap: 8px; }
+.model-row { display: flex; gap: 8px; align-items: center; }
+.model-row .button { flex-shrink: 0; }
+.ai-actions { gap: 8px; }
+#ai-about code { font-size: 13px; }
+
+/* The library folder: a path you can type, or Choose… (components/folderpicker.js), and what will go in it. */
+.folder-row { display: flex; gap: 10px; }
+.folder-row input { flex: 1; min-width: 0; }
+.folder-preview { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line-soft); display: grid; gap: 10px; }
+.folder-preview pre { margin: 0; padding: 12px 14px; background: var(--raised); border-radius: var(--r-control); font-size: 13px; overflow-x: auto; }
