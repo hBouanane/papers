@@ -412,22 +412,35 @@ export async function mapPage(stale) {
   const trees = roots.filter((p) => children[p.id]);
   const loose = roots.filter((p) => !children[p.id]);
 
-  const node = (p) => `<li>
-    <a class="node" href="#/papers/${p.id}"><span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>
-    ${children[p.id] ? `<ul>${children[p.id].map(node).join("")}</ul>` : ""}</li>`;
+  // A chain drawn as a map: each paper a small card (first page, title, authors, status), joined left to
+  // right by dashed arrows to the papers it led you to.
+  const paperChip = (p) => `<a class="chain-paper" href="#/papers/${p.id}">
+      <span class="chain-cover" aria-hidden="true">${cover(p, "small")}</span>
+      <span class="chain-text"><span class="chain-title paper-name">${esc(p.title)}</span>
+        <span class="chain-cite">${cite(p)}</span>${statusTag(p)}</span></a>`;
+  const node = (p) => `<li>${paperChip(p)}${children[p.id] ? `<ol>${children[p.id].map(node).join("")}</ol>` : ""}</li>`;
+  const size = (p) => 1 + (children[p.id] || []).reduce((n, c) => n + size(c), 0);
+  const readIn = (p) => (p.status === "read" ? 1 : 0) + (children[p.id] || []).reduce((n, c) => n + readIn(c), 0);
+  const chain = (t) => `<section class="chain sheet">
+      <p class="chain-head"><span class="chain-label">Chain</span> Started from <strong class="paper-name">${esc(shorten(t.title, 70))}</strong>
+        <span class="faint">· ${plural(size(t), "paper")}, ${readIn(t)} read</span></p>
+      <div class="chain-scroll"><ol class="chain-tree">${node(t)}</ol></div></section>`;
 
   app.innerHTML = `${mapBackdrop(papers, children, trees)}<div class="container page map-page">
     <div class="page-head">
       <h1 class="page-title">Map</h1>
       <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
     </div>
-    ${trees.length ? trees.map((t) => `<div class="sheet tree-sheet"><ul class="tree">${node(t)}</ul></div>`).join("")
+    ${trees.length ? trees.map(chain).join("")
       : empty("No chains yet. They appear when you follow a reference from one paper to another.")}
     ${loose.length ? `<section class="section"><h2>Not linked to other papers</h2>
+      <p class="hint">Open one's References and pick a paper from them to start a chain.</p>
       <div class="sheet list">${loose.map((p) => `<a class="loose" href="#/papers/${p.id}">
-        <span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>`).join("")}</div></section>` : ""}
+        <span class="loose-thumb" aria-hidden="true">${cover(p, "small")}</span>
+        <span class="loose-text"><span class="paper-name">${esc(p.title)}</span><span class="chain-cite">${cite(p)}</span></span>
+        ${statusTag(p)}</a>`).join("")}</div></section>` : ""}
   </div>`;
-  drawCovers(app.querySelector(".map-corner") || app);
+  drawCovers(app);
 }
 
 // ---------- Settings ----------

@@ -1269,3 +1269,43 @@ body.reading #toast { bottom: 64px; }
 @keyframes map-dot-in { from { opacity: 0; transform: scale(.3); } to { opacity: .55; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .map-corner-paper, .map-rays path, .map-dot { animation: none; } }
 .loose-foot { text-decoration: none; color: var(--pencil); }
+
+/* Map: a chain as connected paper cards, left to right, dashed arrows to the papers each one led to. */
+.chain { padding: 18px 22px 22px; margin-bottom: 18px; }
+.chain-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 14px; color: var(--pencil); margin-bottom: 16px; }
+.chain-head strong { color: var(--heading); font-size: 15px; }
+.chain-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
+  background: var(--ink-tint); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
+.chain-scroll { overflow-x: auto; padding-bottom: 6px; }
+.chain-tree, .chain-tree ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.chain-tree li { display: flex; align-items: center; position: relative; }
+.chain-tree li > ol { position: relative; padding-left: 56px; }
+/* the line out of a paper, and the vertical spine its branches hang from */
+.chain-tree li > ol::before { content: ""; position: absolute; left: 0; top: 50%; width: 28px; border-top: 2px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
+.chain-tree ol > li::before { content: ""; position: absolute; left: -28px; top: 50%; width: 24px; border-top: 2px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
+.chain-tree ol > li::after { content: ""; position: absolute; left: -8px; top: calc(50% - 5px); border: 5px solid transparent;
+  border-left: 7px solid color-mix(in srgb, var(--ink) 75%, transparent); }
+/* several branches: a dashed spine joins them, from the middle of the first to the middle of the last */
+.chain-tree li > ol:has(> li + li)::after { content: ""; position: absolute; left: 27px; top: 36px; bottom: 36px;
+  border-left: 2px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
+.chain-paper { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; width: 290px; flex-shrink: 0;
+  padding: 10px 14px 10px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); text-decoration: none; color: inherit;
+  transition: transform .3s cubic-bezier(.3, .8, .25, 1), border-color .2s, box-shadow .3s; }
+.chain-paper:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--ink) 50%, var(--line)); box-shadow: var(--shadow-soft); }
+.chain-paper:hover .chain-title { color: var(--ink); }
+.chain-cover .cover-sheet, .loose-thumb .cover-sheet { display: none; }
+.chain-text { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.chain-title { font-size: 15px; line-height: 1.3; color: var(--heading); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere; transition: color .2s; }
+.chain-cite { font-size: 13px; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+@media (max-width: 640px) { .chain-paper { width: 240px; } .chain-tree li > ol { padding-left: 44px; } }
+
+/* Map: unlinked papers with a small first page. */
+.loose { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+.loose-text { display: grid; gap: 2px; min-width: 0; }
+.loose-text .paper-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loose:hover .paper-name { color: var(--ink); }
+/* Tiny covers (chain cards, list thumbnails): the typeset fallback shows just a hint of its title. */
+.chain-cover .cover-type, .loose-thumb .cover-type { padding: 14% 10%; gap: 3px; }
+.chain-cover .cover-title, .loose-thumb .cover-title { font-size: 6px; -webkit-line-clamp: 5; line-height: 1.2; }
+.chain-cover .cover-rule, .chain-cover .cover-cite, .loose-thumb .cover-rule, .loose-thumb .cover-cite { display: none; }
