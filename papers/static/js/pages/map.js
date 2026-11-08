@@ -5,17 +5,14 @@ import { paperCard, plural, shorten } from "./shared.js";
 
 // ---------- Map ----------
 // Behind the Map: two of your papers, big, half out of the corners (bottom right and top right, tilted
-// opposite ways), with dashed lines flowing out of each across the page to soft dots, like references leading
-// to other papers, and one line joining the two.
+// opposite ways). Dashed lines flow out of the bottom one across the page, like references leading to others.
 // Points are in % of the backdrop (it fills the page under the header, right side).
-const FROM_LOW = [80, 80];
-const FROM_HIGH = [86, 16];
-const RAYS_LOW = [[6, 76], [16, 46], [38, 30], [30, 64], [56, 50], [10, 24]];
-const RAYS_HIGH = [[48, 26], [64, 6], [44, 8], [58, 46], [70, 34]];
+const FROM = [80, 80];
+const RAYS = [[6, 76], [16, 46], [38, 30], [30, 64], [56, 50], [10, 24]];
 
-const curve = (from, [x, y], i, bend = 1) => {
-  const c1 = [from[0] - 18 * bend, from[1] + (y - from[1]) * 0.15], c2 = [x + (from[0] - x) * 0.35, y];
-  return `<path d="M${from[0]} ${from[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
+const curve = ([x, y], i) => {
+  const c1 = [FROM[0] - 18, FROM[1] + (y - FROM[1]) * 0.15], c2 = [x + (FROM[0] - x) * 0.35, y];
+  return `<path d="M${FROM[0]} ${FROM[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
 };
 
 function mapBackdrop(papers, children, trees) {
@@ -25,16 +22,8 @@ function mapBackdrop(papers, children, trees) {
   // a different paper for the top corner, ideally one the first led to
   const high = withPdf.find((x) => x.id !== low.id && (children[low.id] || []).some((c) => c.id === x.id))
     || withPdf.find((x) => x.id !== low.id) || papers.find((x) => x.id !== low.id);
-  const rays = [
-    ...RAYS_LOW.map((to, i) => curve(FROM_LOW, to, i)),
-    ...(high ? RAYS_HIGH.map((to, i) => curve(FROM_HIGH, to, i + 2, 0.6)) : []),
-    // the two papers, joined
-    ...(high ? [`<path class="map-link" d="M${FROM_HIGH[0]} ${FROM_HIGH[1]} C66 34 64 58 ${FROM_LOW[0]} ${FROM_LOW[1]}" style="--i:1"/>`] : []),
-  ];
-  const points = [...new Map([...RAYS_LOW, ...(high ? RAYS_HIGH : [])].map((p) => [p.join(), p])).values()];
-  const dots = points.map(([x, y], i) => `<span class="map-dot" style="left:${x}%;top:${y}%;--i:${i}"></span>`);
   return `<div class="map-corner" aria-hidden="true">
-    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${rays.join("")}</svg>${dots.join("")}
+    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${RAYS.map(curve).join("")}</svg>
     <span class="map-corner-paper">${cover(low, "large")}</span>
     ${high ? `<span class="map-corner-paper map-corner-high">${cover(high, "large")}</span>` : ""}</div>`;
 }
