@@ -95,6 +95,8 @@ def get_paper(paper_id: int) -> dict:
     if not paper:
         raise HTTPException(404, "Paper not found")
     paper["has_pdf"] = db.pdf_path(paper_id).exists()
+    paper["preparing"] = paper_id in PREPARING
+    paper["main_end"] = main_text_end(paper["text"] or "")
     paper["can_fetch_pdf"] = not paper["has_pdf"] and pdf_source(paper) is not None
     return paper
 
@@ -191,17 +193,39 @@ def insert_paper(fields: dict) -> int:
     return cur.lastrowid
 
 
-def auto_skim(paper_id: int):
-    """Skim new papers in the background so key points are ready for triage."""
-    if not llm.configured():
+PREPARING: set[int] = set()  # papers Claude is reading ahead of time right now
+
+
+def goal_of(paper: dict) -> str:
+    with db.connect() as conn:
+        row = conn.execute("select goal from topics where id = ?", (paper["topic_id"],)).fetchone()
+    return row["goal"] if row else ""
+
+
+def prepare_paper(paper_id: int):
+    """Have Claude read a paper ahead of time: key points, vocabulary, review questions and references,
+    each saved once, so nothing makes the reader wait later. Steps that fail are left for later."""
+    if not llm.configured() or paper_id in PREPARING:
         return
-    paper = get_paper(paper_id)
-    if paper["skim"] or not paper["text"]:
-        return
+    PREPARING.add(paper_id)
     try:
-        update_paper(paper_id, skim=json.dumps(llm.skim(paper)))
-    except llm.AIError:
-        pass  # the user can still skim from the paper page
+        steps = [
+            ("skim", lambda p: p["text"] and json.dumps(llm.skim(p, goal=goal_of(p)))),
+            ("glossary", lambda p: p["text"] and json.dumps(llm.glossary(p, language=setting("language")))),
+            ("quiz", lambda p: p["text"] and json.dumps(llm.quiz(p))),
+            ("refs", lambda p: (p["text"] or p["external_id"]) and json.dumps(find_references(p))),
+        ]
+        for field, make in steps:
+            paper = get_paper(paper_id)
+            if paper[field] is not None:
+                continue
+            try:
+                if value := make(paper):
+                    update_paper(paper_id, **{field: value})
+            except (llm.AIError, httpx.HTTPError, HTTPException):
+                pass
+    finally:
+        PREPARING.discard(paper_id)
 
 
 def store_pdf_paper(data: bytes, text: str, fields: dict, topic_id: int | None) -> int:
@@ -236,7 +260,7 @@ def create_paper(body: PaperIn, background: BackgroundTasks):
     paper_id = insert_paper({**body.model_dump(), "text": text})
     if pdf.is_pdf(data):
         save_pdf(paper_id, data)
-    background.add_task(auto_skim, paper_id)
+    background.add_task(prepare_paper, paper_id)
     return get_paper(paper_id)
 
 
@@ -273,7 +297,7 @@ def add_from_link(body: LinkIn, background: BackgroundTasks):
     text = read_pdf(data)
     fields = describe_pdf(data, text, url.rsplit("/", 1)[-1])
     paper_id = store_pdf_paper(data, text, {**fields, "url": url}, body.topic_id)
-    background.add_task(auto_skim, paper_id)
+    background.add_task(prepare_paper, paper_id)
     return get_paper(paper_id)
 
 
@@ -282,7 +306,7 @@ async def upload_paper(background: BackgroundTasks, file: UploadFile, topic_id: 
     data = await file.read()
     text = read_pdf(data)
     paper_id = store_pdf_paper(data, text, describe_pdf(data, text, file.filename), topic_id)
-    background.add_task(auto_skim, paper_id)
+    background.add_task(prepare_paper, paper_id)
     return get_paper(paper_id)
 
 
@@ -378,6 +402,13 @@ def pdf_source(p: dict) -> str | None:
     return None
 
 
+@app.post("/api/papers/{paper_id}/prepare")
+def prepare(paper_id: int, background: BackgroundTasks):
+    """Fill in whatever Claude hasn't prepared yet for this paper (runs in the background)."""
+    background.add_task(prepare_paper, paper_id)
+    return get_paper(paper_id)
+
+
 @app.post("/api/papers/{paper_id}/fetch-pdf")
 def fetch_original_pdf(paper_id: int):
     """Download the original PDF for papers added before PDFs were kept."""
@@ -451,7 +482,7 @@ class AnswersIn(BaseModel):
 @app.post("/api/papers/{paper_id}/skim")
 def skim_paper(paper_id: int):
     paper = get_paper(paper_id)
-    result = llm.skim(paper)
+    result = llm.skim(paper, goal=goal_of(paper))
     status = "skimmed" if paper["status"] == "new" else paper["status"]
     update_paper(paper_id, skim=json.dumps(result), status=status)
     return result
@@ -550,7 +581,7 @@ def import_inbox() -> int:
             _inbox_skipped.add(key)
             continue
         text = read_pdf(data)
-        auto_skim(store_pdf_paper(data, text, describe_pdf(data, text, f.name), None))
+        prepare_paper(store_pdf_paper(data, text, describe_pdf(data, text, f.name), None))
         f.unlink()  # its content now lives in the library (and its folder)
         added += 1
     return added
@@ -644,10 +675,12 @@ def save_progress(paper_id: int, body: ProgressIn):
 @app.post("/api/papers/{paper_id}/finish")
 def finish_paper(paper_id: int):
     paper = get_paper(paper_id)
-    try:
-        questions = json.dumps(llm.quiz(paper))
-    except llm.AIError:
-        questions = None  # still mark it read; the quiz can be written later
+    questions = json.dumps(paper["quiz"]) if paper["quiz"] else None
+    if not questions:
+        try:
+            questions = json.dumps(llm.quiz(paper))
+        except llm.AIError:
+            pass  # still mark it read; the quiz can be written later
     due = date.today().isoformat() if questions else None  # first review right away, while it's fresh
     return update_paper(paper_id, status="read", progress=1.0, read_slices="1" * SLICES, quiz=questions, review_due=due)
 
@@ -684,26 +717,35 @@ def recall(body: RecallIn):
 @app.get("/api/papers/{paper_id}/references")
 def paper_references(paper_id: int):
     paper = get_paper(paper_id)
-    refs = None
-    if paper["external_id"]:
-        try:
-            refs = scholar.references(paper["external_id"])
-        except httpx.HTTPError:
-            if not paper["text"]:
-                raise
+    refs = paper["refs"]
     if refs is None:
-        if not paper["text"]:
-            raise HTTPException(400, "This paper has no text to read references from. Upload its PDF.")
-        if paper["refs"] is None:
-            paper["refs"] = llm.extract_references(references_section(paper["text"]))
-            update_paper(paper_id, refs=json.dumps(paper["refs"]))
-        refs = [{**r, "external_id": ""} for r in paper["refs"]]
+        refs = find_references(paper)
+        update_paper(paper_id, refs=json.dumps(refs))
     with db.connect() as conn:
         rows = conn.execute("select id, external_id, title from papers").fetchall()
     by_id = {r["external_id"]: r["id"] for r in rows if r["external_id"]}
     by_title = {scholar.norm_title(r["title"]): r["id"] for r in rows}
     return [{**r, "library_id": by_id.get(r["external_id"]) or by_title.get(scholar.norm_title(r["title"]))}
             for r in refs]
+
+
+def find_references(paper: dict) -> list[dict]:
+    """The paper's reference list: from Semantic Scholar when it knows the paper, else read from its PDF."""
+    if paper["external_id"]:
+        try:
+            return scholar.references(paper["external_id"])
+        except httpx.HTTPError:
+            if not paper["text"]:
+                raise
+    if not paper["text"]:
+        raise HTTPException(400, "This paper has no text to read references from. Upload its PDF.")
+    return [{**r, "external_id": ""} for r in llm.extract_references(references_section(paper["text"]))]
+
+
+def main_text_end(text: str) -> float:
+    """Where the main text ends (the references start), as a fraction of the paper."""
+    heads = list(re.finditer(r"(?m)^(\d+\s+)?(references|bibliography)\s*$", text, re.IGNORECASE))
+    return heads[-1].start() / len(text) if heads and text else 1
 
 
 def references_section(text: str) -> str:

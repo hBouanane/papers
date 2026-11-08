@@ -12,6 +12,24 @@ def no_network(monkeypatch):
     monkeypatch.setattr(httpx, "get", blocked)
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "llm_plumbing: tests of the Claude call layer itself (they fake its transport)")
+
+
+@pytest.fixture(autouse=True)
+def no_real_claude(request, monkeypatch):
+    """Tests fake the llm functions they need; anything that would reach Claude fails instead."""
+    from app import llm
+    if request.node.get_closest_marker("llm_plumbing"):
+        return
+
+    def blocked(*args, **kwargs):
+        raise llm.AIError("Claude is not available in tests")
+
+    monkeypatch.setattr(llm, "_request", blocked)
+    monkeypatch.setattr(llm, "_claude_code", blocked)
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PAPERS_DB", str(tmp_path / "test.db"))

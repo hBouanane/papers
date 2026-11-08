@@ -7,6 +7,8 @@ import pytest
 
 from app import llm
 
+pytestmark = pytest.mark.llm_plumbing
+
 
 class FakeCLI:
     def __init__(self, payload, returncode=0):

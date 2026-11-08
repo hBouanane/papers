@@ -1,3 +1,5 @@
+import pytest
+
 from app import llm
 
 SKIM = {"problem": "p", "contributions": ["c"], "method": "m", "results": ["r"],
@@ -10,7 +12,7 @@ def make_paper(client):
 
 
 def test_skim_stores_result_and_marks_skimmed(client, monkeypatch):
-    monkeypatch.setattr(llm, "skim", lambda paper: SKIM)
+    monkeypatch.setattr(llm, "skim", lambda paper, **kw: SKIM)
     p = make_paper(client)
     assert client.post(f"/api/papers/{p['id']}/skim").json() == SKIM
     got = client.get(f"/api/papers/{p['id']}").json()
@@ -54,6 +56,7 @@ def test_grade_averages_scores(monkeypatch):
     assert r["score"] == 0.75 and len(r["results"]) == 2
 
 
+@pytest.mark.llm_plumbing
 def test_ai_errors_become_503(client, monkeypatch):
     def fail(**kw):
         raise TypeError("Could not resolve authentication method")

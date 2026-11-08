@@ -19,7 +19,7 @@ def test_upload_of_known_paper_attaches_to_it(client, monkeypatch):
 
 def test_new_papers_are_skimmed_in_the_background_when_ai_is_configured(client, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
-    monkeypatch.setattr(llm, "skim", lambda paper: SKIM)
+    monkeypatch.setattr(llm, "skim", lambda paper, **kw: SKIM)
     monkeypatch.setattr(llm, "paper_metadata", lambda head: {"title": "Fresh", "authors": "", "year": None})
     monkeypatch.setattr(pdf, "extract_text", lambda data: "Fresh\nbody")
     p = upload(client)
@@ -29,7 +29,7 @@ def test_new_papers_are_skimmed_in_the_background_when_ai_is_configured(client, 
 
 def test_no_background_skim_without_ai_or_text(client, monkeypatch):
     called = []
-    monkeypatch.setattr(llm, "skim", lambda paper: called.append(1) or SKIM)
+    monkeypatch.setattr(llm, "skim", lambda paper, **kw: called.append(1) or SKIM)
     monkeypatch.setattr(pdf, "extract_text", lambda data: "Some Title\nbody")
     upload(client)  # no API key
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
@@ -41,7 +41,7 @@ def test_background_skim_failure_is_harmless(client, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     monkeypatch.setattr(llm, "paper_metadata", lambda head: {"title": "T", "authors": "", "year": None})
 
-    def boom(paper):
+    def boom(paper, **kw):
         raise llm.AIError("down")
 
     monkeypatch.setattr(llm, "skim", boom)
