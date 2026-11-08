@@ -8,9 +8,15 @@ export const esc = (s) =>
 
 export const pct = (x) => `${Math.round((x || 0) * 100)}%`;
 
-export function toast(msg) {
+// `action` ({ label, run }) adds one button, e.g. Undo.
+export function toast(msg, action = null) {
   const t = document.getElementById("toast");
   t.textContent = msg;
+  if (action) {
+    const b = Object.assign(document.createElement("button"), { className: "toast-action", textContent: action.label });
+    b.onclick = () => { t.hidden = true; action.run(); };
+    t.append(" ", b);
+  }
   t.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => (t.hidden = true), 4500);
@@ -26,6 +32,33 @@ export async function api(path, opts = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
   return data;
+}
+
+// A streamed answer: the server sends one JSON object per line, {"text"} pieces then {"done"} or {"error"}.
+// `onText` gets each piece as it arrives; resolves with the whole text.
+export async function apiStream(path, json, onText) {
+  const res = await fetch(`/api${path}`, { method: "POST", body: JSON.stringify(json), headers: { "Content-Type": "application/json" } });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(typeof data.detail === "string" ? data.detail : `Request failed (${res.status})`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = done ? "" : lines.pop();
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const msg = JSON.parse(line);
+      if (msg.error) throw new Error(msg.error);
+      if (msg.text) { text += msg.text; onText(msg.text, text); }
+    }
+    if (done) return text;
+  }
 }
 
 // Runs an action with the button disabled and a busy label; errors become a toast.
@@ -181,32 +214,6 @@ export function bindAddPaper() {
       if (errors.length) return fail(errors.join(" "));
       if (added.length === 1) location.hash = `#/papers/${added[0].id}`;
       else { toast(`Added ${added.length} papers.`); window.dispatchEvent(new HashChangeEvent("hashchange")); }
-    };
-  });
-}
-
-// ---------- Notes ----------
-// A textarea that saves itself (debounced) and says so.
-export function notesBox(paper, rows = 6) {
-  return `<div class="notes-box">
-    <textarea class="my-notes" rows="${rows}" placeholder="What matters to you here, how it connects to your work, what to check later…">${esc(paper.notes || "")}</textarea>
-    <p class="save-state faint" aria-live="polite"></p></div>`;
-}
-
-export function bindNotes(paper, root = app) {
-  root.querySelectorAll(".my-notes").forEach((box) => {
-    const state = box.parentElement.querySelector(".save-state");
-    let timer;
-    box.oninput = () => {
-      clearTimeout(timer);
-      state.textContent = "Saving…";
-      timer = setTimeout(async () => {
-        try {
-          await api(`/papers/${paper.id}`, { method: "PATCH", json: { notes: box.value } });
-          paper.notes = box.value;
-          state.textContent = "Saved";
-        } catch (e) { state.textContent = e.message; }
-      }, 700);
     };
   });
 }

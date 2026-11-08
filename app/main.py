@@ -10,11 +10,11 @@ from pathlib import Path
 
 import httpx
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app import bibtex, db, index, library, llm, pdf, scholar
+from app import bibtex, db, index, library, llm, notes, pdf, scholar
 
 
 @asynccontextmanager
@@ -69,7 +69,6 @@ class PaperEdit(BaseModel):
     year: int | None = None
     topic_id: int | None = None
     archived: bool | None = None
-    notes: str | None = None
 
     @field_validator("title", "authors", mode="before")
     @classmethod
@@ -334,6 +333,7 @@ def list_papers(topic_id: int | None = None, archived: bool = False):
     for p in papers:
         text = p.pop("text")
         p["resume_text"] = resume_text(text, p["position"]) if p["status"] == "reading" and text else ""
+        p["has_pdf"] = db.pdf_path(p["id"]).exists()  # the Library draws its first page as the cover
     return papers
 
 
@@ -350,6 +350,7 @@ def delete_paper(paper_id: int):
     db.pdf_path(paper_id).unlink(missing_ok=True)
     with db.connect() as conn:
         conn.execute("delete from explanations where paper_id = ?", (paper_id,))
+        conn.execute("delete from notes where paper_id = ?", (paper_id,))
         conn.execute("update papers set source_paper_id = null where source_paper_id = ?", (paper_id,))
         conn.execute("delete from papers where id = ?", (paper_id,))
     if paper["source_paper_id"]:
@@ -488,21 +489,52 @@ def skim_paper(paper_id: int):
     return result
 
 
-@app.post("/api/papers/{paper_id}/explain")
-def explain_passage(paper_id: int, body: ExplainIn):
+def explain_request(paper_id: int, body: ExplainIn) -> tuple[dict, str, str, str]:
+    paper = get_paper(paper_id)
     passage, question = body.passage.strip(), body.question.strip()
     if not passage and not question:
         raise HTTPException(400, "Select a passage or ask a question.")
     language = setting("language")
     if body.mode == "translate" and not language:
         raise HTTPException(400, "Set your language in Settings first, so Claude knows what to translate into.")
-    answer = llm.explain(get_paper(paper_id), passage, question, mode=body.mode, language=language)
+    return paper, passage, question, language
+
+
+def save_explanation(paper_id: int, passage: str, question: str, answer: str, mode: str) -> None:
     with db.connect() as conn:
         conn.execute("insert into explanations (paper_id, passage, question, answer, mode) values (?, ?, ?, ?, ?)",
-                     (paper_id, passage, question, answer, body.mode))
+                     (paper_id, passage, question, answer, mode))
     index.index_paper(get_paper(paper_id))
     library.sync_paper(paper_id)
+
+
+@app.post("/api/papers/{paper_id}/explain")
+def explain_passage(paper_id: int, body: ExplainIn):
+    paper, passage, question, language = explain_request(paper_id, body)
+    answer = llm.explain(paper, passage, question, mode=body.mode, language=language)
+    save_explanation(paper_id, passage, question, answer, body.mode)
     return {"explanation": answer}
+
+
+@app.post("/api/papers/{paper_id}/explain/stream")
+def explain_passage_stream(paper_id: int, body: ExplainIn):
+    """The answer as Claude writes it: one JSON object per line, {"text"} pieces then {"done"} or {"error"}."""
+    paper, passage, question, language = explain_request(paper_id, body)
+
+    def lines():
+        parts = []
+        try:
+            for piece in llm.explain_stream(paper, passage, question, mode=body.mode, language=language):
+                parts.append(piece)
+                yield json.dumps({"text": piece}) + "\n"
+        except llm.AIError as e:
+            yield json.dumps({"error": str(e)}) + "\n"
+            return
+        save_explanation(paper_id, passage, question, "".join(parts), body.mode)
+        yield json.dumps({"done": True}) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/papers/{paper_id}/explanations")
@@ -517,6 +549,7 @@ class SettingsIn(BaseModel):
     library_dir: str | None = None
     ai_backend: Literal["api", "claude-code"] | None = None
     language: str | None = None  # the reader's first language, for translations
+    name: str | None = None  # what the Library greets you with; empty means just "Good morning"
 
 
 def settings() -> dict:
@@ -524,7 +557,7 @@ def settings() -> dict:
     return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
             "suggested": str(Path.home() / "Documents" / "Papers"),
             "ai_backend": llm.backend(), "ai_ready": llm.configured(), "claude_binary": llm.claude_binary() or "",
-            "language": setting("language"),
+            "language": setting("language"), "name": setting("name"),
             "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))}
 
 
@@ -540,6 +573,8 @@ def save_settings(body: SettingsIn):
             conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
         if body.language is not None:
             conn.execute("insert or replace into settings (key, value) values ('language', ?)", (body.language.strip(),))
+        if body.name is not None:
+            conn.execute("insert or replace into settings (key, value) values ('name', ?)", (body.name.strip()[:60],))
     if body.library_dir is None:
         return settings()
     try:
@@ -689,6 +724,89 @@ def finish_paper(paper_id: int):
             pass  # still mark it read; the quiz can be written later
     due = date.today().isoformat() if questions else None  # first review right away, while it's fresh
     return update_paper(paper_id, status="read", progress=1.0, read_slices="1" * SLICES, quiz=questions, review_due=due)
+
+
+# ---------- Notes and highlights ----------
+Color = Literal["yellow", "green", "blue", "pink"]
+
+
+class NoteIn(BaseModel):
+    kind: Literal["note", "highlight"] = "note"
+    body: str = ""
+    quote: str = ""
+    color: Color = "yellow"
+    page: int | None = None
+    position: float = Field(0, ge=0, le=1)
+    anchor: dict | None = None
+
+    @field_validator("body", "quote", mode="before")
+    @classmethod
+    def strip(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+    @model_validator(mode="after")
+    def has_text(self):
+        if self.kind == "note" and not self.body:
+            raise ValueError("A note needs some text")
+        if self.kind == "highlight" and not self.quote:
+            raise ValueError("A highlight needs the highlighted text")
+        return self
+
+
+class NoteEdit(BaseModel):
+    body: str | None = None
+    color: Color | None = None
+
+    @field_validator("body", mode="before")
+    @classmethod
+    def strip(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
+def notes_changed(paper_id: int) -> None:
+    library.refresh_notes_text(paper_id)
+    library.sync_paper(paper_id, follow_parent=False)
+
+
+@app.get("/api/papers/{paper_id}/notes")
+def list_notes(paper_id: int):
+    get_paper(paper_id)
+    return notes.list_for(paper_id)
+
+
+@app.post("/api/papers/{paper_id}/notes", status_code=201)
+def add_note(paper_id: int, body: NoteIn):
+    get_paper(paper_id)
+    note = notes.add(paper_id, **body.model_dump())
+    notes_changed(paper_id)
+    return note
+
+
+def existing_note(note_id: int) -> dict:
+    note = notes.get(note_id)
+    if not note:
+        raise HTTPException(404, "Note not found")
+    return note
+
+
+@app.patch("/api/notes/{note_id}")
+def edit_note(note_id: int, body: NoteEdit):
+    note = existing_note(note_id)
+    fields = body.model_dump(exclude_unset=True, exclude_none=True)
+    if note["kind"] == "note" and fields.get("body") == "":
+        raise HTTPException(422, "A note needs some text (delete it instead)")
+    if fields:
+        note = notes.edit(note_id, **fields)
+        notes_changed(note["paper_id"])
+    return note
+
+
+@app.delete("/api/notes/{note_id}", status_code=204)
+def delete_note(note_id: int):
+    note = existing_note(note_id)
+    notes.delete(note_id)
+    notes_changed(note["paper_id"])
+    return Response(status_code=204)
 
 
 @app.get("/api/search")

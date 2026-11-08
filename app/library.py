@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from app import db, index
+from app import notes as notes_db
 
 INBOX = "Inbox"
 UNSORTED = "Unsorted"
@@ -49,7 +50,12 @@ def link_name(p: dict) -> str:
     return Path(p["mirror_path"]).name if p.get("mirror_path") else paper_name(p)
 
 
-def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | None, children: list[dict]) -> str:
+ADD_NOTES = "## Add notes"
+ADD_HINT = "<!-- Anything you write here is added to the paper's notes in the app, then listed above. -->"
+
+
+def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | None, children: list[dict],
+          items: list[dict] = ()) -> str:
     status = {"new": "To read", "skimmed": "Skimmed", "reading": "Reading", "read": "Read"}[p["status"]]
     lines = [f"# {p['title']}", ""]
     if p.get("authors") or p.get("year"):
@@ -60,7 +66,7 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
         lines.append(f"Goal: {goal}")
     if p.get("url"):
         lines.append(f"Source: {p['url']}")
-    lines += ["", "## My notes", "", p.get("notes") or ""]
+    lines += ["", "## My notes", "", notes_db.as_markdown(list(items)), "", ADD_NOTES, "", ADD_HINT]
     if s := p.get("skim"):  # older key points lack some fields
         lines += ["", "## Key points", "", s.get("tldr") or s["verdict"], ""]
         for heading, key in (("Problem", "problem"), ("Key idea", "key_idea"), ("Method", "method"),
@@ -96,24 +102,37 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
     return "\n".join(lines).rstrip() + "\n"
 
 
-def notes_section(md: str) -> str | None:
-    """The text under '## My notes' in a notes file, or None if the section is missing."""
-    m = re.search(r"^## My notes[ \t]*\n(.*?)(?=^## |\Z)", md, re.MULTILINE | re.DOTALL)
-    return m[1].strip() if m else None
+def added_notes(md: str) -> str:
+    """What was written under '## Add notes' in a notes file (comments left out)."""
+    m = re.search(r"^## Add notes[ \t]*\n(.*?)(?=^## |\Z)", md, re.MULTILINE | re.DOTALL)
+    return re.sub(r"<!--.*?-->", "", m[1], flags=re.DOTALL).strip() if m else ""
+
+
+def refresh_notes_text(paper_id: int) -> None:
+    """Keep the paper's plain-text notes (used by search and recall) in step with its list."""
+    text = notes_db.as_text(notes_db.list_for(paper_id))
+    with db.connect() as conn:
+        conn.execute("update papers set notes = ? where id = ?", (text, paper_id))
+        p = db.row_to_dict(conn.execute("select * from papers where id = ?", (paper_id,)).fetchone())
+    if p:
+        index.index_paper(p)
 
 
 def pull_notes(base: Path, p: dict) -> bool:
-    """If 'My notes' was edited in the file since the app last wrote it, take the file's version."""
+    """Notes written under 'Add notes' in the file become a note in the app."""
     md = base / f"{p['mirror_path']}.md" if p.get("mirror_path") else None
     if not md or not md.exists():
         return False
-    section = notes_section(md.read_text(encoding="utf-8"))
-    if section is None or section == (p.get("notes_mirror") or "").strip():
+    content = md.read_text(encoding="utf-8")
+    text = added_notes(content)
+    if not text:
         return False
-    p["notes"] = p["notes_mirror"] = section
-    with db.connect() as conn:
-        conn.execute("update papers set notes = ?, notes_mirror = ? where id = ?", (section, section, p["id"]))
-    index.index_paper(p)
+    # Empty the section right away so the same text is never added twice.
+    md.write_text(re.sub(r"(^## Add notes[ \t]*\n)(.*?)(?=^## |\Z)", lambda m: f"{m[1]}\n{ADD_HINT}\n",
+                         content, count=1, flags=re.MULTILINE | re.DOTALL), encoding="utf-8")
+    last = notes_db.list_for(p["id"])
+    notes_db.add(p["id"], body=text, position=last[-1]["position"] if last else 0)
+    refresh_notes_text(p["id"])
     return True
 
 
@@ -124,7 +143,10 @@ def import_notes() -> int:
         return 0
     with db.connect() as conn:
         papers = [db.row_to_dict(r) for r in conn.execute("select * from papers where mirror_path is not null")]
-    return sum(pull_notes(base, p) for p in papers)
+    changed = [p for p in papers if pull_notes(base, p)]
+    for p in changed:
+        sync_paper(p["id"], follow_parent=False)  # the new note moves from "Add notes" into the list
+    return len(changed)
 
 
 def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
@@ -152,18 +174,20 @@ def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
             if (src := base / f"{old}{ext}").exists():
                 (base / rel).parent.mkdir(parents=True, exist_ok=True)
                 src.replace(base / f"{rel}{ext}")
-    pull_notes(base, {**p, "mirror_path": rel})  # never overwrite notes edited in the file
+    if pull_notes(base, {**p, "mirror_path": rel}):  # never lose notes written in the file
+        with db.connect() as conn:
+            p = db.row_to_dict(conn.execute("select * from papers where id = ?", (paper_id,)).fetchone())
     (base / rel).parent.mkdir(parents=True, exist_ok=True)
     stored = db.pdf_path(paper_id)
     target = base / f"{rel}.pdf"
     if stored.exists() and (not target.exists() or target.stat().st_size != stored.stat().st_size):
         shutil.copyfile(stored, target)
-    text = notes(p, goal["goal"] if goal else None, explanations, parent, children)
+    text = notes(p, goal["goal"] if goal else None, explanations, parent, children, notes_db.list_for(paper_id))
     md = base / f"{rel}.md"
     if not md.exists() or md.read_text(encoding="utf-8") != text:
         md.write_text(text, encoding="utf-8")
     with db.connect() as conn:
-        conn.execute("update papers set mirror_path = ?, notes_mirror = ? where id = ?", (rel, p.get("notes") or "", paper_id))
+        conn.execute("update papers set mirror_path = ? where id = ?", (rel, paper_id))
     if follow_parent and parent:
         sync_paper(parent["id"], follow_parent=False)  # its notes list this paper under "Led to"
 

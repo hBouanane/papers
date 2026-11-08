@@ -39,6 +39,19 @@ create table if not exists explanations (
     answer text not null,
     created_at text default current_timestamp
 );
+create table if not exists notes (
+    id integer primary key,
+    paper_id integer references papers(id),
+    kind text default 'note',
+    body text default '',
+    quote text default '',
+    color text default 'yellow',
+    page integer,
+    position real default 0,
+    anchor text,
+    created_at text default current_timestamp,
+    updated_at text default current_timestamp
+);
 """
 
 
@@ -73,6 +86,11 @@ def init():
             for name, kind in columns.items():
                 if name not in have:
                     conn.execute(f"alter table {table} add column {name} {kind}")
+        # Notes used to be one free-text box per paper; that text becomes the paper's first note (once).
+        if not conn.execute("select 1 from settings where key = 'notes_migrated'").fetchone():
+            conn.execute("insert into notes (paper_id, body) select id, trim(notes) from papers p"
+                         " where trim(coalesce(notes, '')) != '' and not exists (select 1 from notes n where n.paper_id = p.id)")
+            conn.execute("insert into settings (key, value) values ('notes_migrated', '1')")
 
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:

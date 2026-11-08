@@ -1,7 +1,16 @@
+import { cover, drawCovers } from "./covers.js";
 import { api, app, bindAddPaper, bindRows, busy, setBar, cite, empty, esc, loading, paperRow, pct, progressBar, statusTag, STATUS, tableHead, addPaperControl, toast } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const shorten = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, "")}…` : s);
+
+// "Good evening, Ada", or just "Good evening" until a name is set in Settings.
+function greeting(name) {
+  const h = new Date().getHours();
+  const part = h >= 5 && h < 12 ? "morning" : h >= 12 && h < 18 ? "afternoon" : "evening";
+  return `Good ${part}${name ? `, ${esc(name)}` : ""}`;
+}
 
 // ---------- Library ----------
 export async function libraryPage(stale) {
@@ -23,15 +32,30 @@ export async function libraryPage(stale) {
     return;
   }
 
-  // The reading desk: what you're reading now on the left, what's due and your goals on the right,
-  // everything else in the list below. Each thing always has the same place.
-  const reading = papers.filter((p) => p.status === "reading");
-  const readingCard = (p) => `<a class="reading-card sheet" href="#/papers/${p.id}/read">
-      ${names[p.topic_id] ? `<span class="card-goal">${esc(names[p.topic_id])}</span>` : ""}
-      <span class="card-title paper-name">${esc(p.title)}</span>
-      <span class="card-cite">${cite(p)}</span>
-      ${p.resume_text ? `<span class="card-quote">“${esc(p.resume_text)}”</span>` : ""}
-      <span class="card-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span><span class="card-go">Continue</span></span>
+  // The reading desk: the paper you opened last, big, with the rest you're reading as covers beside
+  // what's due and your goals. Everything else is in the list below. Each thing always has the same place.
+  const reading = papers.filter((p) => p.status === "reading"); // most recently opened first
+  const [current, ...others] = reading;
+  const goalOf = (p) => (names[p.topic_id] ? `<span class="card-goal">${esc(names[p.topic_id])}</span>` : "");
+  const continueCard = (p) => `<div class="continue sheet">
+      <a class="cover-link" href="#/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
+      <div class="continue-text">
+        ${goalOf(p)}
+        <a class="continue-title paper-name" href="#/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
+        <span class="card-cite">${cite(p)}</span>
+        ${p.resume_text ? `<span class="card-quote">“${esc(p.resume_text)}”</span>` : ""}
+        <span class="card-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>
+        <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
+      </div>
+    </div>`;
+  // A card with a small stage on top: the paper's first page peeking up, a second sheet tilted behind it.
+  const shelfItem = (p) => `<a class="shelf-card" href="#/papers/${p.id}">
+      <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
+      <span class="shelf-info">
+        <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
+        <span class="shelf-foot">${progressBar(p)}<span class="foot-swap"><span class="foot-pct num">${pct(p.progress)} read</span>
+          <span class="foot-go" aria-hidden="true">Continue <span class="arrow">→</span></span></span></span>
+      </span>
     </a>`;
   const goalLine = (g) => {
     const mine = papers.filter((p) => p.topic_id === g.id);
@@ -39,18 +63,23 @@ export async function libraryPage(stale) {
     return `<a class="desk-item" href="#/goals/${g.id}"><span class="desk-item-title">${esc(g.goal)}</span>
       <span class="faint num">${done}/${mine.length}</span></a>`;
   };
+  const dueLine = due.length ? ` ${due.length === 1 ? "One paper is" : `${due.length} papers are`} due for review.` : "";
+  const where = current
+    ? `You're ${pct(current.progress)} through <span class="lede-paper">${esc(shorten(current.title, 70))}</span>.${dueLine}`
+    : `${plural(papers.length, "paper")} in your library, ${count("read")} finished.${dueLine}`;
   app.innerHTML = `<div class="container page">
-    <div class="page-head page-head-split">
-      <div><h1>Library</h1>
-      <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p></div>
+    <div class="page-head page-head-split library-head">
+      <div><h1 class="greeting">${greeting(settings.name)}</h1>
+      <p class="lede">${where}</p></div>
       ${addPaperControl("", goals)}
     </div>
     <div class="desk">
+      <h2 class="desk-heading">${current ? "Continue reading" : "Reading now"}</h2>
       <section class="desk-main">
-        <h2>Reading now</h2>
-        ${reading.length ? `<div class="reading-cards">${reading.slice(0, 4).map(readingCard).join("")}</div>
-          ${reading.length > 4 ? `<button class="button quiet small" id="all-reading">All ${reading.length} in progress</button>` : ""}`
-          : `<div class="desk-empty">Nothing in progress. Pick a paper from the list below, or add one.</div>`}
+        ${current ? continueCard(current) : `<div class="desk-empty">Nothing in progress. Pick a paper from the list below, or add one.</div>`}
+        ${others.length ? `<h2 class="shelf-heading">Also reading</h2>
+          <div class="shelf">${others.slice(0, 4).map(shelfItem).join("")}</div>
+          ${others.length > 4 ? `<button class="button quiet small" id="all-reading">All ${reading.length} in progress</button>` : ""}` : ""}
       </section>
       <aside class="desk-side">
         <div class="sheet desk-box">
@@ -83,13 +112,17 @@ export async function libraryPage(stale) {
     </section></div>`;
 
   bindAddPaper();
+  drawCovers(app.querySelector(".desk"));
   const rows = app.querySelector("#rows");
   // Archiving or deleting from the list refreshes the counts.
   bindRows(rows, () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   let filter = "all";
   let hits = null; // search results, or null when the search box is empty
   let archived = []; // loaded when the Archived filter is opened
+  // Switching filters or searching never makes the list shorter than it has been on this visit, so the
+  // page doesn't shrink and jump up under your pointer (an empty filter just leaves room below).
   const show = () => {
+    rows.style.minHeight = `${Math.max(rows.offsetHeight, parseFloat(rows.style.minHeight) || 0)}px`;
     const pool = hits ?? (filter === "archived" ? archived : papers).map((paper) => ({ paper, snippet: "" }));
     const list = pool.filter(({ paper }) => filter === "all" || paper.status === filter
       || (filter === "archived" && paper.archived));
@@ -283,6 +316,13 @@ export async function settingsPage(stale) {
   if (stale()) return;
   app.innerHTML = `<div class="container page narrow">
     <div class="page-head"><h1>Settings</h1></div>
+    <form class="sheet form" id="name-form">
+      <h2>Your name</h2>
+      <p class="hint">The Library greets you with it. Leave it empty for just "Good morning".</p>
+      <label for="name">Name</label>
+      <div class="lang-row"><input id="name" value="${esc(s.name)}" autocomplete="given-name" maxlength="60">
+        <button class="button">Save</button></div>
+    </form>
     <form class="sheet form" id="lang-form">
       <h2>Your language</h2>
       <p class="hint">If English isn't your first language, say which one is. Translate (when you select text in a paper)
@@ -330,6 +370,13 @@ export async function settingsPage(stale) {
     Vaswani et al. 2017 - Attention Is All You Need.pdf
     Vaswani et al. 2017 - Attention Is All You Need.md</pre></div>` : "";
   app.querySelector("#folder-status").innerHTML = status(s.library_dir);
+  app.querySelector("#name-form").onsubmit = (e) => {
+    e.preventDefault();
+    busy(e.submitter, "Saving…", async () => {
+      const saved = await api("/settings", { method: "PUT", json: { name: app.querySelector("#name").value } });
+      toast(saved.name ? `Saved. Hello, ${saved.name}.` : "Name removed.");
+    });
+  };
   app.querySelector("#lang-form").onsubmit = (e) => {
     e.preventDefault();
     busy(e.submitter, "Saving…", async () => {
