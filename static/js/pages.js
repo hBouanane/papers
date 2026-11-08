@@ -380,33 +380,23 @@ export async function recallPage() {
 }
 
 // ---------- Map ----------
-// Behind the Map: your papers spread out like a map and joined by curved lines, a reference chain if you
-// have one. Dashes flow along the lines from paper to paper, and a light spreads outward from the first.
-const MAP_SLOTS = [{ x: 46, y: 52, d: 0 }, { x: 64, y: 24, d: 1 }, { x: 64, y: 78, d: 1 },
-  { x: 84, y: 14, d: 2 }, { x: 88, y: 50, d: 2 }, { x: 82, y: 86, d: 2 }];
-const MAP_EDGES = [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5]];
+// Behind the Map: one of your papers, big, half of it in the top-right corner, with dashed lines flowing
+// out of it across the page to soft dots, like references leading to other papers.
+const MAP_RAYS = [[6, 26], [18, 62], [36, 88], [28, 40], [58, 96], [12, 90]];
 
 function mapBackdrop(papers, children, trees) {
-  // A real chain first (breadth-first from a root), then other papers to fill the map, real pages first.
-  const picked = [];
-  const queue = [...trees];
-  while (queue.length && picked.length < MAP_SLOTS.length) {
-    const p = queue.shift();
-    if (!picked.includes(p)) { picked.push(p); queue.push(...(children[p.id] || [])); }
-  }
-  [...papers].sort((a, b) => b.has_pdf - a.has_pdf).forEach((p) => {
-    if (picked.length < MAP_SLOTS.length && !picked.includes(p)) picked.push(p);
+  const p = trees.find((t) => t.has_pdf) || papers.find((x) => x.has_pdf && x.status === "reading")
+    || papers.find((x) => x.has_pdf) || trees[0] || papers[0];
+  if (!p) return "";
+  const from = [80, 26];
+  const rays = MAP_RAYS.map(([x, y], i) => {
+    const c1 = [from[0] - 18, from[1] + (y - from[1]) * 0.15], c2 = [x + (from[0] - x) * 0.35, y];
+    return `<path d="M${from[0]} ${from[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
   });
-  if (picked.length < 2) return "";
-  const slots = MAP_SLOTS.slice(0, picked.length);
-  const curve = ([a, b]) => {
-    const s = slots[a], t = slots[b], mid = (s.x + t.x) / 2;
-    return `<path d="M${s.x} ${s.y} C${mid} ${s.y} ${mid} ${t.y} ${t.x} ${t.y}" style="--d:${s.d}"/>`;
-  };
-  return `<div class="map-backdrop" aria-hidden="true">
-    <svg class="map-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${MAP_EDGES.filter(([a, b]) => a < slots.length && b < slots.length).map(curve).join("")}</svg>
-    ${picked.map((p, i) => `<span class="mb-node" style="--x:${slots[i].x}%;--y:${slots[i].y}%;--d:${slots[i].d};--i:${i}">${cover(p, "small")}</span>`).join("")}
-  </div>`;
+  const dots = MAP_RAYS.map(([x, y], i) => `<span class="map-dot" style="left:${x}%;top:${y}%;--i:${i}"></span>`);
+  return `<div class="map-corner" aria-hidden="true">
+    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${rays.join("")}</svg>${dots.join("")}
+    <span class="map-corner-paper">${cover(p, "large")}</span></div>`;
 }
 
 export async function mapPage(stale) {
@@ -424,13 +414,10 @@ export async function mapPage(stale) {
     <a class="node" href="#/papers/${p.id}"><span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>
     ${children[p.id] ? `<ul>${children[p.id].map(node).join("")}</ul>` : ""}</li>`;
 
-  app.innerHTML = `<div class="container page map-page">
-    <div class="map-hero">
-      ${mapBackdrop(papers, children, trees)}
-      <div class="page-head map-hero-text">
-        <h1 class="page-title">Map</h1>
-        <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
-      </div>
+  app.innerHTML = `${mapBackdrop(papers, children, trees)}<div class="container page map-page">
+    <div class="page-head">
+      <h1 class="page-title">Map</h1>
+      <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
     </div>
     ${trees.length ? trees.map((t) => `<div class="sheet tree-sheet"><ul class="tree">${node(t)}</ul></div>`).join("")
       : empty("No chains yet. They appear when you follow a reference from one paper to another.")}
@@ -438,7 +425,7 @@ export async function mapPage(stale) {
       <div class="sheet list">${loose.map((p) => `<a class="loose" href="#/papers/${p.id}">
         <span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>`).join("")}</div></section>` : ""}
   </div>`;
-  drawCovers(app.querySelector(".map-backdrop") || app);
+  drawCovers(app.querySelector(".map-corner") || app);
 }
 
 // ---------- Settings ----------
