@@ -380,15 +380,15 @@ export async function recallPage() {
 }
 
 // ---------- Map ----------
-// Behind the Map: one of your papers, big, half of it in the top-right corner, with dashed lines flowing
+// Behind the Map: one of your papers, big, half of it in the bottom-right corner, with dashed lines flowing
 // out of it across the page to soft dots, like references leading to other papers.
-const MAP_RAYS = [[6, 26], [18, 62], [36, 88], [28, 40], [58, 96], [12, 90]];
+const MAP_RAYS = [[6, 70], [16, 34], [38, 10], [30, 56], [60, 6], [10, 12]];
 
 function mapBackdrop(papers, children, trees) {
   const p = trees.find((t) => t.has_pdf) || papers.find((x) => x.has_pdf && x.status === "reading")
     || papers.find((x) => x.has_pdf) || trees[0] || papers[0];
   if (!p) return "";
-  const from = [80, 26];
+  const from = [80, 74];
   const rays = MAP_RAYS.map(([x, y], i) => {
     const c1 = [from[0] - 18, from[1] + (y - from[1]) * 0.15], c2 = [x + (from[0] - x) * 0.35, y];
     return `<path d="M${from[0]} ${from[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
