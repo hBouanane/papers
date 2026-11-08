@@ -27,41 +27,45 @@ export async function api(path, opts = {}) {
 
 // Runs an action with the button disabled and a busy label; errors become a toast.
 export async function busy(button, label, fn) {
-  const original = button?.textContent;
+  const original = button?.innerHTML;
   if (button) { button.disabled = true; if (label) button.textContent = label; }
   try { return await fn(); }
   catch (e) { toast(e.message); }
-  finally { if (button && button.isConnected) { button.disabled = false; button.textContent = original; } }
+  finally { if (button && button.isConnected) { button.disabled = false; button.innerHTML = original; } }
 }
 
 export const STATUS = { new: "To read", skimmed: "Skimmed", reading: "Reading", read: "Read" };
 
-export const statusTag = (p) => `<span class="status status-${p.status}">${STATUS[p.status]}</span>`;
+export const statusTag = (p) => `<span class="chip chip-${p.status}">${STATUS[p.status]}</span>`;
 
-export const meta = (p) => [p.authors, p.year].filter(Boolean).map(esc).join(" · ");
+// Citation style: "Vaswani et al. (2017)".
+export function cite(p) {
+  const names = (p.authors || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const surname = (n) => (n.endsWith("et al.") ? n : n.split(" ").pop());
+  const who = names.length > 2 ? `${surname(names[0])} et al.`
+    : names.map(surname).join(" and ");
+  return esc([who, p.year && `(${p.year})`].filter(Boolean).join(" "));
+}
 
-export function progressLine(p) {
-  return `<span class="progress" title="Read ${pct(p.progress)} · stopped at ${pct(p.position)}">
-    <span class="progress-fill" style="width:${pct(p.progress)}"></span>
-    ${p.status !== "reading" ? "" : `<span class="progress-mark" style="left:${pct(p.position)}"></span>`}</span>`;
+export function progressBar(p) {
+  return `<span class="bar" role="img" aria-label="${pct(p.progress)} read"><span style="width:${pct(p.progress)}"></span></span>`;
 }
 
 export function paperRow(p, goals = {}) {
   const goal = p.topic_id && goals[p.topic_id];
-  const understood = p.understanding == null ? "—" : pct(p.understanding);
-  return `<a class="paper-row" href="#/papers/${p.id}">
-    <span class="paper-row-main">
-      <span class="paper-row-title">${esc(p.title)}</span>
-      <span class="paper-row-meta">${meta(p)}${goal ? ` <span class="sep">in</span> ${esc(goal)}` : ""}</span>
+  return `<a class="row" href="#/papers/${p.id}">
+    <span class="row-main">
+      <span class="row-title">${esc(p.title)}</span>
+      <span class="row-meta">${cite(p)}${goal ? `<span class="row-goal">Goal: ${esc(goal)}</span>` : ""}</span>
     </span>
-    <span class="paper-row-stat">${statusTag(p)}</span>
-    <span class="paper-row-stat">${progressLine(p)}<span class="num">${pct(p.progress)}</span></span>
-    <span class="paper-row-stat num" title="Understanding from your last quiz">${understood}</span>
+    <span class="row-cell">${statusTag(p)}</span>
+    <span class="row-cell">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span>
+    <span class="row-cell num row-score">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span>
   </a>`;
 }
 
-export const paperTableHead = `<div class="paper-head">
-  <span>Paper</span><span>Status</span><span>Read</span><span>Understood</span></div>`;
+export const tableHead = `<div class="row row-head" aria-hidden="true">
+  <span>Paper</span><span>Status</span><span>Read</span><span class="row-score">Understood</span></div>`;
 
 export const empty = (text, action = "") => `<div class="empty"><p>${text}</p>${action}</div>`;
 

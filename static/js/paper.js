@@ -1,4 +1,4 @@
-import { api, app, busy, esc, loading, meta, pct, progressLine, statusTag, toast } from "./core.js";
+import { api, app, busy, cite, esc, loading, pct, progressBar, statusTag, toast } from "./core.js";
 
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
@@ -12,50 +12,51 @@ export async function paperPage(id, stale) {
   const ancestors = chain.path.slice(0, -1);
 
   app.innerHTML = `<div class="container page">
-    <nav class="crumbs">${goal ? `<a href="#/goals/${goal.id}">${esc(goal.goal)}</a>` : `<a href="#/">Library</a>`}</nav>
+    <nav class="crumbs">${goal ? `<a href="#/goals">Goals</a><span>/</span><a href="#/goals/${goal.id}">${esc(goal.goal)}</a>` : `<a href="#/">Library</a>`}</nav>
     <header class="paper-header">
-      <h1 class="paper-title">${esc(p.title)}</h1>
-      <p class="paper-meta">${meta(p)}${p.url ? ` · <a href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}</p>
+      <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
+      <p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>
       <div class="actions">
         ${p.text ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>` : ""}
         ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
-        ${!p.text ? `<label class="button secondary file-button">Upload PDF<input type="file" id="pdf" accept="application/pdf" hidden></label>` : ""}
+        ${!p.text ? `<label class="button">Upload the PDF<input type="file" id="pdf" accept="application/pdf" hidden></label>` : ""}
+        ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
       </div>
-      ${!p.text ? `<p class="note">We could not get the full text of this paper. Upload the PDF to read it here.</p>` : ""}
+      ${!p.text ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
     </header>
 
     <div class="paper-layout">
       <div class="paper-main">
-        <section class="section" id="skim"></section>
+        <section class="sheet pad-lg" id="skim"></section>
         <section class="section">
           <div class="section-bar">
-            <h2 class="section-title">References</h2>
+            <h2>References</h2>
             ${p.external_id ? `<button class="button secondary" id="refs-btn">Show references</button>` : ""}
           </div>
-          <div id="refs"><p class="muted">${p.external_id
-            ? "Follow a reference to dive deeper. The map keeps track of which paper led you where."
+          <div id="refs"><p class="faint">${p.external_id
+            ? "Follow a reference to go deeper. The map remembers which paper led you where."
             : "References are only available for papers found through search."}</p></div>
         </section>
       </div>
 
       <aside class="paper-side">
-        <dl class="facts">
-          <div><dt>Status</dt><dd>${statusTag(p)}</dd></div>
-          <div><dt>Read</dt><dd>${progressLine(p)} <span class="num">${pct(p.progress)}</span></dd></div>
-          ${p.status === "reading" ? `<div><dt>Stopped at</dt><dd class="num">${pct(p.position)}</dd></div>` : ""}
-          <div><dt>Understood</dt><dd class="num">${p.understanding == null ? "Not tested" : pct(p.understanding)}</dd></div>
-          ${p.text ? `<div><dt>Length</dt><dd>${minutes(p.text)} min read</dd></div>` : ""}
-        </dl>
-        ${ancestors.length ? `<div class="side-block"><h3>Found through</h3>
-          <ol class="trail">${ancestors.map((a) => `<li><a href="#/papers/${a.id}">${esc(a.title)}</a></li>`).join("")}</ol></div>` : ""}
-        ${chain.children.length ? `<div class="side-block"><h3>Led you to</h3>
-          <ul class="trail">${chain.children.map((c) => `<li><a href="#/papers/${c.id}">${esc(c.title)}</a></li>`).join("")}</ul></div>` : ""}
+        <div class="sheet facts">
+          <div><span>Status</span>${statusTag(p)}</div>
+          <div><span>Read</span><span class="fact-bar">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span></div>
+          ${p.status === "reading" ? `<div><span>Stopped at</span><span class="num">${pct(p.position)}</span></div>` : ""}
+          <div><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span></div>
+          ${p.text ? `<div><span>Length</span><span>${minutes(p.text)} min</span></div>` : ""}
+        </div>
+        ${ancestors.length ? `<div class="sheet trail"><h3>Found through</h3>
+          ${ancestors.map((a) => `<a href="#/papers/${a.id}">${esc(a.title)}</a>`).join("")}</div>` : ""}
+        ${chain.children.length ? `<div class="sheet trail"><h3>Led you to</h3>
+          ${chain.children.map((c) => `<a href="#/papers/${c.id}">${esc(c.title)}</a>`).join("")}</div>` : ""}
       </aside>
     </div></div>`;
 
   renderSkim(p);
   app.querySelector("#pdf")?.addEventListener("change", (e) => uploadPdf(id, e.target.files[0]));
-  app.querySelector("#refs-btn")?.addEventListener("click", (e) => busy(e.target, "Loading…", () => loadRefs(p)));
+  app.querySelector("#refs-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Loading…", () => loadRefs(p)));
 }
 
 async function uploadPdf(id, file) {
@@ -73,15 +74,13 @@ function renderSkim(p) {
   const s = p.skim;
   const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
   if (!s) {
-    box.innerHTML = `<h2 class="section-title">Key points</h2>
-      <div class="skim-empty">
-        <p>Get the first pass before reading: the problem, contributions, method, results, limitations,
-        and which sections deserve a close read.</p>
-        <button class="button" id="skim-btn">Skim this paper</button>
-      </div>`;
+    box.innerHTML = `<h2>Skim before you read</h2>
+      <p class="skim-intro">A first pass in the style Andrew Ng recommends: what problem it tackles, what's new,
+      how it works, what it shows, where it falls short, and which sections deserve a close read.</p>
+      <button class="button" id="skim-btn">Skim this paper</button>`;
   } else {
-    box.innerHTML = `<div class="section-bar"><h2 class="section-title">Key points</h2>
-        <button class="link-button" id="skim-btn">Regenerate</button></div>
+    box.innerHTML = `<div class="section-bar"><h2>Key points</h2>
+        <button class="button quiet" id="skim-btn">Redo</button></div>
       <p class="verdict">${esc(s.verdict)}</p>
       <div class="skim">
         <h3>Problem</h3><p>${esc(s.problem)}</p>
@@ -92,7 +91,7 @@ function renderSkim(p) {
         <h3>Read closely</h3>${list(s.read_closely)}
       </div>`;
   }
-  box.querySelector("#skim-btn").onclick = (e) => busy(e.target, "Reading the paper…", async () => {
+  box.querySelector("#skim-btn").onclick = (e) => busy(e.currentTarget, "Reading the paper…", async () => {
     p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
     renderSkim(p);
   });
@@ -102,13 +101,13 @@ async function loadRefs(p) {
   const box = app.querySelector("#refs");
   let refs;
   try { refs = await api(`/papers/${p.id}/references`); }
-  catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+  catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
   app.querySelector("#refs-btn")?.remove();
-  box.innerHTML = refs.length ? `<ol class="refs">${refs.map((r, i) => `<li>
-      <span><span class="ref-title">${esc(r.title)}</span><span class="ref-meta">${meta(r)}</span></span>
-      ${r.library_id ? `<a class="link-button" href="#/papers/${r.library_id}">Open</a>`
-        : `<button class="link-button" data-ref="${i}">Read this</button>`}</li>`).join("")}</ol>`
-    : `<p class="muted">No references found.</p>`;
+  box.innerHTML = refs.length ? `<div class="sheet list">${refs.map((r, i) => `<div class="ref">
+      <span><span class="ref-title">${esc(r.title)}</span><span class="result-cite">${cite(r)}</span></span>
+      ${r.library_id ? `<a class="button quiet" href="#/papers/${r.library_id}">Open</a>`
+        : `<button class="button secondary" data-ref="${i}">Read this</button>`}</div>`).join("")}</div>`
+    : `<p class="faint">No references found.</p>`;
   box.onclick = (e) => {
     const b = e.target.closest("[data-ref]");
     if (b) busy(b, "Adding…", async () => {
@@ -129,38 +128,37 @@ export async function readerPage(id, stale) {
   app.innerHTML = `
     <div class="reader-bar">
       <div class="reader-bar-inner">
-        <a href="#/papers/${id}" class="reader-back">← <span>${esc(p.title)}</span></a>
-        <span class="reader-pct num" id="pct">${pct(p.progress)}</span>
+        <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
+        <span class="reader-pct num" id="pct">${pct(p.progress)} read</span>
         <button class="button secondary small" id="toggle-notes">Explanations</button>
         <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
       </div>
       <div class="reader-progress"><span id="bar" style="width:${pct(p.position)}"></span></div>
     </div>
     <div class="reader">
-      <article class="article" id="article">
-        <h1>${esc(p.title)}</h1>
-        <p class="article-meta">${meta(p)} · ${minutes(p.text)} min read</p>
-        ${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}
+      <article class="page-sheet" id="article">
+        <h1 class="paper-name">${esc(p.title)}</h1>
+        <p class="article-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>
+        <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}</div>
         <div class="article-end">
-          <p>End of paper.</p>
-          <button class="button" id="finish-end">I finished, quiz me</button>
+          <p>That's the end of the paper.</p>
+          <button class="button" id="finish-end">I've finished, quiz me</button>
         </div>
       </article>
-      <aside class="notes" id="notes" aria-label="Explanations">
-        <div class="notes-head"><h2>Explanations</h2><button class="link-button" id="close-notes">Close</button></div>
-        <p class="notes-hint">Select any passage in the paper to get it explained with the whole paper in mind, or paste one below.</p>
-        <form id="ask" class="ask">
-          <textarea id="passage" rows="4" placeholder="Paste a passage"></textarea>
-          <input id="question" placeholder="What confuses you? (optional)">
-          <button class="button small">Explain</button>
-        </form>
-        <div id="answers"></div>
-      </aside>
     </div>
-    <button class="explain-pop" id="pop" hidden>Explain</button>`;
+    <aside class="notes" id="notes" aria-label="Explanations">
+      <div class="notes-head"><h2>Explanations</h2><button class="button quiet small" id="close-notes">Close</button></div>
+      <p class="hint">Select a passage in the paper to have it explained with the whole paper in mind, or paste one here.</p>
+      <form id="ask" class="ask">
+        <textarea id="passage" rows="4" placeholder="Paste a passage"></textarea>
+        <input id="question" placeholder="What's confusing about it? (optional)">
+        <button class="button small">Explain</button>
+      </form>
+      <div id="answers"></div>
+    </aside>
+    <button class="explain-pop" id="pop" hidden>Explain this</button>`;
 
   const article = app.querySelector("#article");
-  const notes = app.querySelector("#notes");
   const pop = app.querySelector("#pop");
   const setOpen = (open) => document.body.classList.toggle("notes-open", open);
 
@@ -168,7 +166,7 @@ export async function readerPage(id, stale) {
   requestAnimationFrame(() => {
     if (p.position > 0.01 && p.position < 0.99) {
       window.scrollTo(0, article.offsetTop + p.position * (article.offsetHeight - innerHeight));
-      toast(`Picked up where you stopped (${pct(p.position)})`);
+      toast(`Back where you stopped, ${pct(p.position)} in`);
     }
   });
 
@@ -178,7 +176,7 @@ export async function readerPage(id, stale) {
     const position = Math.min(1, Math.max(0, (scrollY - article.offsetTop) / Math.max(1, article.offsetHeight - innerHeight)));
     app.querySelector("#bar").style.width = pct(position);
     progress = Math.max(progress, position);
-    app.querySelector("#pct").textContent = pct(progress);
+    app.querySelector("#pct").textContent = `${pct(progress)} read`;
     pop.hidden = true;
     clearTimeout(timer);
     timer = setTimeout(() => api(`/papers/${id}/progress`, { method: "PUT", json: { position } }).catch(() => {}), 700);
@@ -189,26 +187,36 @@ export async function readerPage(id, stale) {
     setOpen(true);
     const item = document.createElement("div");
     item.className = "answer";
-    item.innerHTML = `<blockquote>${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</blockquote>
+    item.innerHTML = `<p class="answer-quote">${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</p>
       ${question ? `<p class="answer-q">${esc(question)}</p>` : ""}<div class="answer-body">${loading("Explaining")}</div>`;
     app.querySelector("#answers").prepend(item);
     try {
       const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question } });
       item.querySelector(".answer-body").textContent = r.explanation;
     } catch (e) {
-      item.querySelector(".answer-body").innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+      item.querySelector(".answer-body").innerHTML = `<p class="error">${esc(e.message)}</p>`;
     }
+  };
+
+  // Keep explained passages highlighted in the text, like a real highlighter.
+  const highlight = (range) => {
+    try {
+      const mark = document.createElement("mark");
+      mark.className = "explained";
+      range.surroundContents(mark);
+    } catch { /* selection spans paragraphs; skip the inline highlight */ }
   };
 
   article.addEventListener("mouseup", () => setTimeout(() => {
     const sel = getSelection();
     const text = sel.toString().trim();
     if (text.length < 3) { pop.hidden = true; return; }
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    pop.style.top = `${rect.top + scrollY - 40}px`;
-    pop.style.left = `${Math.min(innerWidth - 100, Math.max(8, rect.left + rect.width / 2 - 40))}px`;
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    pop.style.top = `${rect.top + scrollY - 44}px`;
+    pop.style.left = `${Math.min(innerWidth - 140, Math.max(8, rect.left + rect.width / 2 - 60))}px`;
     pop.hidden = false;
-    pop.onclick = () => { pop.hidden = true; sel.removeAllRanges(); explain(text); };
+    pop.onclick = () => { pop.hidden = true; highlight(range.cloneRange()); sel.removeAllRanges(); explain(text); };
   }));
 
   app.querySelector("#ask").onsubmit = (e) => {
@@ -221,7 +229,7 @@ export async function readerPage(id, stale) {
   app.querySelector("#toggle-notes").onclick = () => setOpen(!document.body.classList.contains("notes-open"));
   app.querySelector("#close-notes").onclick = () => setOpen(false);
 
-  const finish = (e) => busy(e.target, "Preparing your quiz…", async () => {
+  const finish = (e) => busy(e.currentTarget, "Writing your quiz…", async () => {
     await api(`/papers/${id}/finish`, { method: "POST" });
     location.hash = `#/papers/${id}/quiz`;
   });
@@ -242,12 +250,12 @@ export async function quizPage(id, stale) {
   if (stale()) return;
   const head = `<nav class="crumbs"><a href="#/papers/${id}">${esc(p.title)}</a></nav>
     <div class="page-head"><h1>Check your understanding</h1>
-    <p class="lede">Answer in your own words. Each answer is graded against the paper, not against exact wording.</p></div>`;
+    <p class="lede">Answer in your own words. Answers are graded against the paper, not against exact wording.</p></div>`;
 
   if (!p.quiz?.length) {
     app.innerHTML = `<div class="container page narrow">${head}
-      <div class="empty"><p>No quiz yet for this paper.</p><button class="button" id="gen">Write a quiz</button></div></div>`;
-    app.querySelector("#gen").onclick = (e) => busy(e.target, "Writing questions…", async () => {
+      <div class="empty"><p>No quiz for this paper yet.</p><button class="button" id="gen">Write a quiz</button></div></div>`;
+    app.querySelector("#gen").onclick = (e) => busy(e.currentTarget, "Writing questions…", async () => {
       await api(`/papers/${id}/quiz`, { method: "POST" });
       quizPage(id, stale);
     });
@@ -255,10 +263,10 @@ export async function quizPage(id, stale) {
   }
 
   app.innerHTML = `<div class="container page narrow">${head}
-    <form id="quiz"><ol class="quiz">${p.quiz.map((q, i) => `<li>
-      <label for="a${i}" class="question">${esc(q.question)}</label>
+    <form id="quiz" class="quiz">${p.quiz.map((q, i) => `<div class="sheet question">
+      <label for="a${i}"><span class="q-num">Question ${i + 1} of ${p.quiz.length}</span>${esc(q.question)}</label>
       <textarea id="a${i}" rows="3"></textarea>
-      <div class="feedback" id="fb${i}"></div></li>`).join("")}</ol>
+      <div class="feedback" id="fb${i}"></div></div>`).join("")}
       <div class="quiz-foot"><button class="button">Grade my answers</button><span id="score" class="score"></span></div>
     </form></div>`;
 
@@ -269,10 +277,10 @@ export async function quizPage(id, stale) {
       const r = await api(`/papers/${id}/quiz/grade`, { method: "POST", json: { answers } });
       r.results.forEach((res, i) => {
         const level = res.score >= 0.8 ? "good" : res.score >= 0.4 ? "partial" : "miss";
-        app.querySelector(`#fb${i}`).innerHTML = `<p class="grade grade-${level}"><span class="num">${pct(res.score)}</span> ${esc(res.feedback)}</p>
+        app.querySelector(`#fb${i}`).innerHTML = `<p class="grade"><span class="score-pill score-${level} num">${pct(res.score)}</span><span>${esc(res.feedback)}</span></p>
           <details><summary>Reference answer</summary><p>${esc(p.quiz[i].answer)}</p></details>`;
       });
-      app.querySelector("#score").innerHTML = `Understanding <strong class="num">${pct(r.score)}</strong>`;
+      app.querySelector("#score").innerHTML = `You understood <strong class="num">${pct(r.score)}</strong> of this paper`;
     });
   };
 }

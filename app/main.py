@@ -21,6 +21,14 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Papers", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def revalidate_static(request: Request, call_next):
+    response = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-cache"  # pick up UI changes without a hard refresh
+    return response
+
+
 @app.exception_handler(llm.AIError)
 def ai_error(_: Request, exc: llm.AIError):
     return JSONResponse({"detail": str(exc)}, status_code=503)
@@ -119,15 +127,28 @@ def create_paper(body: PaperIn):
     return get_paper(cur.lastrowid)
 
 
+def resume_text(text: str, position: float) -> str:
+    """The sentence where the reader stopped, trimmed for a preview."""
+    at = int(position * len(text))
+    dot = text.rfind(". ", 0, at + 1)
+    start = dot + 2 if dot >= 0 else 0
+    snippet = text[start:start + 180]
+    return snippet if len(snippet) < 180 else snippet.rsplit(" ", 1)[0] + "…"
+
+
 @app.get("/api/papers")
 def list_papers(topic_id: int | None = None):
-    cols = "id, topic_id, title, authors, year, external_id, status, progress, position, understanding, source_paper_id, updated_at"
+    cols = "id, topic_id, title, authors, year, external_id, status, progress, position, understanding, source_paper_id, updated_at, text"
     with db.connect() as conn:
         if topic_id is None:
             rows = conn.execute(f"select {cols} from papers order by updated_at desc")
         else:
             rows = conn.execute(f"select {cols} from papers where topic_id = ? order by updated_at desc", (topic_id,))
-        return [dict(r) for r in rows]
+        papers = [dict(r) for r in rows]
+    for p in papers:
+        text = p.pop("text")
+        p["resume_text"] = resume_text(text, p["position"]) if p["status"] == "reading" and text else ""
+    return papers
 
 
 @app.get("/api/papers/{paper_id}")
