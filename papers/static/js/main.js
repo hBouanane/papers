@@ -1,6 +1,12 @@
 import { addFromLink, app, currentGoal, esc, looksLikePaperLink, noteVisit, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
-import { goalPage, goalsPage, libraryPage, mapPage, recallPage, settingsPage } from "./pages.js";
-import { paperPage, quizPage, readerPage } from "./paper.js";
+import { goalPage, goalsPage } from "./pages/goals.js";
+import { libraryPage } from "./pages/library.js";
+import { mapPage } from "./pages/map.js";
+import { recallPage } from "./pages/recall.js";
+import { settingsPage } from "./pages/settings.js";
+import { paperPage } from "./paper/overview.js";
+import { readerPage } from "./paper/reader.js";
+import { quizPage } from "./paper/review.js";
 import "./theme.js";
 
 const routes = [
