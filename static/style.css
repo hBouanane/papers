@@ -1320,3 +1320,22 @@ body.reading #toast { bottom: 64px; }
 .loose-card:nth-child(2) .loose-stage { animation-delay: .42s; } .loose-card:nth-child(3) .loose-stage { animation-delay: .54s; }
 .loose-card:nth-child(4) .loose-stage { animation-delay: .66s; } .loose-card:nth-child(n + 5) .loose-stage { animation-delay: .78s; }
 @media (prefers-reduced-motion: reduce) { .recall-hero, .goal-card .cover-fan, .loose-card .loose-stage { animation: none; } }
+
+/* Map without boxes: chains are the same paper cards as everywhere, joined by dashed arrows. */
+.chain { padding: 0; margin: 6px 0 34px; }
+.chain-head { margin-bottom: 18px; }
+.chain-tree li { align-items: flex-start; }
+.chain-tree .shelf-card { width: 170px; flex-shrink: 0; }
+.chain-tree li > ol { padding-left: 64px; }
+/* the arrows meet the papers at the middle of their first page */
+.chain-tree li > ol::before { top: 86px; width: 32px; }
+.chain-tree ol > li::before { top: 86px; left: -32px; width: 28px; }
+.chain-tree ol > li::after { top: 81px; }
+.chain-tree li > ol:has(> li + li)::after { left: 31px; top: 86px; bottom: auto; height: calc(100% - 172px); }
+@media (max-width: 640px) { .chain-tree .shelf-card { width: 130px; } .chain-tree li > ol::before, .chain-tree ol > li::before { top: 65px; }
+  .chain-tree ol > li::after { top: 60px; } }
+/* Without boxes on the Map, the corner paper stays further back so it never crowds the cards. */
+.map-corner { opacity: .45; }
+.map-corner-paper { bottom: -34%; right: -22%; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-corner { opacity: .35; } }
+:root[data-theme="dark"] .map-corner, :root[data-theme="dim"] .map-corner { opacity: .35; }
