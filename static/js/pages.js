@@ -17,18 +17,18 @@ const paperCard = (p, note = "") => `<a class="shelf-card" href="#/papers/${p.id
     </span>
   </a>`;
 
-// A paper that isn't in a goal yet: its card, and on hover (always on touch screens) a way to add it
-// to a goal and a shortcut to read it.
+// A paper that isn't in a goal yet. Pointing at it lays frosted glass over its page with "+ Add to a goal"
+// (your goals open from it); under the title, "Read →" opens it in the reader.
+const PLUS = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
 const looseCard = (p, goals) => `<div class="shelf-card loose-card" data-paper="${p.id}">
-    <a class="loose-open" href="#/papers/${p.id}">
+    <div class="loose-stage">
       <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
-      <span class="shelf-title paper-name">${esc(p.title)}</span>
-    </a>
-    <div class="loose-actions">
-      ${goals.length ? `<details class="menu loose-goal"><summary class="button small">Add to goal</summary>
-        <div class="menu-list sheet" role="menu">${goals.map((g) => `<button role="menuitem" data-goal="${g.id}">${esc(shorten(g.goal, 60))}</button>`).join("")}</div></details>` : ""}
-      ${p.has_pdf ? `<a class="button secondary small" href="#/papers/${p.id}/read">Read</a>` : ""}
+      ${goals.length ? `<details class="menu loose-goal"><summary class="glass-add" title="Add to a goal"><span class="glass-plus">${PLUS}</span><span>Add to a goal</span></summary>
+        <div class="menu-list sheet" role="menu">${goals.map((g) => `<button role="menuitem" data-goal="${g.id}">${esc(shorten(g.goal, 60))}</button>`).join("")}</div></details>`
+        : `<a class="glass-add" href="#/goals" title="Create a goal first"><span class="glass-plus">${PLUS}</span><span>Create a goal</span></a>`}
     </div>
+    <a class="loose-title shelf-title paper-name" href="#/papers/${p.id}">${esc(p.title)}</a>
+    ${p.has_pdf ? `<a class="loose-read" href="#/papers/${p.id}/read">Read <span class="arrow" aria-hidden="true">→</span></a>` : ""}
   </div>`;
 
 // Up to three covers fanned out like cards in a hand; they spread a little more on hover.

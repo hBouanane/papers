@@ -1198,19 +1198,31 @@ body.reading #toast { bottom: 64px; }
     -webkit-mask-image: none; mask-image: none; }
 }
 
-/* Goals > Not in a goal yet: on hover a card offers Add to goal and Read (always shown on touch screens). */
+/* Goals > Not in a goal yet: frosted glass over the page with "+ Add to a goal" on hover; "Read →" under the title. */
 .loose-card { position: relative; gap: 10px; }
-.loose-open { display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: inherit; }
-.loose-open .shelf-title { font-size: 15px; line-height: 1.3; color: var(--heading); display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden; transition: color .3s; }
-.loose-card:hover .shelf-title { color: var(--ink); }
+.loose-stage { position: relative; width: 78%; }
+.loose-stage .shelf-stage { width: 100%; }
 .loose-card:hover .shelf-stage .cover, .loose-card:focus-within .shelf-stage .cover { transform: translateY(-6px) rotate(-1.5deg); }
-.loose-actions { display: flex; flex-wrap: wrap; gap: 6px; opacity: 0; transform: translateY(-4px); pointer-events: none;
-  transition: opacity .25s ease, transform .3s cubic-bezier(.3, .8, .25, 1); }
-.loose-card:hover .loose-actions, .loose-card:focus-within .loose-actions { opacity: 1; transform: none; pointer-events: auto; }
-.loose-goal .menu-list { min-width: 240px; max-width: 320px; }
+.loose-goal { position: absolute; inset: 0; margin: 0; }
+.glass-add { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 8px; list-style: none;
+  border-radius: 3px; cursor: pointer; text-decoration: none; font: 700 14px var(--ui); color: var(--heading);
+  background: color-mix(in srgb, var(--sheet) 42%, transparent); -webkit-backdrop-filter: blur(7px) saturate(140%); backdrop-filter: blur(7px) saturate(140%);
+  border: 1px solid color-mix(in srgb, #fff 35%, transparent); opacity: 0; transform: translateY(-6px) rotate(-1.5deg);
+  transition: opacity .3s ease, transform .45s cubic-bezier(.3, .8, .25, 1); }
+.glass-add::-webkit-details-marker { display: none; }
+.glass-plus { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: var(--on-selected);
+  background: var(--selected); box-shadow: 0 8px 20px -8px rgb(0 0 0 / .45); transition: transform .3s cubic-bezier(.3, .8, .25, 1); }
+.glass-add:hover .glass-plus { transform: scale(1.08) rotate(90deg); }
+.loose-card:hover .glass-add, .loose-card:focus-within .glass-add, .loose-goal[open] .glass-add { opacity: 1; }
+.loose-goal .menu-list { top: 62%; left: 50%; transform: translateX(-50%); min-width: 240px; max-width: 300px; z-index: 5; }
 .loose-goal .menu-list button { white-space: normal; text-align: left; }
-@media (hover: none) { .loose-actions { opacity: 1; transform: none; pointer-events: auto; } }
+.loose-title { font-size: 15px; line-height: 1.3; color: var(--heading); text-decoration: none; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; transition: color .3s; }
+.loose-title:hover, .loose-card:hover .loose-title { color: var(--ink); }
+.loose-read { align-self: flex-start; font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: none; }
+.loose-read:hover .arrow, .loose-card:hover .loose-read .arrow { transform: translateX(4px); }
+@media (hover: none) { .glass-add { opacity: 1; background: color-mix(in srgb, var(--sheet) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .glass-add, .glass-plus { transition: none; } }
 
 /* Map: one of your papers, big, half in the top-right corner, with dashed lines flowing out of it across the
    page to softly pulsing dots. Behind everything; the content keeps its full width. */
@@ -1234,3 +1246,4 @@ body.reading #toast { bottom: 64px; }
 :root[data-theme="dark"] .map-corner, :root[data-theme="dim"] .map-corner { opacity: .5; }
 @media (max-width: 760px) { .map-corner { width: 110vw; height: 70vh; opacity: .35; } .map-corner-paper { width: 60%; } }
 @media (prefers-reduced-motion: reduce) { .map-rays path, .map-dot, .map-corner-paper { animation: none; } }
+.glass-add { font-size: 13px; padding: 0 8px; text-align: center; line-height: 1.25; }
