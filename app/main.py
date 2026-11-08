@@ -95,6 +95,7 @@ def get_paper(paper_id: int) -> dict:
     if not paper:
         raise HTTPException(404, "Paper not found")
     paper["has_pdf"] = db.pdf_path(paper_id).exists()
+    paper["can_fetch_pdf"] = not paper["has_pdf"] and pdf_source(paper) is not None
     return paper
 
 
@@ -364,6 +365,44 @@ async def upload_pdf(paper_id: int, file: UploadFile):
     text = read_pdf(data)
     save_pdf(paper_id, data)
     return update_paper(paper_id, text=text)
+
+
+def pdf_source(p: dict) -> str | None:
+    """Where the original PDF can be downloaded from, if we know."""
+    if p.get("pdf_url"):
+        return p["pdf_url"]
+    if (p.get("external_id") or "").startswith("arXiv:"):
+        return f"https://arxiv.org/pdf/{p['external_id'][6:]}"
+    if m := re.search(r"arxiv\.org/abs/(\S+)", p.get("url") or ""):
+        return f"https://arxiv.org/pdf/{m[1]}"
+    return None
+
+
+@app.post("/api/papers/{paper_id}/fetch-pdf")
+def fetch_original_pdf(paper_id: int):
+    """Download the original PDF for papers added before PDFs were kept."""
+    paper = get_paper(paper_id)
+    if paper["has_pdf"]:
+        return paper
+    if not (url := pdf_source(paper)):
+        raise HTTPException(400, "No PDF link is known for this paper. Upload the PDF instead.")
+    data = scholar.fetch_pdf(url)
+    if not pdf.is_pdf(data):
+        raise HTTPException(400, "That link didn't return a PDF. Upload the PDF instead.")
+    save_pdf(paper_id, data)
+    if not paper["text"]:
+        update_paper(paper_id, text=read_pdf(data))
+    return get_paper(paper_id)
+
+
+@app.post("/api/papers/{paper_id}/glossary")
+def make_glossary(paper_id: int):
+    paper = get_paper(paper_id)
+    if not paper["text"]:
+        raise HTTPException(400, "This paper has no text yet. Upload its PDF first.")
+    words = llm.glossary(paper)
+    update_paper(paper_id, glossary=json.dumps(words))
+    return words
 
 
 @app.get("/api/papers/{paper_id}/file")

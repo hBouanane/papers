@@ -74,6 +74,10 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
             if e["question"]:
                 lines += [f"*{e['question']}*", ""]
             lines += [e["answer"], ""]
+    if p.get("glossary"):
+        lines += ["", "## Vocabulary", ""]
+        lines += [f"- **{w['term']}** ({'English' if w['kind'] == 'english' else 'technical'}): {w['meaning']}"
+                  for w in p["glossary"]]
     if p.get("quiz"):
         lines += ["", "## Quiz", ""]
         for i, q in enumerate(p["quiz"], 1):

@@ -86,3 +86,20 @@ def test_library_folder_setting_is_unaffected(client, tmp_path):
     client.put("/api/settings", json={"ai_backend": "claude-code"})
     r = client.put("/api/settings", json={"library_dir": str(tmp_path / "P")}).json()
     assert r["library_dir"] == str(tmp_path / "P") and r["ai_backend"] == "claude-code"
+
+
+def test_long_instructions_go_through_a_file_not_the_command_line(cli, monkeypatch):
+    """Windows rejects command lines over ~32k characters ([WinError 206]); a paper is longer."""
+    seen = {}
+
+    def run(args, **kw):
+        i = args.index("--system-prompt-file")
+        with open(args[i + 1], encoding="utf-8") as f:
+            seen["system"] = f.read()
+        seen["longest_arg"] = max(len(a) for a in args)
+        return subprocess.CompletedProcess(args, 0, stdout=json.dumps({"is_error": False, "result": "ok"}), stderr="")
+
+    monkeypatch.setattr(llm.subprocess, "run", run)
+    paper = {"title": "Long", "text": "word " * 20000}
+    assert llm.explain(paper, "passage", "") == "ok"
+    assert "word word" in seen["system"] and seen["longest_arg"] < 2000
