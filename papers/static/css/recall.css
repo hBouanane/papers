@@ -25,9 +25,9 @@
    of step with the others. While a search runs the pages spread out and glow. */
 .recall-page { position: relative; z-index: 1; }
 .recall-backdrop { position: fixed; inset: 56px 0 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.recall-hero { position: absolute; right: max(2vw, calc((100vw - 1120px) / 2 - 80px)); top: 60px; width: min(560px, 46vw); opacity: .6;
+.recall-hero { position: absolute; right: max(2vw, calc((100vw - 1120px) / 2 - 80px)); top: 60px; width: min(560px, 46vw);
   animation: glide-in-right 1.1s cubic-bezier(.2, .8, .2, 1) backwards, recall-drift 12s ease-in-out 1.1s infinite alternate;
-  /* backwards, not both: once it has glided in, the opacity below (and while searching) applies again */
+  /* backwards, not both: once it has glided in, the glow while searching can change it */
   transition: opacity .8s ease, filter .8s ease; }
 .recall-hero .cover-fan { height: min(520px, 42vw); }
 .recall-hero .cover-fan .cover-wrap { width: 44%; }
@@ -46,25 +46,20 @@
   from { transform: rotate(-2.5deg) translateY(0); }
   to { transform: rotate(2.5deg) translateY(-12px); }
 }
-.recall-backdrop.searching .recall-hero { opacity: .9; filter: drop-shadow(0 0 30px color-mix(in srgb, var(--ink) 40%, transparent)); }
+.recall-backdrop.searching .recall-hero { filter: drop-shadow(0 0 30px color-mix(in srgb, var(--ink) 40%, transparent)); }
 .recall-backdrop.searching .cover-fan .cover-wrap:nth-child(1) { transform: translateX(-50%) rotate(-20deg) translateX(-54%) translateY(-3%); }
 .recall-backdrop.searching .cover-fan .cover-wrap:nth-child(2) { transform: translateX(-50%) rotate(0deg) translateY(-10%); }
 .recall-backdrop.searching .cover-fan .cover-wrap:nth-child(3) { transform: translateX(-50%) rotate(20deg) translateX(54%) translateY(-3%); }
 .recall-backdrop.searching .recall-hero .cover-wrap .cover { animation-duration: 1.4s; } /* livelier while searching */
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .recall-hero { opacity: .4; } }
-:root[data-theme="dark"] .recall-hero, :root[data-theme="dim"] .recall-hero { opacity: .4; }
 @media (max-width: 900px) { .recall-hero { width: 70vw; right: -14vw; top: 150px; opacity: .25; } }
 @media (prefers-reduced-motion: reduce) {
   .recall-hero, .recall-hero .cover-wrap { animation: none; transition: none; }
   .recall-hero .cover-wrap .cover { animation: none; }
 }
 
-/* While a search runs: the fan spreads out and glows. After the theme rules above, so dim and dark mode
-   (which keep the fan faint at rest) brighten it too. */
-.recall-backdrop.searching .recall-hero { opacity: .95;
+/* While a search runs: the fan spreads out and glows. */
+.recall-backdrop.searching .recall-hero {
   filter: drop-shadow(0 0 26px color-mix(in srgb, var(--ink) 55%, transparent)) drop-shadow(0 0 60px color-mix(in srgb, var(--ink) 30%, transparent)); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .recall-backdrop.searching .recall-hero { opacity: .75; } }
-:root[data-theme="dark"] .recall-backdrop.searching .recall-hero, :root[data-theme="dim"] .recall-backdrop.searching .recall-hero { opacity: .75; }
 .recall-backdrop.searching .recall-hero .cover { animation-name: fan-sway, search-glow; animation-duration: 1.4s, 1.6s;
   animation-iteration-count: infinite; animation-direction: alternate; animation-timing-function: ease-in-out; }
 @keyframes search-glow {

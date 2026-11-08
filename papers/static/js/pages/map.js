@@ -5,10 +5,11 @@ import { paperCard, plural, shorten } from "./shared.js";
 
 // ---------- Map ----------
 // Behind the Map: two of your papers, big, half out of the corners (bottom right and top right, tilted
-// opposite ways). Dashed lines flow out of the bottom one across the page, like references leading to others.
+// opposite ways). Dashed lines flow out from under the bottom one across the page, like references leading to
+// others; it lies on top of the other one, which sits a little deeper.
 // Points are in % of the backdrop (it fills the page under the header, right side).
 const FROM = [80, 80];
-const RAYS = [[6, 76], [16, 46], [38, 30], [30, 64], [56, 50], [10, 24]];
+const RAYS = [[-12, 78], [0, 44], [26, 22], [16, 64], [48, 40], [-6, 16]];
 
 const curve = ([x, y], i) => {
   const c1 = [FROM[0] - 18, FROM[1] + (y - FROM[1]) * 0.15], c2 = [x + (FROM[0] - x) * 0.35, y];
