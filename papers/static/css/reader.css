@@ -136,6 +136,9 @@ mark.explained { background: none; color: inherit; text-decoration: underline 2p
 .view-pdf .pdfViewer .page { padding: 0; border: 0; margin: 0 auto 16px; box-sizing: content-box; box-shadow: 0 0 0 1px var(--line), var(--shadow-soft); }
 .view-pdf .article-end { max-width: 760px; margin: 8px auto 64px; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 20px 24px; }
 @media (max-width: 760px) { .view-pdf .pdfViewer .page { margin-bottom: 8px; } .view-pdf .article-end { border-radius: 0; border-left: 0; border-right: 0; } }
+/* PDF.js rounds the drawing a few pixels smaller than its page at some zoom levels; stretched to fill it, so
+   dimmed and dark pages show no white strip on the right and bottom (the stretch is under 0.2%). */
+.view-pdf .pdfViewer .page canvas { width: 100% !important; height: 100% !important; }
 .view-pdf .pdfViewer .page canvas { filter: var(--page-filter); }
 body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
 body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }

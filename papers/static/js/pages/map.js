@@ -4,23 +4,32 @@ import { cover, drawCovers } from "../covers.js";
 import { paperCard, plural, shorten } from "./shared.js";
 
 // ---------- Map ----------
-// Behind the Map: one of your papers, big, half of it in the bottom-right corner, with dashed lines flowing
-// out of it across the page to soft dots, like references leading to other papers.
-const MAP_RAYS = [[6, 70], [16, 34], [38, 10], [30, 56], [60, 6], [10, 12]];
+// Behind the Map: two of your papers, big, half out of the corners (bottom right and top right, tilted
+// opposite ways). Dashed lines flow out from under the bottom one across the page, like references leading to
+// others; it lies on top of the other one, which sits a little deeper.
+// Points are in % of the backdrop (it fills the page under the header, right side).
+const FROM = [80, 80];
+const RAYS = [[-12, 78], [0, 44], [26, 22], [16, 64], [48, 40], [-6, 16]];
+
+// Each line fades out along its length: strongest where it leaves the paper, gone at its end.
+const curve = ([x, y], i) => {
+  const c1 = [FROM[0] - 18, FROM[1] + (y - FROM[1]) * 0.15], c2 = [x + (FROM[0] - x) * 0.35, y];
+  return `<linearGradient id="ray-${i}" gradientUnits="userSpaceOnUse" x1="${FROM[0]}" y1="${FROM[1]}" x2="${x}" y2="${y}">
+      <stop offset="0" class="ray-stop"/><stop offset=".55" class="ray-stop" stop-opacity=".55"/><stop offset="1" class="ray-stop" stop-opacity="0"/></linearGradient>
+    <path d="M${FROM[0]} ${FROM[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" stroke="url(#ray-${i})" style="--i:${i}"/>`;
+};
 
 function mapBackdrop(papers, children, trees) {
-  const p = trees.find((t) => t.has_pdf) || papers.find((x) => x.has_pdf && x.status === "reading")
-    || papers.find((x) => x.has_pdf) || trees[0] || papers[0];
-  if (!p) return "";
-  const from = [80, 74];
-  const rays = MAP_RAYS.map(([x, y], i) => {
-    const c1 = [from[0] - 18, from[1] + (y - from[1]) * 0.15], c2 = [x + (from[0] - x) * 0.35, y];
-    return `<path d="M${from[0]} ${from[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
-  });
-  const dots = MAP_RAYS.map(([x, y], i) => `<span class="map-dot" style="left:${x}%;top:${y}%;--i:${i}"></span>`);
+  const withPdf = papers.filter((x) => x.has_pdf);
+  const low = trees.find((t) => t.has_pdf) || withPdf.find((x) => x.status === "reading") || withPdf[0] || trees[0] || papers[0];
+  if (!low) return "";
+  // a different paper for the top corner, ideally one the first led to
+  const high = withPdf.find((x) => x.id !== low.id && (children[low.id] || []).some((c) => c.id === x.id))
+    || withPdf.find((x) => x.id !== low.id) || papers.find((x) => x.id !== low.id);
   return `<div class="map-corner" aria-hidden="true">
-    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${rays.join("")}</svg>${dots.join("")}
-    <span class="map-corner-paper">${cover(p, "large")}</span></div>`;
+    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${RAYS.map(curve).join("")}</svg>
+    <span class="map-corner-paper">${cover(low, "large")}</span>
+    ${high ? `<span class="map-corner-paper map-corner-high">${cover(high, "large")}</span>` : ""}</div>`;
 }
 
 export async function mapPage(stale) {

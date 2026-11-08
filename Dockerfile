@@ -13,9 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PAPERS_DATA=/data \
     PAPERS_HOST=0.0.0.0 \
-    PAPERS_PORT=8000 \
-    # no screen in a container: Settings > Library folder shows the in-app folder browser instead
-    PAPERS_NO_DIALOG=1
+    PAPERS_PORT=8000
 
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./

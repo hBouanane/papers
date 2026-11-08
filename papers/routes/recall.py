@@ -29,6 +29,6 @@ def recall(body: RecallIn):
     with db.connect() as conn:
         for m in matches:
             row = conn.execute("select id, title, authors, year, status from papers where id = ?", (m["paper_id"],)).fetchone()
-            if row:
-                out.append({"paper": dict(row), "reason": m["reason"]})
+            if row:  # has_pdf: the card shows the paper's first page
+                out.append({"paper": {**dict(row), "has_pdf": db.pdf_path(row["id"]).exists()}, "reason": m["reason"]})
     return out

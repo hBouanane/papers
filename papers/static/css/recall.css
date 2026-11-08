@@ -6,10 +6,11 @@
 .match:hover .paper-name { color: var(--ink); }
 .match-reason { margin-top: 6px; }
 .recall-results { display: grid; gap: 14px; }
-.match-card { grid-template-columns: 74px minmax(0, 1fr); align-items: start; gap: 18px; border-radius: 12px; transition: transform .3s ease; }
+.match-card { grid-template-columns: 92px minmax(0, 1fr); align-items: start; gap: 22px; border-radius: 12px; transition: transform .3s ease; }
+.match-cover { position: relative; width: 82px; margin: 2px 0 6px; }
 .match-card:hover { transform: translateY(-2px); }
-.match-cover .cover-sheet { display: none; }
 .match-card:hover .match-cover .cover { transform: translateY(-3px) rotate(-1.5deg); }
+.match-card:hover .match-cover .cover-sheet { transform: rotate(9deg) translate(6px, 0); }
 .match-text { display: grid; gap: 3px; min-width: 0; }
 
 /* Ideas to try, and the rest of the page. */
@@ -24,8 +25,9 @@
    of step with the others. While a search runs the pages spread out and glow. */
 .recall-page { position: relative; z-index: 1; }
 .recall-backdrop { position: fixed; inset: 56px 0 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.recall-hero { position: absolute; right: max(2vw, calc((100vw - 1120px) / 2 - 80px)); top: 60px; width: min(560px, 46vw); opacity: .6;
-  animation: glide-in-right 1.1s cubic-bezier(.2, .8, .2, 1) both, recall-drift 12s ease-in-out 1.1s infinite alternate;
+.recall-hero { position: absolute; right: max(2vw, calc((100vw - 1120px) / 2 - 80px)); top: 60px; width: min(560px, 46vw);
+  animation: glide-in-right 1.1s cubic-bezier(.2, .8, .2, 1) backwards, recall-drift 12s ease-in-out 1.1s infinite alternate;
+  /* backwards, not both: once it has glided in, the glow while searching can change it */
   transition: opacity .8s ease, filter .8s ease; }
 .recall-hero .cover-fan { height: min(520px, 42vw); }
 .recall-hero .cover-fan .cover-wrap { width: 44%; }
@@ -44,15 +46,24 @@
   from { transform: rotate(-2.5deg) translateY(0); }
   to { transform: rotate(2.5deg) translateY(-12px); }
 }
-.recall-backdrop.searching .recall-hero { opacity: .9; filter: drop-shadow(0 0 30px color-mix(in srgb, var(--ink) 40%, transparent)); }
+.recall-backdrop.searching .recall-hero { filter: drop-shadow(0 0 30px color-mix(in srgb, var(--ink) 40%, transparent)); }
 .recall-backdrop.searching .cover-fan .cover-wrap:nth-child(1) { transform: translateX(-50%) rotate(-20deg) translateX(-54%) translateY(-3%); }
 .recall-backdrop.searching .cover-fan .cover-wrap:nth-child(2) { transform: translateX(-50%) rotate(0deg) translateY(-10%); }
 .recall-backdrop.searching .cover-fan .cover-wrap:nth-child(3) { transform: translateX(-50%) rotate(20deg) translateX(54%) translateY(-3%); }
 .recall-backdrop.searching .recall-hero .cover-wrap .cover { animation-duration: 1.4s; } /* livelier while searching */
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .recall-hero { opacity: .4; } }
-:root[data-theme="dark"] .recall-hero, :root[data-theme="dim"] .recall-hero { opacity: .4; }
 @media (max-width: 900px) { .recall-hero { width: 70vw; right: -14vw; top: 150px; opacity: .25; } }
 @media (prefers-reduced-motion: reduce) {
   .recall-hero, .recall-hero .cover-wrap { animation: none; transition: none; }
   .recall-hero .cover-wrap .cover { animation: none; }
 }
+
+/* While a search runs: the fan spreads out and glows. */
+.recall-backdrop.searching .recall-hero {
+  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--ink) 55%, transparent)) drop-shadow(0 0 60px color-mix(in srgb, var(--ink) 30%, transparent)); }
+.recall-backdrop.searching .recall-hero .cover { animation-name: fan-sway, search-glow; animation-duration: 1.4s, 1.6s;
+  animation-iteration-count: infinite; animation-direction: alternate; animation-timing-function: ease-in-out; }
+@keyframes search-glow {
+  from { box-shadow: 0 30px 60px -20px rgb(0 0 0 / .45), 0 0 0 0 transparent; }
+  to { box-shadow: 0 30px 60px -20px rgb(0 0 0 / .45), 0 0 36px 6px color-mix(in srgb, var(--ink) 45%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .recall-backdrop.searching .recall-hero .cover { animation: none; } }
