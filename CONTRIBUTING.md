@@ -70,7 +70,8 @@ papers/
                         layout (markup), bar (one-row bar and its ⋯ menu), route (the pill at the bottom),
                         views (PDF or Text, Go to…, back to where you stopped), progress (what you've read,
                         skimming), selection (the bar on selected text), highlighter, panel (Ask, Words,
-                        Notes; streamed answers), finish, zoom, keys (shortcuts), terms (underlined words)
+                        Notes; streamed answers), finish, zoom, keys (shortcuts), terms + vocab (the Words switch:
+                        hard words marked in the page, with a card for each)
     js/components/    reusable widgets: combobox (searchable dropdown), folderpicker
     js/*.js           shared by the paper screens: pdfview (PDF.js), textview, highlights, notes, tracker,
                       speech, readprefs (font, size, page tone), covers (first-page thumbnails), theme

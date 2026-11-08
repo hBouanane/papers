@@ -16,6 +16,7 @@ import { setupRoute } from "./reader/route.js";
 import { setupSelection } from "./reader/selection.js";
 import { readerState } from "./reader/state.js";
 import { createViews } from "./reader/views.js";
+import { setupVocab } from "./reader/vocab.js";
 import { setupZoom } from "./reader/zoom.js";
 
 export async function readerPage(id, stale) {
@@ -39,11 +40,12 @@ export async function readerPage(id, stale) {
   const bar = setupBar(r);
   setupRoute(r);
   const notes = noteStore(id);
-  const views = createViews(r, { notes, fitBar: bar.fit });
+  const vocab = setupVocab(r);
+  const views = createViews(r, { notes, vocab, fitBar: bar.fit });
 
   // Open the paper, then go back to where you stopped (or to the note you came to see).
   await views.show(r.view);
-  if (stale()) { r.pdf?.close(); bar.cleanup(); return; }
+  if (stale()) { r.pdf?.close(); bar.cleanup(); vocab.cleanup(); return; }
   const jumpTo = views.restore();
   const panel = setupPanel(r);
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
@@ -58,12 +60,12 @@ export async function readerPage(id, stale) {
   const progress = setupProgress(r);
   const unbindViews = views.bind();
   const highlighter = setupHighlighter(r, { notes, notesUi, setOpen: panel.setOpen });
-  const selection = setupSelection(r, { highlighter, notesUi, panel });
+  const selection = setupSelection(r, { highlighter, notesUi, panel, vocab });
   setupFinish(r, { flush: progress.flush });
   panel.renderWords();
-  panel.onWordsChanged(() => views.reopen("text"));
+  panel.onWordsChanged(vocab.refresh);
   const zoom = setupZoom(r);
-  const unbindKeys = bindKeys(r, { progress, panel, selection, highlighter, zoom });
+  const unbindKeys = bindKeys(r, { progress, panel, selection, highlighter, zoom, vocab });
   bindReadingPrefs(r.$("#bar"));
 
   return () => {
@@ -76,5 +78,6 @@ export async function readerPage(id, stale) {
     bar.cleanup();
     r.pdf?.close();
     panel.cleanup();
+    vocab.cleanup();
   };
 }

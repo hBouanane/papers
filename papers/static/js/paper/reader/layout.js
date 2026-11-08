@@ -23,6 +23,7 @@ export const readerHtml = (p, id, language) => `
         </div>
         ${readingPrefsMenu()}
         <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span><span class="switch-label">Skimming</span></button>
+        <button class="switch" id="vocab-toggle" role="switch" aria-checked="true" title="Mark the paper's hard words; click one to see what it means (w)"><span class="switch-track" aria-hidden="true"></span><span class="switch-label">Words</span></button>
         ${pageToneControl()}
         <details class="menu bar-more" id="bar-more" hidden><summary class="button secondary small" title="More tools" aria-label="More tools">⋯</summary>
           <div class="menu-list sheet bar-more-list" id="bar-more-list"></div></details>
@@ -58,6 +59,7 @@ export const readerHtml = (p, id, language) => `
       <div class="pane" data-pane="notes" hidden><div id="notes-list"></div></div>
     </aside>
     <div class="finish-card sheet" id="finish-card" role="dialog" aria-live="polite" hidden></div>
+    <div class="word-card sheet" id="word-card" role="dialog" aria-label="What this word means" hidden></div>
     <div class="sel-bar hl-pop" id="hl-pop" role="toolbar" aria-label="Highlight" hidden>
       <span class="sel-colors">${COLORS.map((c) => `<button data-hl-color="${c}" class="sel-dot" aria-label="${c}" title="${named(c)}"><span class="hl-dot hl-${c}"></span></button>`).join("")}</span>
       <button data-hl-act="note">Note</button>

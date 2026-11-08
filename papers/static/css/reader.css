@@ -20,7 +20,8 @@ body.reading #toast { bottom: 64px; }
 .reader-pct { font-size: 14px; color: var(--pencil); white-space: nowrap; }
 .jump { width: auto; max-width: 180px; height: 34px; font-size: 14px; font-weight: 700; }
 @media (max-width: 1240px) { .page-tone-label { display: none; } .reader-bar .jump { max-width: 130px; } }
-@media (max-width: 1100px) { .reader-bar .switch-label { display: none; } .reader-bar .jump { max-width: 110px; } }
+/* Switch labels stay: two bare switches side by side would be guesswork. Tools that no longer fit go into the ⋯ menu. */
+@media (max-width: 1100px) { .reader-bar .jump { max-width: 110px; } }
 /* Narrow: zoom and the reading settings go last, and in the ⋯ menu "Go to…" comes first. */
 @media (max-width: 760px) {
   .reader-bar .zoom, .reader-bar .prefs-menu, .bar-more-list .switch, .bar-more-list .page-tone { order: 3; }
@@ -124,7 +125,26 @@ body.skimming .strip { opacity: .35; }
 .refs-list { font-family: var(--ui); font-size: 0.72em; line-height: 1.5; color: var(--pencil); padding-left: 1.4em; display: grid; gap: 6px; }
 .article-body ::selection { background: var(--ink-tint); }
 /* Hard words are underlined; tap or point at one to see what it means. */
-abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset: 3px; text-decoration-thickness: 1.5px; cursor: help; }
+/* Hard words (reader/vocab.js): marked only while the Words switch is on; otherwise plain text. In the PDF the
+   text layer is transparent over the drawn page, so the underline gets its own colour and the tint shows through. */
+abbr.term { text-decoration: none; cursor: inherit; }
+body.vocab-on abbr.term { --term-tint: 17%; text-decoration: underline solid; text-decoration-color: color-mix(in srgb, var(--ink) 75%, transparent);
+  text-underline-offset: 3px; text-decoration-thickness: 2px; background: color-mix(in srgb, var(--ink) var(--term-tint), transparent);
+  border-radius: 3px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); cursor: pointer; transition: background .15s; }
+body.vocab-on abbr.term:hover, body.vocab-on abbr.term.open { --term-tint: 32%; }
+body.vocab-on .textLayer abbr.term { text-decoration-thickness: 2.5px; text-underline-offset: 2px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) body.vocab-on abbr.term { --term-tint: 26%; } }
+:root[data-theme="dark"] body.vocab-on abbr.term, :root[data-theme="dim"] body.vocab-on abbr.term { --term-tint: 26%; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) body.vocab-on abbr.term:hover, :root:not([data-theme]) body.vocab-on abbr.term.open { --term-tint: 42%; } }
+:root[data-theme="dark"] body.vocab-on abbr.term:is(:hover, .open), :root[data-theme="dim"] body.vocab-on abbr.term:is(:hover, .open) { --term-tint: 42%; }
+.word-card { position: fixed; z-index: 40; width: min(340px, calc(100vw - 16px)); padding: 14px 16px 12px; display: grid; gap: 8px;
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / .4); font: 15px/1.5 var(--ui); color: var(--graphite); }
+.word-card-head { display: flex; align-items: center; gap: 8px; }
+.word-card-term { font: 600 18px var(--paper); color: var(--heading); }
+.word-card p { margin: 0; }
+.word-card-translation { font-weight: 700; }
+.word-card-example { font: italic 14px/1.5 var(--paper); color: var(--pencil); }
+.word-card-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
 /* Passages you asked about stay marked with a quiet underline. */
 mark.explained { background: none; color: inherit; text-decoration: underline 2px var(--ink); text-underline-offset: 4px; text-decoration-skip-ink: none; }
 .article-end { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--pencil); }
