@@ -414,7 +414,15 @@ export async function mapPage(stale) {
 
   // A chain drawn as a map: the same paper cards as everywhere, joined left to right by dashed arrows to
   // the papers each one led you to.
-  const node = (p) => `<li>${paperCard(p)}${children[p.id] ? `<ol>${children[p.id].map(node).join("")}</ol>` : ""}</li>`;
+  // When a paper led to more than three, the first three show and the rest fold behind "+N more".
+  const FOLD = 3;
+  const node = (p) => {
+    const kids = children[p.id] || [];
+    const more = kids.length - FOLD;
+    return `<li>${paperCard(p)}${kids.length ? `<ol class="${more > 0 ? "folded" : ""}">${kids.map((k, i) =>
+      node(k).replace("<li>", `<li class="${i >= FOLD ? "chain-extra" : ""}">`)).join("")}
+      ${more > 0 ? `<li class="chain-more"><button type="button" class="link" data-unfold>+${more} more</button></li>` : ""}</ol>` : ""}</li>`;
+  };
   const size = (p) => 1 + (children[p.id] || []).reduce((n, c) => n + size(c), 0);
   const readIn = (p) => (p.status === "read" ? 1 : 0) + (children[p.id] || []).reduce((n, c) => n + readIn(c), 0);
   const chain = (t) => `<section class="chain">
@@ -434,6 +442,14 @@ export async function mapPage(stale) {
       <div class="shelf goal-shelf">${loose.map((p) => paperCard(p)).join("")}</div></section>` : ""}
   </div>`;
   drawCovers(app);
+  app.addEventListener("click", (e) => {
+    const unfold = e.target.closest("[data-unfold]");
+    if (!unfold) return;
+    const list = unfold.closest("ol");
+    list.classList.remove("folded");
+    unfold.closest("li").remove();
+    drawCovers(list);
+  });
 }
 
 // ---------- Settings ----------

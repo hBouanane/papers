@@ -1333,3 +1333,25 @@ body.reading #toast { bottom: 64px; }
 .map-corner-paper { bottom: -34%; right: -22%; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-corner { opacity: .35; } }
 :root[data-theme="dark"] .map-corner, :root[data-theme="dim"] .map-corner { opacity: .35; }
+
+/* Map chains, compact: smaller paper cards, and long branches fold after three. The arrows meet the middle of
+   each (smaller) first page. */
+.chain-tree .shelf-card { width: 128px; gap: 8px; }
+.chain-tree .shelf-card .shelf-title { font-size: 13px; }
+.chain-tree .shelf-card .shelf-foot { font-size: 12px; }
+.chain-tree li > ol { padding-left: 52px; gap: 12px; }
+.chain-tree li > ol::before { top: 65px; width: 26px; }
+.chain-tree ol > li::before { top: 65px; left: -26px; width: 22px; }
+.chain-tree ol > li::after { top: 60px; }
+.chain-tree li > ol:has(> li + li)::after { left: 25px; top: 65px; height: calc(100% - 130px); }
+.chain-tree ol.folded > .chain-extra { display: none; }
+.chain-tree .chain-more { align-items: center; min-height: 40px; }
+.chain-tree .chain-more::before { top: 50%; }
+.chain-tree .chain-more::after { top: calc(50% - 5px); }
+.chain-tree .chain-more .link { font-size: 14px; padding: 6px 2px; }
+@media (max-width: 640px) { .chain-tree .shelf-card { width: 110px; } .chain-tree li > ol::before, .chain-tree ol > li::before { top: 56px; }
+  .chain-tree ol > li::after { top: 51px; } .chain-tree li > ol:has(> li + li)::after { top: 56px; height: calc(100% - 112px); } }
+.chain-tree .cover-title { font-size: 10px; -webkit-line-clamp: 6; }
+.chain-tree .cover-cite { font-size: 9px; }
+.chain-tree .cover-type { padding: 14% 10% 10%; gap: 5px; }
+.chain-tree li > ol.folded::after { height: auto; bottom: 20px; } /* down to the +N more link */
