@@ -55,7 +55,7 @@ def backfill():
 
 
 LIST_COLUMNS = ("p.id, p.topic_id, p.title, p.authors, p.year, p.external_id, p.status, p.progress,"
-                " p.position, p.understanding, p.source_paper_id, p.updated_at")
+                " p.position, p.understanding, p.source_paper_id, p.read_slices, p.updated_at")
 
 
 def search(q: str, limit: int = 30) -> list[dict]:

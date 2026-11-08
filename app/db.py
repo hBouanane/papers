@@ -47,7 +47,7 @@ def pdf_path(paper_id: int) -> Path:
 
 
 # Columns added after the first release; created on startup when missing.
-NEW_COLUMNS = {"refs": "text"}
+NEW_COLUMNS = {"refs": "text", "read_slices": "text"}
 JSON_FIELDS = ("skim", "quiz", "refs")
 
 

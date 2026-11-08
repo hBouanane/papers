@@ -11,7 +11,8 @@ async function load() {
 }
 
 // Lays out every page at its final size up front (so scroll positions are stable),
-// then draws pages as they come near the viewport. Returns a cleanup function.
+// then draws pages as they come near the viewport.
+// Returns { close, pages: [element], outline: [{ title, depth, el, offset }] }.
 export async function renderPdf(url, container) {
   const lib = await load();
   const doc = await lib.getDocument(url).promise;
@@ -54,8 +55,30 @@ export async function renderPdf(url, container) {
   }, { rootMargin: "1200px 0px" });
   pages.forEach((p) => observer.observe(p.el));
 
-  return () => {
-    observer.disconnect();
-    doc.destroy();
+  return {
+    close() { observer.disconnect(); doc.destroy(); },
+    pages: pages.map((p) => p.el),
+    outline: await outline(doc, pages),
   };
+}
+
+// The PDF's own table of contents (two levels), resolved to page elements and offsets.
+async function outline(doc, pages) {
+  const found = [];
+  const walk = async (items, depth) => {
+    for (const item of items || []) {
+      try {
+        const dest = typeof item.dest === "string" ? await doc.getDestination(item.dest) : item.dest;
+        if (dest) {
+          const index = typeof dest[0] === "number" ? dest[0] : await doc.getPageIndex(dest[0]);
+          const p = pages[index];
+          const offset = dest[1]?.name === "XYZ" && dest[3] != null ? p.viewport.convertToViewportPoint(0, dest[3])[1] : 0;
+          found.push({ title: item.title, depth, el: p.el, offset: Math.max(0, offset) });
+        }
+      } catch { /* broken outline entry: skip it */ }
+      if (depth < 1) await walk(item.items, depth + 1);
+    }
+  };
+  await walk(await doc.getOutline(), 0);
+  return found;
 }

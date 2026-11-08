@@ -1,5 +1,6 @@
 import { api, app, busy, cite, esc, loading, pct, progressBar, statusTag, toast } from "./core.js";
 import { renderPdf } from "./pdfview.js";
+import { SLICES, startTracker, stripBackground } from "./tracker.js";
 
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
@@ -23,6 +24,7 @@ export async function paperPage(id, stale) {
         ${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Take the quiz" : "Retake the quiz"}</a>` : ""}
         <label class="button ${readable ? "quiet" : ""}"><span>${p.has_pdf ? "Replace PDF" : "Upload the PDF"}</span><input type="file" id="pdf" accept="application/pdf,.pdf" hidden></label>
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
+        ${p.status !== "read" ? `<button class="button quiet" id="mark-read" title="For papers you read somewhere else">Mark as read</button>` : ""}
         <button class="button quiet" id="edit">Edit details</button>
       </div>
       ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
@@ -61,6 +63,10 @@ export async function paperPage(id, stale) {
 
   renderSkim(p);
   app.querySelector("#edit").onclick = () => editDetails(p, goals);
+  app.querySelector("#mark-read")?.addEventListener("click", (e) => busy(e.currentTarget, "Marking…", async () => {
+    await api(`/papers/${id}/finish`, { method: "POST" });
+    paperPage(id, stale);
+  }));
   app.querySelector("#pdf")?.addEventListener("change", (e) => uploadPdf(id, e.target.files[0]));
   app.querySelector("#refs-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Loading…", () => loadRefs(p)));
 }
@@ -154,26 +160,35 @@ async function loadRefs(p) {
 }
 
 // ---------- Reader ----------
+const HEADING = /^(\d+(\.\d+)*\.?\s+\S.{0,70}|abstract|introduction|conclusions?|discussion|references|acknowledg\w*)$/i;
+
 export async function readerPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const p = await api(`/papers/${id}`);
   if (stale()) return;
   if (!p.text && !p.has_pdf) { location.replace(`#/papers/${id}`); return; }
   // The original PDF is the default; small screens get the reflowed text when there is some.
-  let mode = p.has_pdf && (innerWidth >= 700 || !p.text) ? "pdf" : "text";
+  let view = p.has_pdf && (innerWidth >= 700 || !p.text) ? "pdf" : "text";
+  let saved = p.position; // where you stopped, as the server knows it
   document.body.classList.add("reading");
 
   app.innerHTML = `
     <div class="reader-bar">
       <div class="reader-bar-inner">
         <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
-        ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View">
-          <button data-mode="pdf">Original</button><button data-mode="text">Text</button></div>` : ""}
-        <span class="reader-pct num" id="pct">${pct(p.progress)} read</span>
+        <div class="segmented small" role="group" aria-label="Mode" id="modes">
+          <button data-track="read" class="active" title="Time spent reading counts towards your progress">Reading</button>
+          <button data-track="skim" title="Jump around freely; nothing is recorded">Skimming</button></div>
+        ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
+          <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
+        <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
+        <span class="reader-pct num" id="pct"></span>
         <button class="button secondary small" id="toggle-notes">Explanations</button>
         <button class="button small" id="finish">${p.status === "read" ? "Done" : "Finish"}</button>
       </div>
-      <div class="reader-progress"><span id="bar" style="width:${pct(p.position)}"></span></div>
+      <div class="strip" id="strip" title="Read parts of the paper. Click to jump."><span class="strip-view" id="strip-view"></span></div>
+      <div class="skim-note" id="skim-note" hidden>Skimming: nothing you do here counts as reading.
+        <button class="button quiet small" id="back-to-saved">Back to where you stopped</button></div>
     </div>
     <div class="reader">
       <article id="article">
@@ -196,71 +211,131 @@ export async function readerPage(id, stale) {
     </aside>
     <button class="explain-pop" id="pop" hidden>Explain this</button>`;
 
-  const article = app.querySelector("#article");
-  const pop = app.querySelector("#pop");
+  const $ = (sel) => app.querySelector(sel);
+  const article = $("#article");
+  const content = $("#content");
+  const pop = $("#pop");
   const setOpen = (open) => document.body.classList.toggle("notes-open", open);
-
-  const content = app.querySelector("#content");
+  const barHeight = () => $(".reader-bar").offsetHeight;
   const positionNow = () => Math.min(1, Math.max(0, (scrollY - article.offsetTop) / Math.max(1, article.offsetHeight - innerHeight)));
   const scrollToPosition = (position) => window.scrollTo(0, article.offsetTop + position * (article.offsetHeight - innerHeight));
-  let closePdf = null;
+  const scrollToElement = (el, offset = 0) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY + offset - barHeight() - 12);
+  let pdf = null;
+  let targets = []; // "Go to…" destinations for the current view
 
   const show = async (next) => {
-    mode = next;
-    closePdf?.();
-    closePdf = null;
-    app.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
-    article.className = mode === "pdf" ? "pdf-sheet" : "page-sheet";
-    if (mode === "text") {
+    view = next;
+    pdf?.close();
+    pdf = null;
+    app.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+    article.className = view === "pdf" ? "pdf-sheet" : "page-sheet";
+    if (view === "text") {
       content.innerHTML = `<h1 class="paper-name">${esc(p.title)}</h1>
         ${p.authors || p.year ? `<p class="article-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
         <div class="article-body">${p.text.split("\n").map((t) => `<p${t.length < 60 ? ' class="short"' : ""}>${esc(t)}</p>`).join("")}</div>`;
-      return;
+      targets = [...content.querySelectorAll(".article-body p.short")]
+        .filter((el) => HEADING.test(el.textContent.trim()))
+        .map((el) => ({ label: el.textContent.trim(), el, offset: 0 }));
+    } else {
+      content.innerHTML = `<div class="pdf-pages" id="pages">${loading("Opening the PDF")}</div>`;
+      try {
+        pdf = await renderPdf(`/api/papers/${id}/file`, content.querySelector("#pages"));
+        targets = [
+          ...pdf.outline.map((o) => ({ label: `${o.depth ? "  " : ""}${o.title}`, el: o.el, offset: o.offset })),
+          ...pdf.pages.map((el, i) => ({ label: `Page ${i + 1} of ${pdf.pages.length}`, el, offset: 0, page: true })),
+        ];
+      } catch (e) {
+        content.innerHTML = `<p class="error pad">Couldn't open the PDF: ${esc(e.message)}</p>`;
+        targets = [];
+      }
     }
-    content.innerHTML = `<div class="pdf-pages" id="pages">${loading("Opening the PDF")}</div>`;
-    try {
-      closePdf = await renderPdf(`/api/papers/${id}/file`, content.querySelector("#pages"));
-    } catch (e) {
-      content.innerHTML = `<p class="error pad">Couldn't open the PDF: ${esc(e.message)}</p>`;
-    }
+    const sections = targets.filter((t) => !t.page);
+    const pages = targets.filter((t) => t.page);
+    $("#jump").innerHTML = `<option value="">Go to…</option>
+      ${sections.length ? `<optgroup label="Sections">${sections.map((t) => `<option value="${targets.indexOf(t)}">${esc(t.label)}</option>`).join("")}</optgroup>` : ""}
+      ${pages.length ? `<optgroup label="Pages">${pages.map((t) => `<option value="${targets.indexOf(t)}">${esc(t.label)}</option>`).join("")}</optgroup>` : ""}`;
+    $("#jump").hidden = !targets.length;
   };
 
   // Open the paper, then go back to where the reader stopped.
-  await show(mode);
-  if (stale()) { closePdf?.(); return; }
-  if (p.position > 0.01 && p.position < 0.99) {
-    scrollToPosition(p.position);
-    toast(`Back where you stopped, ${pct(p.position)} in`);
+  await show(view);
+  if (stale()) { pdf?.close(); return; }
+  if (saved > 0.01 && saved < 0.99) {
+    scrollToPosition(saved);
+    toast(`Back where you stopped, ${pct(saved)} in`);
   }
 
-  app.querySelector(".reader-bar .segmented")?.addEventListener("click", async (e) => {
-    const b = e.target.closest("[data-mode]");
-    if (!b || b.dataset.mode === mode) return;
+  // ----- Tracking -----
+  const words = p.text ? p.text.split(/\s+/).length : (pdf?.pages.length || 10) * 400;
+  const tracker = startTracker({ article, paper: p, words, onRead: () => paintStrip() });
+  // Papers tracked the old way keep their percentage until real reading overtakes it (same rule as the server).
+  const legacy = p.read_slices ? 0 : p.progress;
+  const paintStrip = () => {
+    $("#strip").style.background = stripBackground(tracker.bits);
+    $("#pct").textContent = `${pct(Math.max(legacy, tracker.bits.filter((b) => b === "1").length / SLICES))} read`;
+  };
+  const paintView = () => {
+    const height = article.offsetHeight;
+    const marker = $("#strip-view");
+    marker.style.left = pct(Math.max(0, (scrollY - article.offsetTop) / height));
+    marker.style.width = pct(Math.min(1, innerHeight / height));
+  };
+  paintStrip();
+  paintView();
+
+  const flush = (keepalive = false) => {
+    const update = tracker.take();
+    if (!update) return;
+    if (update.position !== null) saved = update.position;
+    const body = JSON.stringify({ position: saved, slices: update.slices });
+    fetch(`/api/papers/${id}/progress`, { method: "PUT", headers: { "Content-Type": "application/json" }, body, keepalive }).catch(() => {});
+  };
+  const flushTimer = setInterval(flush, 4000);
+  const onHide = () => flush(true);
+  addEventListener("pagehide", onHide);
+
+  const onScroll = () => { paintView(); pop.hidden = true; };
+  addEventListener("scroll", onScroll, { passive: true });
+
+  $("#strip").onclick = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    window.scrollTo(0, article.offsetTop + ((e.clientX - r.left) / r.width) * article.offsetHeight - barHeight());
+  };
+  $("#jump").onchange = (e) => {
+    const t = targets[e.target.value];
+    if (t) scrollToElement(t.el, t.offset);
+    e.target.value = "";
+  };
+  $("#modes").onclick = (e) => {
+    const b = e.target.closest("[data-track]");
+    if (!b || b.dataset.track === tracker.mode) return;
+    flush();
+    tracker.setMode(b.dataset.track);
+    app.querySelectorAll("[data-track]").forEach((x) => x.classList.toggle("active", x === b));
+    $("#skim-note").hidden = tracker.mode !== "skim";
+    document.body.classList.toggle("skimming", tracker.mode === "skim");
+    if (tracker.mode === "skim" && p.status === "new") {
+      p.status = "skimmed";
+      api(`/papers/${id}/progress`, { method: "PUT", json: { position: saved, mode: "skim" } }).catch(() => {});
+    }
+  };
+  $("#back-to-saved").onclick = () => scrollToPosition(saved);
+  $("#views")?.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-view]");
+    if (!b || b.dataset.view === view) return;
     const position = positionNow();
-    await show(b.dataset.mode);
+    await show(b.dataset.view);
     scrollToPosition(position);
   });
 
-  let timer;
-  let progress = p.progress;
-  const onScroll = () => {
-    const position = positionNow();
-    app.querySelector("#bar").style.width = pct(position);
-    progress = Math.max(progress, position);
-    app.querySelector("#pct").textContent = `${pct(progress)} read`;
-    pop.hidden = true;
-    clearTimeout(timer);
-    timer = setTimeout(() => api(`/papers/${id}/progress`, { method: "PUT", json: { position } }).catch(() => {}), 700);
-  };
-  addEventListener("scroll", onScroll, { passive: true });
-
+  // ----- Explanations -----
   const explain = async (passage, question = "") => {
     setOpen(true);
     const item = document.createElement("div");
     item.className = "answer";
     item.innerHTML = `<p class="answer-quote">${esc(passage.length > 400 ? passage.slice(0, 400) + "…" : passage)}</p>
       ${question ? `<p class="answer-q">${esc(question)}</p>` : ""}<div class="answer-body">${loading("Explaining")}</div>`;
-    app.querySelector("#answers").prepend(item);
+    $("#answers").prepend(item);
     try {
       const r = await api(`/papers/${id}/explain`, { method: "POST", json: { passage, question } });
       item.querySelector(".answer-body").textContent = r.explanation;
@@ -271,7 +346,7 @@ export async function readerPage(id, stale) {
 
   // Mark explained passages in the reflowed text; the PDF text layer is absolutely positioned, so leave it alone.
   const highlight = (range) => {
-    if (mode !== "text") return;
+    if (view !== "text") return;
     try {
       const mark = document.createElement("mark");
       mark.className = "explained";
@@ -291,28 +366,32 @@ export async function readerPage(id, stale) {
     pop.onclick = () => { pop.hidden = true; highlight(range.cloneRange()); sel.removeAllRanges(); explain(text); };
   }));
 
-  app.querySelector("#ask").onsubmit = (e) => {
+  $("#ask").onsubmit = (e) => {
     e.preventDefault();
-    const passage = app.querySelector("#passage").value.trim();
+    const passage = $("#passage").value.trim();
     if (!passage) return;
-    explain(passage, app.querySelector("#question").value.trim());
-    app.querySelector("#passage").value = app.querySelector("#question").value = "";
+    explain(passage, $("#question").value.trim());
+    $("#passage").value = $("#question").value = "";
   };
-  app.querySelector("#toggle-notes").onclick = () => setOpen(!document.body.classList.contains("notes-open"));
-  app.querySelector("#close-notes").onclick = () => setOpen(false);
+  $("#toggle-notes").onclick = () => setOpen(!document.body.classList.contains("notes-open"));
+  $("#close-notes").onclick = () => setOpen(false);
 
-  const finish = (e) => busy(e.currentTarget, "Writing your quiz…", async () => {
-    await api(`/papers/${id}/finish`, { method: "POST" });
-    location.hash = `#/papers/${id}/quiz`;
+  const finish = (e) => busy(e.currentTarget, "Wrapping up…", async () => {
+    flush();
+    const done = await api(`/papers/${id}/finish`, { method: "POST" });
+    location.hash = done.quiz?.length ? `#/papers/${id}/quiz` : `#/papers/${id}`;
   });
-  app.querySelector("#finish").onclick = p.status === "read" ? () => (location.hash = `#/papers/${id}`) : finish;
-  app.querySelector("#finish-end").onclick = finish;
+  $("#finish").onclick = p.status === "read" ? () => (location.hash = `#/papers/${id}`) : finish;
+  $("#finish-end").onclick = finish;
 
   return () => {
+    flush(true);
+    tracker.stop();
+    clearInterval(flushTimer);
     removeEventListener("scroll", onScroll);
-    clearTimeout(timer);
-    closePdf?.();
-    document.body.classList.remove("notes-open");
+    removeEventListener("pagehide", onHide);
+    pdf?.close();
+    document.body.classList.remove("notes-open", "skimming");
   };
 }
 
