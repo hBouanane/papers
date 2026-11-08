@@ -1,5 +1,5 @@
 // Select text in the paper to highlight, note, explain, simplify, translate, hear or save it as a word.
-// Clicking the paper also opens a highlight's popover, or shows what an underlined word means.
+// Clicking the paper also opens a highlight's popover, or the card of a marked word (vocab.js).
 import { api, toast } from "../../core.js";
 import { speak, speaking, stopSpeaking } from "../../speech.js";
 
@@ -14,7 +14,7 @@ const sentenceAround = (range) => {
   return all.slice(start, end < 0 ? undefined : end + 1).slice(0, 400);
 };
 
-export function setupSelection(r, { highlighter, notesUi, panel }) {
+export function setupSelection(r, { highlighter, notesUi, panel, vocab }) {
   const { id, paper: p, language, $, scroller } = r;
   const pop = $("#pop");
   let selection = null; // { text, range, sentence }
@@ -70,6 +70,7 @@ export function setupSelection(r, { highlighter, notesUi, panel }) {
       try {
         p.glossary = await api(`/papers/${id}/words`, { method: "POST", json: { term: text, context: sentence } });
         panel.renderWords();
+        vocab.refresh(); // marked in the page right away
         const w = p.glossary.find((x) => x.term.toLowerCase() === text.toLowerCase());
         panel.setOpen(true, "words");
         toast(w ? `${w.term}: ${w.meaning}` : "Added.");
@@ -83,10 +84,9 @@ export function setupSelection(r, { highlighter, notesUi, panel }) {
 
   scroller.addEventListener("click", (e) => {
     if (e.target.closest("[data-finish]")) return; // finish.js
-    if (!getSelection().toString().trim() && highlighter.openAt(e)) return;
-    // Tap or click an underlined word to see what it means (hover works too on a computer).
-    const term = e.target.closest(".term");
-    if (term && !getSelection().toString()) toast(`${term.textContent}: ${term.title}`);
+    if (getSelection().toString().trim()) return;
+    if (highlighter.openAt(e)) return;
+    vocab.openAt(e); // a marked word: what it means
   });
 
   return {

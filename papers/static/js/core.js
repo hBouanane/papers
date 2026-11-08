@@ -249,6 +249,11 @@ export function knownWords() {
 function saveKnown(set) {
   try { localStorage.setItem(KNOWN_KEY, JSON.stringify([...set])); } catch { /* private mode: not remembered */ }
 }
+export function setKnown(term, known = true) {
+  const set = knownWords();
+  known ? set.add(term.toLowerCase()) : set.delete(term.toLowerCase());
+  saveKnown(set);
+}
 
 // Renders the vocabulary list into `box` and wires its controls. Re-renders itself on changes.
 export function renderVocab(box, paper, { compact = false } = {}) {

@@ -98,11 +98,11 @@ export function setupPanel(r) {
     toggle,
     explain,
     renderWords,
-    // A newly generated vocabulary or a word marked as known changes the underlines in Text view.
+    // A newly made vocabulary, or a word marked as known (or shown again), changes the marks in the page.
     onWordsChanged(refresh) {
       const vocab = $("#reader-vocab");
-      vocab.addEventListener("click", () => setTimeout(() => r.view === "text" && refresh(), 0));
-      vocab.addEventListener("known-changed", () => r.view === "text" && refresh());
+      vocab.addEventListener("click", () => setTimeout(refresh, 0));
+      vocab.addEventListener("known-changed", refresh);
     },
     cleanup() { document.body.classList.remove("notes-open"); },
   };

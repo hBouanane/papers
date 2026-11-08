@@ -6,10 +6,9 @@ import { openPdf } from "../../pdfview.js";
 import { pdfPagesDark } from "../../readprefs.js";
 import { renderPaperText } from "../../textview.js";
 import { paintView } from "./progress.js";
-import { termMarker } from "./terms.js";
 import { savedZoom, saveZoom } from "./zoom.js";
 
-export function createViews(r, { notes, fitBar }) {
+export function createViews(r, { notes, vocab, fitBar }) {
   const { id, paper: p, $, scroller } = r;
   const endBox = `<div class="article-end">${p.status === "read"
     ? `<p>You've finished this paper.</p>${p.quiz?.length ? `<a class="button secondary" href="#/papers/${id}/quiz">Test yourself</a>` : ""}`
@@ -28,8 +27,9 @@ export function createViews(r, { notes, fitBar }) {
     r.$$("[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === r.view));
     scroller.className = `reader-scroll view-${r.view}`;
     if (r.view === "text") {
-      const { html, headings } = renderPaperText(p, termMarker(p.glossary));
+      const { html, headings } = renderPaperText(p);
       scroller.innerHTML = `<article class="page-sheet" id="article">${html}${endBox}</article>`;
+      vocab.refresh(); // mark the hard words
       targets = headings.map((h) => ({
         label: `${h.level === 3 ? "  " : ""}${h.label}`, go: () => r.scrollToElement(scroller.querySelector(`#${h.id}`)),
       }));
@@ -63,6 +63,7 @@ export function createViews(r, { notes, fitBar }) {
     $(".prefs-menu").hidden = r.view !== "text"; // text size, spacing and font only apply to the Text view
     if (r.pdf) $("#zoom .zoom-value").textContent = pct(r.pdf.zoom);
     if (r.pdf) r.pdf.onPageRendered((n, div) => drawPdfPage(div, n, notes.items));
+    if (r.pdf) r.pdf.onTextLayerRendered((n, layer) => vocab.markPage(layer));
     drawMarks();
     setTimeout(() => (r.settling = false), 800); // callers put you back where you were in the meantime
     fitBar();

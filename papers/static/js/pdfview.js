@@ -97,6 +97,10 @@ export async function openPdf(url, container, { zoom = 1, before = "", after = "
     onZoom(listener) { eventBus.on("scalechanging", () => listener(view.currentScale / fit)); },
     // Called each time a page is drawn (first time, after zooming, ...) with its number and element.
     onPageRendered(listener) { eventBus.on("pagerendered", ({ pageNumber, source }) => listener(pageNumber, source.div)); },
+    // Called when a page's selectable text is ready (it can come after the page is drawn), with its text layer.
+    onTextLayerRendered(listener) {
+      eventBus.on("textlayerrendered", ({ pageNumber, source }) => listener(pageNumber, source.div.querySelector(".textLayer")));
+    },
     get page() { return view.currentPageNumber; },
     // Scroll so that a point on a page (y as a fraction of its height) is near the top of the screen.
     showPoint(pageNumber, y = 0) {

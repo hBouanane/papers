@@ -3,7 +3,7 @@ import { setPageTone } from "../../readprefs.js";
 
 // When the bar doesn't fit, the less-used tools move into the ⋯ menu, least used first,
 // and come back when there's room again.
-const OVERFLOW = ["#page-tone", "#skim", "#zoom", ".prefs-menu", "#jump"];
+const OVERFLOW = ["#page-tone", "#vocab-toggle", "#skim", "#zoom", ".prefs-menu", "#jump"];
 
 export function setupBar(r) {
   const { $ } = r;
