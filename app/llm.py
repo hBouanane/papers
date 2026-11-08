@@ -134,3 +134,27 @@ def grade(paper: dict, quiz: list[dict], answers: list[str]) -> dict:
     )
     results = [r.model_dump() for r in _parse(prompt, Grades).results]
     return {"results": results, "score": sum(r["score"] for r in results) / max(len(results), 1)}
+
+
+class Match(BaseModel):
+    paper_id: int
+    reason: str
+
+
+class Matches(BaseModel):
+    matches: list[Match]
+
+
+def recall(idea: str, candidates: list[dict]) -> list[dict]:
+    papers = "\n\n".join(
+        f"<paper id=\"{c['id']}\">\n<title>{c['title']}</title>\n<abstract>{c['abstract']}</abstract>\n"
+        f"<summary>{c.get('skim') or ''}</summary>\n<excerpt>{c.get('snippet') or ''}</excerpt>\n</paper>"
+        for c in candidates
+    )
+    prompt = (
+        f"I remember this idea but not which paper I read it in:\n<idea>{idea}</idea>\n\n"
+        f"Papers I have read:\n{papers}\n\n"
+        "Return the papers that contain this idea, best match first, each with one sentence on "
+        "where or how the paper presents it. Return an empty list if none fit."
+    )
+    return [m.model_dump() for m in _parse(prompt, Matches, effort="low").matches]

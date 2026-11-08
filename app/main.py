@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from app import db, llm, pdf, scholar
+from app import db, index, llm, pdf, scholar
 
 
 @asynccontextmanager
@@ -182,4 +182,54 @@ def save_progress(paper_id: int, body: ProgressIn):
 def finish_paper(paper_id: int):
     paper = get_paper(paper_id)
     questions = llm.quiz(paper)
+    index.index_paper(paper)
     return update_paper(paper_id, status="read", progress=1.0, quiz=json.dumps(questions))
+
+
+class RecallIn(BaseModel):
+    idea: str
+
+
+@app.post("/api/recall")
+def recall(body: RecallIn):
+    cands = index.candidates(body.idea)
+    if not cands:
+        return []
+    out = []
+    with db.connect() as conn:
+        for m in llm.recall(body.idea, cands):
+            row = conn.execute(
+                "select id, title, authors, year, status from papers where id = ?", (m["paper_id"],)
+            ).fetchone()
+            if row:
+                out.append({"paper": dict(row), "reason": m["reason"]})
+    return out
+
+
+@app.get("/api/papers/{paper_id}/references")
+def paper_references(paper_id: int):
+    paper = get_paper(paper_id)
+    if not paper["external_id"]:
+        raise HTTPException(400, "Paper has no Semantic Scholar id")
+    refs = scholar.references(paper["external_id"])
+    with db.connect() as conn:
+        known = {r["external_id"]: r["id"] for r in conn.execute(
+            "select id, external_id from papers where external_id != ''")}
+    return [{**r, "library_id": known.get(r["external_id"])} for r in refs]
+
+
+@app.get("/api/papers/{paper_id}/chain")
+def paper_chain(paper_id: int):
+    cols = "id, title, status, source_paper_id"
+    path, current = [], paper_id
+    with db.connect() as conn:
+        while current and current not in {p["id"] for p in path}:
+            row = conn.execute(f"select {cols} from papers where id = ?", (current,)).fetchone()
+            if not row:
+                break
+            path.insert(0, dict(row))
+            current = row["source_paper_id"]
+        children = [dict(r) for r in conn.execute(f"select {cols} from papers where source_paper_id = ?", (paper_id,))]
+    if not path:
+        raise HTTPException(404, "Paper not found")
+    return {"path": path, "children": children}
