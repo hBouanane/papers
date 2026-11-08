@@ -20,15 +20,16 @@ def pytest_configure(config):
 def no_real_claude(request, monkeypatch):
     """Tests fake the llm functions they need; anything that would reach Claude fails instead."""
     from papers import llm
+    from papers.ai import anthropic_api, claude_code, openai_compat
     if request.node.get_closest_marker("llm_plumbing"):
         return
 
     def blocked(*args, **kwargs):
         raise llm.AIError("Claude is not available in tests")
 
-    monkeypatch.setattr(llm, "_request", blocked)
-    monkeypatch.setattr(llm, "_claude_code", blocked)
-    monkeypatch.setattr(llm, "_openai_send", blocked)
+    monkeypatch.setattr(anthropic_api, "request", blocked)
+    monkeypatch.setattr(claude_code, "run", blocked)
+    monkeypatch.setattr(openai_compat, "send", blocked)
 
 
 @pytest.fixture

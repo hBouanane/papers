@@ -70,7 +70,7 @@ def test_inbox_pdfs_are_imported_and_filed(client, tmp_path, monkeypatch):
     (root / "Inbox" / "download.pdf").write_bytes(blank_pdf())
     (root / "Inbox" / "notes.txt").write_text("ignore me")
     (root / "Inbox" / "broken.pdf").write_bytes(b"not a pdf")
-    from papers.main import import_inbox
+    from papers.ingest import import_inbox
     assert import_inbox() == 1
     assert [p["title"] for p in client.get("/api/papers").json()] == ["Inbox Paper Title"]
     assert not (root / "Inbox" / "download.pdf").exists()
@@ -100,7 +100,7 @@ def test_inbox_pdf_for_a_known_paper_attaches_instead_of_duplicating(client, tmp
     set_folder(client, root)
     known = client.post("/api/papers", json={"title": "Known Paper"}).json()
     (root / "Inbox" / "k.pdf").write_bytes(blank_pdf())
-    from papers.main import import_inbox
+    from papers.ingest import import_inbox
     assert import_inbox() == 1
     papers = client.get("/api/papers").json()
     assert [p["id"] for p in papers] == [known["id"]]

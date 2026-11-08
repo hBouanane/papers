@@ -3,7 +3,7 @@ from papers import llm
 
 def make(client):
     p = client.post("/api/papers", json={"title": "P"}).json()
-    from papers.main import update_paper
+    from papers.store import update_paper
     update_paper(p["id"], text="Attention dispensing with recurrence.")
     return p
 

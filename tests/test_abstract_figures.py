@@ -4,7 +4,8 @@ from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 from papers import llm, pdf
-from papers.main import update_paper
+from papers.ai import providers
+from papers.store import update_paper
 
 
 def make(client, **kw):
@@ -35,7 +36,7 @@ def test_abstract_is_taken_from_the_paper_itself(client):
 
 
 def test_regenerate_redoes_the_chosen_parts_with_the_current_model(client, monkeypatch):
-    monkeypatch.setattr(llm, "configured", lambda: True)
+    monkeypatch.setattr(providers, "configured", lambda: True)
     monkeypatch.setattr(llm, "skim", lambda p, goal="": {"verdict": "new verdict"})
     monkeypatch.setattr(llm, "glossary", lambda p, language="": [{"term": "new", "kind": "technical", "meaning": "m"}])
     monkeypatch.setattr(llm, "quiz", lambda p: [{"question": "q", "answer": "a"}])

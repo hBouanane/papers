@@ -4,6 +4,7 @@ import json
 import pytest
 
 from papers import llm
+from papers.ai import claude_code, providers
 
 
 def make(client):
@@ -74,16 +75,16 @@ def test_claude_code_text_is_passed_on_as_it_arrives(monkeypatch):
         return FakeProcess([{"type": "system", "subtype": "init"}, delta("Hel"), delta("lo"),
                             {"type": "assistant", "message": {}}, {"type": "result", "is_error": False, "result": "Hello"}])
 
-    monkeypatch.setattr(llm, "claude_binary", lambda: "claude")
-    monkeypatch.setattr(llm.subprocess, "Popen", popen)
-    assert list(llm._claude_code_stream("hi", "system text")) == ["Hel", "lo"]
+    monkeypatch.setattr(providers, "claude_binary", lambda: "claude")
+    monkeypatch.setattr(claude_code.subprocess, "Popen", popen)
+    assert list(claude_code.stream("hi", "system text")) == ["Hel", "lo"]
     assert "stream-json" in seen["args"] and "--include-partial-messages" in seen["args"]
 
 
 @pytest.mark.llm_plumbing
 def test_claude_code_errors_become_ai_errors(monkeypatch):
-    monkeypatch.setattr(llm, "claude_binary", lambda: "claude")
-    monkeypatch.setattr(llm.subprocess, "Popen", lambda args, **kw: FakeProcess(
+    monkeypatch.setattr(providers, "claude_binary", lambda: "claude")
+    monkeypatch.setattr(claude_code.subprocess, "Popen", lambda args, **kw: FakeProcess(
         [{"type": "result", "is_error": True, "result": "Invalid API key · Please run /login"}]))
     with pytest.raises(llm.AIError, match="isn't signed in"):
-        list(llm._claude_code_stream("hi"))
+        list(claude_code.stream("hi"))

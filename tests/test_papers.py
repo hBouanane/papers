@@ -157,7 +157,7 @@ def test_reflow_joins_wrapped_lines_keeps_paragraphs():
 
 
 def test_list_carries_each_papers_summary_line(client):
-    from papers.main import update_paper
+    from papers.store import update_paper
     p = client.post("/api/papers", json={"title": "P"}).json()
     update_paper(p["id"], skim='{"tldr": "It adds noise, then learns to undo it.", "key_idea": "Denoising as generation.", "verdict": "v"}')
     listed = next(x for x in client.get("/api/papers").json() if x["id"] == p["id"])

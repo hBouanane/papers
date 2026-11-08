@@ -1,5 +1,5 @@
 from papers import index, llm
-from papers.main import update_paper
+from papers.store import update_paper
 
 
 def make(client, title, authors="", text=""):

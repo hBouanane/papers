@@ -72,7 +72,7 @@ def test_semantic_scholar_references_are_cached(client, monkeypatch):
 
 def test_main_text_end_is_where_the_references_start(client):
     p = client.post("/api/papers", json={"title": "P"}).json()
-    from papers.main import update_paper
+    from papers.store import update_paper
     text = "x" * 80 + "\nReferences\n" + "y" * 18
     update_paper(p["id"], text=text)
     assert round(client.get(f"/api/papers/{p['id']}").json()["main_end"], 2) == round(81 / len(text), 2)

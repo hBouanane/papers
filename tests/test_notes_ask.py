@@ -22,7 +22,7 @@ def test_recall_searches_unfinished_papers_notes_and_explanations(client, monkey
     explained = make(client, title="Explained One")
     client.post(f"/api/papers/{noted['id']}/notes", json={"body": "reminds me of momentum encoders"})
     client.post(f"/api/papers/{explained['id']}/explain", json={"passage": "x"})
-    from papers.main import update_paper
+    from papers.store import update_paper
     update_paper(skimmed["id"], text="we use momentum encoders and contrastive pretraining")
     ids = lambda idea: [m["paper"]["id"] for m in client.post("/api/recall", json={"idea": idea}).json()]
     assert set(ids("momentum encoders")) == {skimmed["id"], noted["id"]}
@@ -31,7 +31,7 @@ def test_recall_searches_unfinished_papers_notes_and_explanations(client, monkey
 
 def test_recall_falls_back_to_keywords_without_ai(client):
     p = make(client, title="Diffusion")
-    from papers.main import update_paper
+    from papers.store import update_paper
     update_paper(p["id"], text="we gradually add gaussian noise and learn to reverse it")
     found = client.post("/api/recall", json={"idea": "reverse the gaussian noise"}).json()
     assert [m["paper"]["id"] for m in found] == [p["id"]]

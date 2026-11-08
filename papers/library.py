@@ -13,9 +13,9 @@ UNSORTED = "Unsorted"
 
 
 def root() -> Path | None:
-    with db.connect() as conn:
-        row = conn.execute("select value from settings where key = 'library_dir'").fetchone()
-    return Path(row["value"]) if row and row["value"] else None
+    value = db.setting("library_dir")
+    return Path(value) if value else None
+
 
 
 def set_root(path: str) -> None:

@@ -65,6 +65,18 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
+def setting(key: str) -> str:
+    """A value saved in Settings ("" when unset)."""
+    with connect() as conn:
+        row = conn.execute("select value from settings where key = ?", (key,)).fetchone()
+    return (row["value"] if row else "") or ""
+
+
+def set_setting(key: str, value: str) -> None:
+    with connect() as conn:
+        conn.execute("insert or replace into settings (key, value) values (?, ?)", (key, value))
+
+
 def pdf_path(paper_id: int) -> Path:
     return config.data_dir() / "pdfs" / f"{paper_id}.pdf"
 
