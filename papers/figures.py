@@ -6,9 +6,13 @@ as embedded images. Captions that sit above their figure, or figures without any
 out like a picture), are skipped rather than guessed.
 """
 import io
+import json
 import re
+import shutil
 
 import pdfplumber
+
+from papers import config, db
 
 CAPTION = re.compile(r"^\s*(?:Figure|Fig\.?)\s*(\d+)\s*[.:|]", re.IGNORECASE)
 TABLE_CAPTION = re.compile(r"^\s*Table\s*(\d+)\s*[.:|]", re.IGNORECASE)
@@ -181,13 +185,6 @@ def _table_box(caption: dict, page, captions: list[dict], lines: list[dict]):
 
 
 # ---------- Stored per paper, next to its PDF ----------
-import json  # noqa: E402
-import shutil  # noqa: E402
-
-from papers import (
-    config,
-    db,  # noqa: E402
-)
 
 VERSION = 3  # figures and tables; table captions stop at the table
 

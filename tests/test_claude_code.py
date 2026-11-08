@@ -1,7 +1,6 @@
-import io
-
 """The 'my Claude subscription' backend: the app runs the official Claude Code CLI (`claude -p`),
 which signs in with the user's own account. We never touch its credentials."""
+import io
 import json
 import subprocess
 

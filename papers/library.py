@@ -59,7 +59,8 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
     status = {"new": "To read", "skimmed": "Skimmed", "reading": "Reading", "read": "Read"}[p["status"]]
     lines = [f"# {p['title']}", ""]
     if p.get("authors") or p.get("year"):
-        lines.append(f"{p.get('authors') or ''}{f' ({p['year']})' if p.get('year') else ''}".strip())
+        year = f" ({p['year']})" if p.get("year") else ""
+        lines.append(f"{p.get('authors') or ''}{year}".strip())
     lines.append(f"Status: {status}, {round((p['progress'] or 0) * 100)}% read"
                  + (f", understood {round(p['understanding'] * 100)}%" if p.get("understanding") is not None else ""))
     if goal:

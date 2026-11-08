@@ -1,0 +1,22 @@
+# docker compose up -d   then open http://localhost:8000
+services:
+  papers:
+    build: .
+    image: papers
+    ports:
+      - "127.0.0.1:8000:8000"   # only this computer; drop "127.0.0.1:" to reach it from your network (there is no login)
+    volumes:
+      - papers-data:/data        # database, PDFs, figures
+      # Optional: a folder on your computer for Settings > Library folder (choose /library there).
+      # - ~/Documents/Papers:/library
+    environment:
+      # An API key for the provider you use, or set it in Settings instead.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - S2_API_KEY=${S2_API_KEY:-}
+      # Ollama or LM Studio running on your computer: in Settings use http://host.docker.internal:11434/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  papers-data:
