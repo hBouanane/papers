@@ -57,7 +57,8 @@ def pdf_path(paper_id: int) -> Path:
 
 # Columns added after the first release; created on startup when missing.
 NEW_COLUMNS = {"refs": "text", "read_slices": "text", "mirror_path": "text", "archived": "integer default 0",
-               "review_step": "integer default 0", "review_due": "text"}
+               "review_step": "integer default 0", "review_due": "text",
+               "notes": "text default ''", "notes_mirror": "text"}
 JSON_FIELDS = ("skim", "quiz", "refs")
 
 

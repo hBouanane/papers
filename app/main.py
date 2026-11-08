@@ -33,6 +33,7 @@ async def watch_inbox(every: float):
         await asyncio.sleep(every)
         try:
             await asyncio.to_thread(import_inbox)
+            await asyncio.to_thread(library.import_notes)
         except Exception as e:  # keep watching even if one import fails
             print(f"Inbox import failed: {e}")
 
@@ -68,6 +69,7 @@ class PaperEdit(BaseModel):
     year: int | None = None
     topic_id: int | None = None
     archived: bool | None = None
+    notes: str | None = None
 
     @field_validator("title", "authors", mode="before")
     @classmethod
@@ -373,7 +375,7 @@ def paper_file(paper_id: int):
 
 
 class ExplainIn(BaseModel):
-    passage: str
+    passage: str = ""
     question: str = ""
 
 
@@ -392,10 +394,14 @@ def skim_paper(paper_id: int):
 
 @app.post("/api/papers/{paper_id}/explain")
 def explain_passage(paper_id: int, body: ExplainIn):
-    answer = llm.explain(get_paper(paper_id), body.passage, body.question)
+    passage, question = body.passage.strip(), body.question.strip()
+    if not passage and not question:
+        raise HTTPException(400, "Select a passage or ask a question.")
+    answer = llm.explain(get_paper(paper_id), passage, question)
     with db.connect() as conn:
         conn.execute("insert into explanations (paper_id, passage, question, answer) values (?, ?, ?, ?)",
-                     (paper_id, body.passage, body.question, answer))
+                     (paper_id, passage, question, answer))
+    index.index_paper(get_paper(paper_id))
     library.sync_paper(paper_id)
     return {"explanation": answer}
 
@@ -569,9 +575,13 @@ def recall(body: RecallIn):
     cands = index.candidates(body.idea)
     if not cands:
         return []
+    try:
+        matches = llm.recall(body.idea, cands)
+    except llm.AIError:  # no Claude: plain keyword matches, with the passage that matched
+        matches = [{"paper_id": c["id"], "reason": f"Matched: “{c['snippet']}”"} for c in cands if c["snippet"]]
     out = []
     with db.connect() as conn:
-        for m in llm.recall(body.idea, cands):
+        for m in matches:
             row = conn.execute(
                 "select id, title, authors, year, status from papers where id = ?", (m["paper_id"],)
             ).fetchone()

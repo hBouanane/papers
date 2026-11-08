@@ -13,8 +13,13 @@ def fts_query(text: str) -> str:
 
 
 def index_paper(paper: dict):
+    """Index the paper with its key points, your notes and the explanations you asked for."""
     skim = paper.get("skim")
-    summary = (skim if isinstance(skim, str) else json.dumps(skim)) if skim else ""
+    parts = [(skim if isinstance(skim, str) else json.dumps(skim)) if skim else "", paper.get("notes") or ""]
+    with db.connect() as conn:
+        parts += [" ".join(r) for r in conn.execute(
+            "select passage, question, answer from explanations where paper_id = ?", (paper["id"],))]
+    summary = "\n".join(p for p in parts if p)
     with db.connect() as conn:
         conn.execute("delete from papers_fts where rowid = ?", (paper["id"],))
         conn.execute(
@@ -24,16 +29,18 @@ def index_paper(paper: dict):
 
 
 def candidates(idea: str, limit: int = 10) -> list[dict]:
-    """Papers matching the idea by keywords; falls back to recently read papers."""
+    """Papers matching the idea by keywords (finished ones first); falls back to recently read
+    papers. Matches can come from the text, key points, your notes or your explanations."""
     query = fts_query(idea)
     with db.connect() as conn:
         rows = []
         if query:
             rows = conn.execute(
                 "select p.id, p.title, p.abstract, p.skim,"
-                " snippet(papers_fts, 2, '', '', '…', 40) as snippet"
+                " snippet(papers_fts, -1, '', '', '…', 30) as snippet"
                 " from papers_fts join papers p on p.id = papers_fts.rowid"
-                " where papers_fts match ? and p.status = 'read' order by rank limit ?",
+                " where papers_fts match ? and coalesce(p.archived, 0) = 0"
+                " order by p.status = 'read' desc, rank limit ?",
                 (query, limit),
             ).fetchall()
         if not rows:

@@ -189,7 +189,7 @@ export async function recallPage() {
   app.innerHTML = `<div class="container page narrow">
     <div class="page-head">
       <h1>Where did I read that?</h1>
-      <p class="lede">Describe the idea in your own words. Only papers you've finished are searched.</p>
+      <p class="lede">Describe the idea in your own words. Searches every paper, your notes and the explanations you asked for; finished papers come first.</p>
     </div>
     <form id="recall" class="sheet form">
       <label for="idea" class="visually-hidden">The idea</label>
@@ -212,7 +212,7 @@ export async function recallPage() {
             <span class="paper-name">${esc(m.paper.title)}</span>
             <span class="result-cite">${cite(m.paper)}</span>
             <span class="match-reason">${esc(m.reason)}</span></a>`).join("")}</div>`
-          : empty("None of your finished papers match. Mark a paper as finished from the reader to add it here.");
+          : empty("Nothing in your library matches that. Try other words for the same idea.");
       } catch (err) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
     });
   };

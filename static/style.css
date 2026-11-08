@@ -361,3 +361,20 @@ kbd { font: 700 11px var(--ui); padding: 1px 5px; border-radius: 3px; border: 1p
 .due-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; text-decoration: none; color: inherit; border-top: 1px solid var(--line-soft); }
 .due-item:hover .paper-name { color: var(--ink); }
 @media (max-width: 560px) { .flashcard { padding: 24px 20px; } .card-question { font-size: 20px; } }
+
+/* Notes and shortcuts */
+.my-notes-section { margin-bottom: 20px; }
+.my-notes-section h2 { margin-bottom: 10px; }
+.notes-box { display: grid; gap: 4px; }
+.my-notes { font-size: 15px; line-height: 1.6; }
+.save-state { font-size: 13px; min-height: 1.2em; }
+.ask-title { font-size: 17px; margin-top: 18px; }
+.notes .notes-box { padding-bottom: 6px; }
+.shortcuts { position: fixed; z-index: 70; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px));
+  padding: 22px 24px; box-shadow: 0 20px 50px rgba(20, 24, 32, .25); cursor: pointer; }
+.shortcuts h2 { margin-bottom: 12px; }
+.shortcuts dl { margin: 0 0 12px; display: grid; gap: 8px; }
+.shortcuts dl div { display: flex; gap: 14px; align-items: center; }
+.shortcuts dt { width: 34px; }
+.shortcuts dd { margin: 0; }
+.shortcuts kbd { opacity: 1; font-size: 13px; padding: 2px 7px; margin: 0; }
