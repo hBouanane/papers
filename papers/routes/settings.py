@@ -1,5 +1,4 @@
 """Settings: your name and language, the AI provider, and the library folder (with the folder picker)."""
-import asyncio
 from pathlib import Path
 from typing import Literal
 
@@ -98,18 +97,10 @@ def ai_models():
         raise HTTPException(400, str(e))
 
 
-# ---------- Library folder ----------
-class PickIn(BaseModel):
-    start: str = ""
-
-
-@router.post("/folders/pick")
-async def pick_folder(body: PickIn):
-    """Open the system's folder dialog; 501 when there isn't one (the page then shows its own browser)."""
-    try:
-        return {"path": await asyncio.to_thread(folders.pick, body.start)}
-    except folders.NoDialog:
-        raise HTTPException(501, "No folder dialog on this computer.")
+# ---------- Library folder: the app's own folder browser ----------
+class NewFolderIn(BaseModel):
+    path: str
+    name: str
 
 
 @router.get("/folders")
@@ -118,3 +109,13 @@ def list_folders(path: str = ""):
         return folders.listing(path)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@router.post("/folders", status_code=201)
+def new_folder(body: NewFolderIn):
+    try:
+        return {"path": folders.make(body.path, body.name)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except OSError as e:
+        raise HTTPException(400, f"Couldn't create that folder: {e}")

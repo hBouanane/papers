@@ -68,7 +68,7 @@ those credentials. `PAPERS_CLAUDE_BIN` and `PAPERS_CODEX_BIN` point at a specifi
 
 ## Library folder
 
-In Settings, choose a folder (**Choose…** opens your system's folder picker) and the app keeps a copy of your
+In Settings, choose a folder (**Choose…** opens a folder browser with your usual folders and drives) and the app keeps a copy of your
 library there: one folder per goal (`Unsorted` for the rest), each paper as `Author et al. Year - Title.pdf`
 with a `.md` notes file next to it (key points, explanations, quiz, `[[links]]` to related papers, so
 Obsidian shows them as a graph). PDFs dropped into its `Inbox` folder are imported within about 10 seconds.
