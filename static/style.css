@@ -204,8 +204,8 @@ details p { margin-top: 8px; color: var(--graphite); max-width: 75ch; font-size:
 .skim ul { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
 
 /* Reader */
-body.reading .site-header { position: static; }
-.reader-bar { position: sticky; top: 0; z-index: 15; background: var(--sheet); border-bottom: 1px solid var(--line); }
+body.reading .site-header { display: none; } /* reading is a focused, full-screen view */
+.reader-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 15; background: var(--sheet); border-bottom: 1px solid var(--line); }
 .reader-bar-inner { display: flex; align-items: center; gap: 10px; height: 56px; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .reader-back { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--graphite); font-weight: 700; }
 .reader-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -216,7 +216,10 @@ body.reading .site-header { position: static; }
 .skim-note { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 6px 16px;
   font-size: 14px; color: var(--pencil); background: var(--desk); border-top: 1px solid var(--line); }
 .jump { width: auto; max-width: 180px; height: 34px; font-size: 14px; font-weight: 700; }
-.reader { padding: 32px 24px 96px; transition: padding-right .2s ease; }
+/* The paper scrolls in this panel below the reader bar (PDF.js's viewer needs its own scroll container). */
+.reader-scroll { position: absolute; top: var(--reader-top, 96px); left: 0; right: 0; bottom: 0; overflow: auto; background: var(--desk); transition: right .2s ease; }
+.reader-scroll.view-text { padding: 32px 24px 96px; }
+.reader-scroll .loading { padding: 32px; }
 .page-sheet { max-width: calc(var(--read-width, 680px) + 144px); margin: 0 auto; background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; padding: 64px 72px 48px; }
 .paper-front { text-align: center; padding-bottom: 28px; margin-bottom: 32px; border-bottom: 1px solid var(--line-soft); }
 .page-sheet h1 { font-size: 32px; line-height: 1.2; }
@@ -239,13 +242,13 @@ body.reading .site-header { position: static; }
 /* Passages you asked about stay marked with a quiet underline. */
 mark.explained { background: none; color: inherit; text-decoration: underline 2px var(--ink); text-underline-offset: 4px; text-decoration-skip-ink: none; }
 .article-end { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--pencil); }
-@media (max-width: 760px) { .reader { padding: 0; } .page-sheet { border: 0; border-radius: 0; padding: 32px 18px 40px; } .page-sheet h1 { font-size: 24px; } .abstract-box { padding: 16px; } }
+@media (max-width: 760px) { .reader-scroll.view-text { padding: 0; } .page-sheet { border: 0; border-radius: 0; padding: 32px 18px 40px; } .page-sheet h1 { font-size: 24px; } .abstract-box { padding: 16px; } }
 @media (max-width: 560px) { .reader-bar-inner { padding: 0 12px; gap: 6px; } .reader-pct { display: none; } }
 
 .notes { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; z-index: 40; background: var(--sheet); border-left: 1px solid var(--line);
   padding: 18px 22px; overflow-y: auto; transform: translateX(100%); transition: transform .2s ease; visibility: hidden; }
 body.notes-open .notes { transform: none; visibility: visible; box-shadow: -16px 0 40px rgba(20, 24, 32, .12); }
-@media (min-width: 1300px) { body.notes-open .reader { padding-right: 444px; } }
+@media (min-width: 1300px) { body.notes-open .reader-scroll { right: 420px; } }
 .notes-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .notes .hint { font-size: 14px; margin-bottom: 14px; }
 .ask { display: grid; gap: 8px; justify-items: end; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
@@ -295,12 +298,10 @@ body.notes-open .notes { transform: none; visibility: visible; box-shadow: -16px
 
 /* PDF reader */
 .segmented.small button { padding: 3px 9px; font-size: 13px; }
-.pdf-sheet { max-width: 900px; margin: 0 auto; }
-.pdf-pages { width: 100%; } /* a zoomed page may be wider: the window scrolls sideways */
-.pdf-page { position: relative; margin: 0 auto 16px; background: #fff; box-shadow: 0 0 0 1px var(--line); }
-.pdf-page canvas { display: block; width: 100%; height: 100%; }
-.pdf-sheet .article-end { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 20px 24px; margin-top: 8px; }
-@media (max-width: 760px) { .pdf-page { margin-bottom: 8px; } .pdf-sheet .article-end { border-radius: 0; border-left: 0; border-right: 0; } }
+.view-pdf .pdfViewer { padding: 16px 0 8px; }
+.view-pdf .pdfViewer .page { padding: 0; border: 0; margin: 0 auto 16px; box-sizing: content-box; box-shadow: 0 0 0 1px var(--line), 0 2px 8px rgba(20, 24, 32, .06); }
+.view-pdf .article-end { max-width: 760px; margin: 8px auto 64px; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 20px 24px; }
+@media (max-width: 760px) { .view-pdf .pdfViewer .page { margin-bottom: 8px; } .view-pdf .article-end { border-radius: 0; border-left: 0; border-right: 0; } }
 @media (max-width: 560px) {
   .reader-bar-inner { flex-wrap: wrap; height: auto; padding: 8px 12px; row-gap: 8px; }
   .reader-back { flex-basis: 100%; }
@@ -422,7 +423,7 @@ code { font-size: 13px; background: var(--desk); padding: 1px 5px; border-radius
 abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset: 3px; text-decoration-thickness: 1.5px; cursor: help; }
 
 /* Selection toolbar */
-.sel-bar { position: absolute; z-index: 30; display: flex; gap: 2px; padding: 4px; border-radius: var(--r-panel);
+.sel-bar { position: fixed; z-index: 30; display: flex; gap: 2px; padding: 4px; border-radius: var(--r-panel);
   background: var(--graphite); box-shadow: 0 8px 24px rgba(20, 24, 32, .28); }
 .sel-bar button { border: 0; background: transparent; color: var(--sheet); font: 700 14px var(--ui); padding: 7px 11px; border-radius: 5px; cursor: pointer; }
 .sel-bar button:hover { background: color-mix(in srgb, var(--sheet) 16%, transparent); }

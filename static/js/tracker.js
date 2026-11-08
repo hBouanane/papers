@@ -7,33 +7,35 @@ const FAST = 1; // scrolling faster than one screen per second is navigating, no
 const WPM = 250;
 const SHARE_OF_READING_TIME = 0.33; // a quick read still counts; scrolling past doesn't
 
-export function startTracker({ article, paper, words, onRead }) {
+// `scroller` is the element the paper scrolls in.
+export function startTracker({ scroller, paper, words, onRead }) {
   const bits = (paper.read_slices || "0".repeat(SLICES)).split("");
   const dwell = new Array(SLICES).fill(0);
   const needMs = Math.max(1500, ((words / SLICES) / WPM) * 60000 * SHARE_OF_READING_TIME);
   let mode = "read";
   let lastInput = Date.now();
-  let lastY = scrollY;
+  let lastTop = scroller.scrollTop;
   let lastT = performance.now();
   let position = null; // start of the last slice actually read this session
   const fresh = new Set();
 
   const touched = () => (lastInput = Date.now());
-  const inputs = ["scroll", "mousemove", "keydown", "wheel", "touchstart"];
+  const inputs = ["mousemove", "keydown", "wheel", "touchstart"];
   inputs.forEach((e) => addEventListener(e, touched, { passive: true }));
+  scroller.addEventListener("scroll", touched, { passive: true });
 
   const tick = () => {
     const now = performance.now();
     const seconds = (now - lastT) / 1000;
-    const screensPerSecond = Math.abs(scrollY - lastY) / innerHeight / seconds;
+    const screen = scroller.clientHeight;
+    const screensPerSecond = Math.abs(scroller.scrollTop - lastTop) / screen / seconds;
     lastT = now;
-    lastY = scrollY;
+    lastTop = scroller.scrollTop;
     if (mode !== "read" || document.hidden || Date.now() - lastInput > IDLE_MS || screensPerSecond > FAST) return;
     // Reading happens in the middle of the screen, not at its edges.
-    const top = article.offsetTop;
-    const height = article.offsetHeight;
-    const first = Math.max(0, Math.floor(((scrollY + innerHeight * 0.2 - top) / height) * SLICES));
-    const last = Math.min(SLICES - 1, Math.floor(((scrollY + innerHeight * 0.8 - top) / height) * SLICES));
+    const height = scroller.scrollHeight;
+    const first = Math.max(0, Math.floor(((scroller.scrollTop + screen * 0.2) / height) * SLICES));
+    const last = Math.min(SLICES - 1, Math.floor(((scroller.scrollTop + screen * 0.8) / height) * SLICES));
     if (last < first) return;
     const share = (seconds * 1000) / (last - first + 1);
     for (let i = first; i <= last; i++) {
@@ -54,7 +56,7 @@ export function startTracker({ article, paper, words, onRead }) {
   return {
     bits,
     get mode() { return mode; },
-    setMode(next) { mode = next; lastT = performance.now(); lastY = scrollY; },
+    setMode(next) { mode = next; lastT = performance.now(); lastTop = scroller.scrollTop; },
     // What to send to the server since the last call (null when nothing changed).
     take() {
       if (position === null && !fresh.size) return null;
@@ -66,6 +68,7 @@ export function startTracker({ article, paper, words, onRead }) {
     stop() {
       clearInterval(timer);
       inputs.forEach((e) => removeEventListener(e, touched));
+      scroller.removeEventListener("scroll", touched);
     },
   };
 }
