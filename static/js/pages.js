@@ -321,6 +321,35 @@ export async function recallPage() {
 }
 
 // ---------- Map ----------
+// Behind the Map: your papers spread out like a map and joined by curved lines, a reference chain if you
+// have one. Dashes flow along the lines from paper to paper, and a light spreads outward from the first.
+const MAP_SLOTS = [{ x: 12, y: 50, d: 0 }, { x: 45, y: 20, d: 1 }, { x: 45, y: 80, d: 1 },
+  { x: 82, y: 9, d: 2 }, { x: 84, y: 47, d: 2 }, { x: 80, y: 88, d: 2 }];
+const MAP_EDGES = [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5]];
+
+function mapBackdrop(papers, children, trees) {
+  // A real chain first (breadth-first from a root), then other papers to fill the map, real pages first.
+  const picked = [];
+  const queue = [...trees];
+  while (queue.length && picked.length < MAP_SLOTS.length) {
+    const p = queue.shift();
+    if (!picked.includes(p)) { picked.push(p); queue.push(...(children[p.id] || [])); }
+  }
+  [...papers].sort((a, b) => b.has_pdf - a.has_pdf).forEach((p) => {
+    if (picked.length < MAP_SLOTS.length && !picked.includes(p)) picked.push(p);
+  });
+  if (picked.length < 2) return "";
+  const slots = MAP_SLOTS.slice(0, picked.length);
+  const curve = ([a, b]) => {
+    const s = slots[a], t = slots[b], mid = (s.x + t.x) / 2;
+    return `<path d="M${s.x} ${s.y} C${mid} ${s.y} ${mid} ${t.y} ${t.x} ${t.y}" style="--d:${s.d}"/>`;
+  };
+  return `<div class="map-backdrop" aria-hidden="true">
+    <svg class="map-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${MAP_EDGES.filter(([a, b]) => a < slots.length && b < slots.length).map(curve).join("")}</svg>
+    ${picked.map((p, i) => `<span class="mb-node" style="--x:${slots[i].x}%;--y:${slots[i].y}%;--d:${slots[i].d};--i:${i}">${cover(p, "small")}</span>`).join("")}
+  </div>`;
+}
+
 export async function mapPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const papers = await api("/papers");
@@ -336,7 +365,7 @@ export async function mapPage(stale) {
     <a class="node" href="#/papers/${p.id}"><span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>
     ${children[p.id] ? `<ul>${children[p.id].map(node).join("")}</ul>` : ""}</li>`;
 
-  app.innerHTML = `<div class="container page">
+  app.innerHTML = `${mapBackdrop(papers, children, trees)}<div class="container page map-page">
     <div class="page-head">
       <h1 class="page-title">Map</h1>
       <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
@@ -347,6 +376,7 @@ export async function mapPage(stale) {
       <div class="sheet list">${loose.map((p) => `<a class="loose" href="#/papers/${p.id}">
         <span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>`).join("")}</div></section>` : ""}
   </div>`;
+  drawCovers(app.querySelector(".map-backdrop") || app);
 }
 
 // ---------- Settings ----------

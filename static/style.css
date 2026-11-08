@@ -1134,3 +1134,35 @@ body.reading #toast { bottom: 64px; }
 }
 .recall-backdrop.searching .recall-hero .cover-wrap .cover { animation-duration: 1.4s; } /* livelier while searching */
 @media (prefers-reduced-motion: reduce) { .recall-hero .cover-wrap .cover { animation: none; } }
+
+/* Map: your papers spread out and joined like a map, behind the page. Dashes flow along the lines, a light
+   spreads outward from the first paper, and each paper floats gently. */
+.map-page { position: relative; z-index: 1; }
+.map-backdrop { position: fixed; top: 76px; right: max(2vw, calc((100vw - 1120px) / 2 - 40px)); width: min(640px, 52vw); height: min(440px, 40vw);
+  z-index: 0; pointer-events: none; opacity: .65; }
+.map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.map-lines path { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; opacity: .55;
+  stroke-dasharray: 6 7; animation: map-flow 2.4s linear infinite, map-line-light 6s ease-in-out infinite;
+  animation-delay: 0s, calc(var(--d) * 0.9s); }
+@keyframes map-flow { to { stroke-dashoffset: -26; } }
+@keyframes map-line-light { 0%, 100% { opacity: .35; } 18% { opacity: .9; } }
+.mb-node { position: absolute; left: var(--x); top: var(--y); width: clamp(70px, 8vw, 112px); transform: translate(-50%, -50%) rotate(calc((var(--i) - 2.5) * 3deg));
+  animation: map-light 6s ease-in-out infinite; animation-delay: calc(var(--d) * 0.9s); }
+.mb-node .cover-sheet { display: none; }
+.mb-node .cover { box-shadow: 0 14px 30px -12px rgb(0 0 0 / .5); animation: map-float 7s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -1.3s); }
+@keyframes map-float { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-10px) rotate(1.5deg); } }
+@keyframes map-light {
+  0%, 100% { filter: none; }
+  15% { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--ink) 70%, transparent)) brightness(1.08); }
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-backdrop { opacity: .45; } }
+:root[data-theme="dark"] .map-backdrop, :root[data-theme="dim"] .map-backdrop { opacity: .45; }
+@media (max-width: 900px) { .map-backdrop { width: 80vw; height: 60vw; right: -10vw; top: 120px; opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .map-lines path, .mb-node, .mb-node .cover { animation: none; } }
+
+/* On wide screens the Map's content keeps to the left, so the map of papers has the right side. */
+@media (min-width: 1100px) {
+  .map-page > * { max-width: 600px; }
+  .map-backdrop { top: 110px; width: min(560px, 40vw); height: min(520px, 46vw); }
+}
