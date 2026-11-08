@@ -34,6 +34,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 papers = "papers.cli:main"
+papers-app = "papers.cli:main"  # so `uvx papers-app` finds it
 
 [project.urls]
 Homepage = "https://github.com/hBouanane/papers"
