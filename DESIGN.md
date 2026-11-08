@@ -5,17 +5,28 @@ only accent. The interface should get out of the way of the papers.
 
 ## Palette
 
-| Token        | Light     | Dark      | Use |
-|--------------|-----------|-----------|-----|
-| `--desk`     | `#ECEEF1` | `#16181C` | app background |
-| `--sheet`    | `#FFFFFF` | `#1F2228` | panels, the reading page |
-| `--graphite` | `#262A31` | `#E7E9ED` | text |
-| `--pencil`   | `#666D78` | `#9BA2AD` | secondary text |
-| `--ink`      | `#1D3FBB` | `#8EA6FF` | links, primary actions, progress, the "Reading" state |
-| `--ink-tint` | `#E8ECFA` | `#252C45` | background of the "Reading" chip, text selection |
-| `--done`     | `#1D7A4E` | `#5CC994` | finished papers, good grades |
+Surfaces go by depth. In light mode the page is grey and cards are white; in dark mode each layer
+is a little lighter than the one below it, so raised things look raised (not like holes).
 
-One accent only. No yellow highlights, no gradients, no purple, no cream.
+| Token          | Light     | Dark      | Use |
+|----------------|-----------|-----------|-----|
+| `--desk`       | `#ECEEF1` | `#0F1115` | page background |
+| `--sheet`      | `#FFFFFF` | `#171A1F` | cards, the reading page |
+| `--raised`     | `#F1F3F6` | `#20242B` | areas inside cards (callouts, chips, hovers, Claude's answers) |
+| `--field`      | `#FFFFFF` | `#121418` | text inputs (a little below the card in dark mode) |
+| `--pop`        | `#262A31` | `#2A2F38` | toasts, the selection toolbar |
+| `--selected`   | `#262A31` | `#2F3540` | the selected option in a segmented control |
+| `--graphite`   | `#262A31` | `#E4E7EB` | text |
+| `--reading`    | `#262A31` | `#D5D9DF` | paper text (slightly softer in dark mode to reduce glare) |
+| `--pencil`     | `#666D78` | `#98A0AB` | secondary text |
+| `--ink`        | `#1D3FBB` | `#93A9F8` | links, highlights, progress, focus |
+| `--ink-fill`   | `#1D3FBB` | `#3C5ED8` | primary buttons (always with white text) |
+| `--ink-tint`   | `#E8ECFA` | `#1E2640` | the "Reading" chip, your messages in Ask |
+| `--done`       | `#1D7A4E` | `#5CC48E` | finished papers, good grades |
+
+Never use a light tint as a button fill in dark mode, and never invert the text colour into a
+background (it turns into a white blob in dark mode); use `--pop` and `--selected`.
+PDF pages are dimmed in dark mode; Aa > PDF pages offers White, Dimmed or Dark (inverted).
 
 ## Type
 

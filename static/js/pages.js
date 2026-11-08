@@ -1,4 +1,4 @@
-import { api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl, toast } from "./core.js";
+import { api, app, bindAddPaper, bindRows, busy, setBar, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl, toast } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -134,12 +134,12 @@ export async function goalPage(id, stale) {
   if (stale()) return;
   const goal = goals.find((g) => g.id === id);
   if (!goal) throw new Error("This goal doesn't exist. It may have been removed.");
+  setBar({ back: { href: "#/goals", label: "Goals" }, title: goal.goal });
 
   const mine = (list) => list.length ? tableHead + list.map((p) => paperRow(p)).join("")
     : `<p class="faint pad">No papers yet. Find some below.</p>`;
 
   app.innerHTML = `<div class="container page">
-    <nav class="crumbs"><a href="#/goals">Goals</a></nav>
     <h1 class="goal-title">${esc(goal.goal)}</h1>
     <section class="section">
       <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2>

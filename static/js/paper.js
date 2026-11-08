@@ -1,4 +1,4 @@
-import { api, app, bindNotes, busy, cite, esc, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { api, app, bindNotes, busy, cite, esc, setBar, knownWords, loading, markdown, notesBox, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { openPdf } from "./pdfview.js";
 import { bindReadingPrefs, readingPrefsMenu } from "./readprefs.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "./speech.js";
@@ -19,9 +19,9 @@ export async function paperPage(id, stale, tab = "overview") {
   const readLabel = { new: "Start reading", skimmed: "Start reading", reading: `Continue reading`, read: "Read again" }[p.status];
   const ancestors = chain.path.slice(0, -1);
   const readable = p.text || p.has_pdf;
+  setBar({ back: goal ? { href: `#/goals/${goal.id}`, label: goal.goal } : { href: "#/", label: "Library" }, title: p.title });
 
   app.innerHTML = `<div class="container page">
-    <nav class="crumbs">${goal ? `<a href="#/goals">Goals</a><span>/</span><a href="#/goals/${goal.id}">${esc(goal.goal)}</a>` : `<a href="#/">Library</a>`}</nav>
     <header class="paper-header" id="header">
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
@@ -608,8 +608,13 @@ export async function readerPage(id, stale) {
     return bottom >= scroller.scrollHeight * Math.min(p.main_end, 0.98);
   };
   const atVeryEnd = () => scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 40;
+  // Only your own scrolling counts, not the jump back to where you stopped.
+  let movedByYou = false;
+  ["wheel", "touchmove", "keydown", "pointerdown"].forEach((type) =>
+    scroller.addEventListener(type, () => (movedByYou = true), { passive: true, once: true }));
+  addEventListener("keydown", () => (movedByYou = true), { once: true });
   const checkFinished = () => {
-    if (p.status === "read" || !card.hidden) return;
+    if (!movedByYou || p.status === "read" || !card.hidden) return;
     if ((asked === 0 && mainEndReached()) || (asked === 1 && atVeryEnd())) {
       asked += 1;
       askFinished();
@@ -710,7 +715,8 @@ export async function quizPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const p = await api(`/papers/${id}`);
   if (stale()) return;
-  const crumbs = `<nav class="crumbs"><a href="#/papers/${id}">${esc(p.title)}</a></nav>`;
+  setBar({ back: { href: `#/papers/${id}`, label: p.title }, title: p.title });
+  const crumbs = "";
 
   if (!p.quiz?.length) {
     app.innerHTML = `<div class="container page narrow">${crumbs}
