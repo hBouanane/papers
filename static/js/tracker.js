@@ -6,10 +6,12 @@ const IDLE_MS = 2 * 60 * 1000; // no input for this long: you've walked away
 const FAST = 1; // scrolling faster than one screen per second is navigating, not reading
 const WPM = 250;
 const SHARE_OF_READING_TIME = 0.33; // a quick read still counts; scrolling past doesn't
+const MAX_GAP = 3; // unread runs this short between read parts were read too (same rule as the server)
 
 // `scroller` is the element the paper scrolls in.
 export function startTracker({ scroller, paper, words, onRead }) {
-  const bits = (paper.read_slices || "0".repeat(SLICES)).split("");
+  const bits = (paper.read_slices || "0".repeat(SLICES))
+    .replace(new RegExp(`(?<=1)0{1,${MAX_GAP}}(?=1)`, "g"), (gap) => "1".repeat(gap.length)).split("");
   const dwell = new Array(SLICES).fill(0);
   const needMs = Math.max(1500, ((words / SLICES) / WPM) * 60000 * SHARE_OF_READING_TIME);
   let mode = "read";
@@ -34,8 +36,8 @@ export function startTracker({ scroller, paper, words, onRead }) {
     if (mode !== "read" || document.hidden || Date.now() - lastInput > IDLE_MS || screensPerSecond > FAST) return;
     // Reading happens in the middle of the screen, not at its edges.
     const height = scroller.scrollHeight;
-    const first = Math.max(0, Math.floor(((scroller.scrollTop + screen * 0.2) / height) * SLICES));
-    const last = Math.min(SLICES - 1, Math.floor(((scroller.scrollTop + screen * 0.8) / height) * SLICES));
+    const first = Math.max(0, Math.floor(((scroller.scrollTop + screen * 0.15) / height) * SLICES));
+    const last = Math.min(SLICES - 1, Math.floor(((scroller.scrollTop + screen * 0.85) / height) * SLICES));
     if (last < first) return;
     const share = (seconds * 1000) / (last - first + 1);
     for (let i = first; i <= last; i++) {
@@ -46,10 +48,17 @@ export function startTracker({ scroller, paper, words, onRead }) {
         if (bits[i] !== "1") {
           bits[i] = "1";
           fresh.add(i);
+          fillGapBefore(i);
         }
         onRead();
       }
     }
+  };
+  // A short unread run just before a newly read slice slipped past the middle of the screen.
+  const fillGapBefore = (i) => {
+    let j = i - 1;
+    while (j >= 0 && bits[j] !== "1" && i - j <= MAX_GAP) j--;
+    if (j >= 0 && bits[j] === "1") for (let k = j + 1; k < i; k++) { bits[k] = "1"; fresh.add(k); }
   };
   const timer = setInterval(tick, TICK_MS);
 

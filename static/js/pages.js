@@ -1,4 +1,4 @@
-import { api, app, bindAddPaper, bindRows, busy, setBar, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl, toast } from "./core.js";
+import { api, app, bindAddPaper, bindRows, busy, setBar, cite, empty, esc, loading, paperRow, pct, progressBar, statusTag, STATUS, tableHead, addPaperControl, toast } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -9,8 +9,9 @@ export async function libraryPage(stale) {
   const [papers, goals, settings, due] = await Promise.all([api("/papers"), api("/topics"), api("/settings"), api("/reviews/due")]);
   if (stale()) return;
   const names = goalNames(goals);
-  const folderTip = settings.library_dir ? "" : `<p class="tip">Want your PDFs and notes in a folder on your computer?
-    <a href="#/settings">Choose a library folder</a></p>`;
+  const folderTip = settings.library_dir ? "" : `<div class="sheet desk-box">
+    <h2>Library folder</h2><p class="hint">Keep your PDFs and notes in a folder on your computer too.</p>
+    <a class="button quiet small desk-link" href="#/settings">Choose a folder</a></div>`;
   const count = (s) => papers.filter((p) => p.status === s).length;
 
   if (!papers.length) {
@@ -22,29 +23,50 @@ export async function libraryPage(stale) {
     return;
   }
 
-  const [current, ...others] = papers.filter((p) => p.status === "reading");
+  // The reading desk: what you're reading now on the left, what's due and your goals on the right,
+  // everything else in the list below. Each thing always has the same place.
+  const reading = papers.filter((p) => p.status === "reading");
+  const readingCard = (p) => `<a class="reading-card sheet" href="#/papers/${p.id}/read">
+      ${names[p.topic_id] ? `<span class="card-goal">${esc(names[p.topic_id])}</span>` : ""}
+      <span class="card-title paper-name">${esc(p.title)}</span>
+      <span class="card-cite">${cite(p)}</span>
+      ${p.resume_text ? `<span class="card-quote">“${esc(p.resume_text)}”</span>` : ""}
+      <span class="card-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span><span class="card-go">Continue</span></span>
+    </a>`;
+  const goalLine = (g) => {
+    const mine = papers.filter((p) => p.topic_id === g.id);
+    const done = mine.filter((p) => p.status === "read").length;
+    return `<a class="desk-item" href="#/goals/${g.id}"><span class="desk-item-title">${esc(g.goal)}</span>
+      <span class="faint num">${done}/${mine.length}</span></a>`;
+  };
   app.innerHTML = `<div class="container page">
     <div class="page-head page-head-split">
       <div><h1>Library</h1>
       <p class="lede">${plural(papers.length, "paper")}, ${count("read")} finished, ${count("reading")} in progress</p></div>
       ${addPaperControl("", goals)}
     </div>
-    ${folderTip}
-    ${due.length ? `<section class="sheet due">
-      <h2>Due for review</h2>
-      <p class="hint">A couple of minutes now keeps these from fading. Flashcards, no typing.</p>
-      ${due.map((d) => `<a class="due-item" href="#/papers/${d.id}/quiz"><span class="paper-name">${esc(d.title)}</span>
-        <span class="faint">${d.questions} cards</span></a>`).join("")}
-    </section>` : ""}
-    ${current ? `<a class="resume sheet" href="#/papers/${current.id}/read">
-        <span class="resume-label">Pick up where you left off</span>
-        <span class="resume-title">${esc(current.title)}</span>
-        <span class="resume-cite">${cite(current)}</span>
-        ${current.resume_text ? `<span class="resume-quote">“${esc(current.resume_text)}”</span>` : ""}
-        <span class="resume-foot">Continue at ${pct(current.position)}</span>
-      </a>
-      ${others.length ? `<p class="also">Also in progress: ${others.map((p) =>
-        `<a href="#/papers/${p.id}/read">${esc(p.title)}</a>`).join(", ")}</p>` : ""}` : ""}
+    <div class="desk">
+      <section class="desk-main">
+        <h2>Reading now</h2>
+        ${reading.length ? `<div class="reading-cards">${reading.slice(0, 4).map(readingCard).join("")}</div>
+          ${reading.length > 4 ? `<button class="button quiet small" id="all-reading">All ${reading.length} in progress</button>` : ""}`
+          : `<div class="desk-empty">Nothing in progress. Pick a paper from the list below, or add one.</div>`}
+      </section>
+      <aside class="desk-side">
+        <div class="sheet desk-box">
+          <h2>Due for review</h2>
+          ${due.length ? due.map((d) => `<a class="desk-item" href="#/papers/${d.id}/quiz"><span class="desk-item-title paper-name">${esc(d.title)}</span>
+            <span class="faint num">${d.questions} cards</span></a>`).join("")
+            : `<p class="hint">Nothing today. Finished papers come back here for a short review.</p>`}
+        </div>
+        <div class="sheet desk-box">
+          <h2>Goals</h2>
+          ${goals.length ? goals.map(goalLine).join("") : `<p class="hint">Group papers around what you're working on.</p>`}
+          <a class="button quiet small desk-link" href="#/goals">${goals.length ? "All goals" : "Set a goal"}</a>
+        </div>
+        ${folderTip}
+      </aside>
+    </div>
     <section class="section">
       <div class="section-bar">
         <h2>All papers</h2>
@@ -77,6 +99,10 @@ export async function libraryPage(stale) {
         : "No papers with this status."}</p>`;
   };
   show();
+  app.querySelector("#all-reading")?.addEventListener("click", () => {
+    app.querySelector('[data-filter="reading"]').click();
+    app.querySelector("#rows").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   app.querySelector(".segmented").onclick = async (e) => {
     const b = e.target.closest("[data-filter]");
     if (!b) return;

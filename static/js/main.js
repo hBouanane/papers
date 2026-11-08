@@ -1,6 +1,7 @@
 import { addFromLink, app, currentGoal, esc, looksLikePaperLink, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
 import { goalPage, goalsPage, libraryPage, mapPage, recallPage, settingsPage } from "./pages.js";
 import { paperPage, quizPage, readerPage } from "./paper.js";
+import "./theme.js";
 
 const routes = [
   [/^\/$/, libraryPage, "library"],
@@ -64,7 +65,10 @@ document.addEventListener("paste", async (e) => {
 
 // "/" searches the library from anywhere; "?" lists shortcuts; Escape closes the list.
 addEventListener("keydown", (e) => {
-  if (e.key === "Escape") document.getElementById("shortcuts")?.remove();
+  if (e.key === "Escape") {
+    document.getElementById("shortcuts")?.remove();
+    document.querySelectorAll("details.menu[open], details.add-paper[open]").forEach((d) => (d.open = false));
+  }
   if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "/") {
     e.preventDefault();
@@ -94,4 +98,11 @@ addEventListener("drop", async (e) => {
   if (errors.length) toast(errors.join(" "));
   else if (added.length === 1) location.hash = `#/papers/${added[0].id}`;
   else { toast(`Added ${added.length} papers.`); render(); }
+});
+
+// Menus close when you click anywhere outside them.
+document.addEventListener("click", (e) => {
+  document.querySelectorAll("details.menu[open], details.add-paper[open]").forEach((d) => {
+    if (!d.contains(e.target)) d.open = false;
+  });
 });

@@ -12,6 +12,7 @@
   --selected: #262a31;
   --on-selected: #ffffff;
   --graphite: #262a31;
+  --heading: #111418;
   --reading: #262a31;
   --pencil: #666d78;
   --line: #d9dde3;
@@ -28,34 +29,55 @@
   --shadow-pop: 0 12px 32px rgb(20 24 32 / .14);
   --shadow-panel: -16px 0 40px rgb(20 24 32 / .12);
   --shadow-soft: 0 2px 8px rgb(20 24 32 / .06);
+  --shadow-card: 0 1px 2px rgb(20 24 32 / .04), 0 2px 8px rgb(20 24 32 / .03);
   --page-filter: none;
+  --dark-page: #1b1e23; /* dark PDF pages: a real dark page even in light mode */
   --ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
   --paper: "STIX Two Text", "Times New Roman", serif;
   --r-panel: 8px;
   --r-control: 6px;
 }
+/* Dark: the reverse of light mode. Light has a grey desk with white cards and bar; dark has a grey desk
+   with black cards and bar. Follows the system until a theme is picked (data-theme on <html>: light, dim or dark). */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme]) {
     color-scheme: dark;
-    --desk: #0f1115; --sheet: #171a1f; --raised: #20242b; --field: #121418; --header: #0f1115;
-    --pop: #2a2f38; --on-pop: #eef0f3; --selected: #2f3540; --on-selected: #f2f4f6;
-    --graphite: #e4e7eb; --reading: #d5d9df; --pencil: #98a0ab;
-    --line: #2a2f37; --line-soft: #21252c;
-    --ink: #93a9f8; --ink-hover: #b4c4fb; --ink-fill: #3c5ed8; --ink-fill-hover: #4a6ce3; --on-ink: #ffffff;
-    --ink-tint: #1e2640; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
-    --shadow-pop: 0 16px 40px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .06);
-    --shadow-panel: -16px 0 40px rgb(0 0 0 / .4);
-    --shadow-soft: 0 2px 10px rgb(0 0 0 / .35);
-    --page-filter: brightness(.86) contrast(1.04); /* white PDF pages glare on a dark screen */
-  }
+    --dark-page: #050607; --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+    --pop: #f2f4f6; --on-pop: #050607;
+    --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
+    --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
+    --line: #353a42; --line-soft: #1d2024;
+    --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
+    --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
+    --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
+    --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
+    --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 16px rgb(255 255 255 / .035);
+    --page-filter: none;
+}
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --dark-page: #050607; --desk: #17191d; --sheet: #050607; --raised: #111316; --field: #050607; --header: #050607;
+  --pop: #f2f4f6; --on-pop: #050607;
+  --selected: #f2f4f6; --on-selected: #050607; /* the reverse of light mode: white with black text */
+  --graphite: #e3e6ea; --heading: #ffffff; --reading: #d8dce2; --pencil: #9aa2ad;
+  --line: #353a42; --line-soft: #1d2024;
+  --ink: #9db2fa; --ink-hover: #bccbfc; --ink-fill: #3f62de; --ink-fill-hover: #4d6fe6; --on-ink: #ffffff;
+  --ink-tint: #1f2742; --done: #5cc48e; --partial: #e0b54f; --miss: #f28b82;
+  --shadow-pop: 0 16px 40px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .07);
+  --shadow-panel: -16px 0 40px rgb(0 0 0 / .45);
+  --shadow-soft: 0 2px 10px rgb(0 0 0 / .4);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 16px rgb(255 255 255 / .035);
+  --page-filter: none;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; } /* pages with and without a scrollbar keep the same width */
 body { margin: 0; background: var(--desk); color: var(--graphite); font: 16px/1.55 var(--ui); }
 a { color: var(--ink); }
-h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.01em; color: var(--heading); overflow-wrap: break-word; }
 h1 { font-size: 32px; line-height: 1.15; }
 h2 { font-size: 19px; line-height: 1.3; }
 h3 { font-size: 16px; }
@@ -69,7 +91,8 @@ p { margin: 0; }
 
 .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .page { padding: 36px 24px 96px; }
-.page.narrow { max-width: 760px; }
+/* Every page has the same width as the bar above it; narrow pages only keep their lines short. */
+.page.narrow > * { max-width: 760px; }
 @media (max-width: 640px) { .container, .page { padding-left: 16px; padding-right: 16px; } .page { padding-top: 24px; } h1 { font-size: 27px; } }
 
 /* Header */
@@ -77,7 +100,7 @@ p { margin: 0; }
 .site-header { background: var(--header); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .bar-start { flex: 1; min-width: 0; display: flex; }
-.wordmark { font-weight: 800; font-size: 21px; color: var(--graphite); text-decoration: none; }
+.wordmark { font-weight: 800; font-size: 21px; color: var(--heading); text-decoration: none; }
 .nav { flex-shrink: 0; flex-wrap: nowrap; }
 .nav a { padding: 4px 11px; border-radius: 4px; color: var(--pencil); text-decoration: none; font-weight: 700; font-size: 14px; }
 .nav a:hover { color: var(--graphite); }
@@ -110,7 +133,7 @@ textarea:focus-visible, input:focus-visible { outline-offset: 0; border-color: v
 label { font-weight: 700; }
 
 /* Surfaces */
-.sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-panel); }
+.sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--shadow-card); } /* cards sit above the desk */
 .pad-lg { padding: 24px 28px; }
 @media (max-width: 640px) { .pad-lg { padding: 20px; } }
 .form { display: grid; gap: 10px; padding: 20px; }
@@ -216,7 +239,7 @@ details p { margin-top: 8px; color: var(--graphite); max-width: 75ch; font-size:
 .paper-header { margin-bottom: 28px; }
 .paper-h1 { font-size: 36px; line-height: 1.15; max-width: 28ch; }
 .paper-cite { color: var(--pencil); margin-top: 10px; font-size: 16px; max-width: 70ch; }
-.actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 .paper-header .hint { margin-top: 12px; }
 .paper-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
 .paper-side { display: grid; gap: 16px; position: sticky; top: 84px; }
@@ -250,7 +273,7 @@ body.reading .site-header { display: none; } /* reading is a focused, full-scree
   font-size: 14px; color: var(--pencil); background: var(--desk); border-top: 1px solid var(--line); }
 .jump { width: auto; max-width: 180px; height: 34px; font-size: 14px; font-weight: 700; }
 /* The paper scrolls in this panel below the reader bar (PDF.js's viewer needs its own scroll container). */
-.reader-scroll { position: absolute; top: var(--reader-top, 96px); left: 0; right: 0; bottom: 0; overflow: auto; background: var(--desk); transition: right .2s ease; }
+.reader-scroll { z-index: 0; isolation: isolate; /* PDF link boxes stay below the bar's menus */ position: absolute; top: var(--reader-top, 96px); left: 0; right: 0; bottom: 0; overflow: auto; background: var(--desk); transition: right .2s ease; }
 .reader-scroll.view-text { padding: 32px 24px 96px; }
 .reader-scroll .loading { padding: 32px; }
 .page-sheet { max-width: calc(var(--read-width, 680px) + 144px); margin: 0 auto; background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; padding: 64px 72px 48px; }
@@ -384,6 +407,7 @@ select { width: 100%; height: 44px; font: 16px var(--ui); color: var(--graphite)
 
 /* Triage */
 .menu { position: relative; }
+.menu, .add-paper { margin-top: 0; } /* not the 8px every other <details> gets */
 .menu > summary { list-style: none; }
 .menu > summary::-webkit-details-marker { display: none; }
 .menu-list { position: absolute; left: 0; top: calc(100% + 6px); z-index: 25; min-width: 220px; padding: 6px; display: grid;
@@ -555,9 +579,113 @@ abbr.term { text-decoration: underline dotted var(--ink); text-underline-offset:
 .view-pdf .pdfViewer .page canvas { filter: var(--page-filter); }
 body.pages-white .view-pdf .pdfViewer .page canvas { filter: none; }
 body.pages-dim .view-pdf .pdfViewer .page canvas { filter: brightness(.86) contrast(1.04); }
-body.pages-dark .view-pdf .pdfViewer .page canvas { filter: invert(.9) hue-rotate(180deg); } /* hue-rotate keeps figure colours close */
-body.pages-dark .view-pdf .pdfViewer .page { background: #1a1a1a; }
+/* Dark pages are recoloured by PDF.js itself (text and lines only, images keep their colours). */
+body.pages-dark .view-pdf .pdfViewer .page canvas { filter: none; }
+body.pages-dark .view-pdf .pdfViewer .page { background: var(--dark-page); } /* like the cards in dim and dark mode */
 ::selection { background: color-mix(in srgb, var(--ink) 32%, transparent); }
 .menu:not([open]) > .menu-list { display: none; } /* a closed menu must not widen the page */
 @media (max-width: 640px) { .actions .menu-list { left: auto; right: 0; } }
 @media (max-width: 640px) { .tabs { overflow-x: auto; scrollbar-width: none; } .tabs [role=tab] { padding: 9px 11px; font-size: 14px; flex-shrink: 0; } }
+
+/* Skimming switch in the reader bar */
+.switch { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 6px; cursor: pointer;
+  font: 700 14px var(--ui); color: var(--pencil); white-space: nowrap; }
+.switch:hover { color: var(--graphite); }
+.switch-track { position: relative; width: 30px; height: 18px; border-radius: 999px; background: var(--line); transition: background .15s; }
+.switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--sheet); box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: transform .15s; }
+.switch[aria-checked=true] { color: var(--graphite); }
+.switch[aria-checked=true] .switch-track { background: var(--selected); }
+.switch[aria-checked=true] .switch-track::after { transform: translateX(12px); background: var(--on-selected); }
+body.skimming .strip { opacity: .35; }
+@media (max-width: 760px) { .switch { order: 3; } }
+
+/* ---------- Library: the reading desk ---------- */
+/* The heading sits above both columns, so the cards and the side boxes start on the same line. */
+.desk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 24px; row-gap: 12px; align-items: start; }
+.desk-main { display: contents; }
+.desk-main > * { grid-column: 1; }
+.desk-side { grid-column: 2; grid-row: 2 / span 2; }
+@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } .desk-side { grid-column: 1; grid-row: auto; margin-top: 12px; } }
+.desk-main h2, .desk-box h2 { font-size: 17px; }
+.desk-box h2 { margin-bottom: 12px; }
+.reading-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.reading-card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; text-decoration: none; color: inherit; min-height: 210px; }
+.reading-card:hover { border-color: var(--pencil); }
+.reading-card:hover .card-go { text-decoration: underline; }
+.card-goal { font-size: 12px; font-weight: 700; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-title { font-size: 19px; line-height: 1.3; }
+.card-cite { font-size: 14px; color: var(--pencil); }
+.card-quote { font-family: var(--paper); font-style: italic; color: var(--pencil); font-size: 15px; line-height: 1.55; margin-top: 8px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card-foot { margin-top: auto; padding-top: 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--pencil); }
+.card-foot .bar { flex: 1; width: auto; }
+.card-go { color: var(--ink); font-weight: 700; }
+.desk-empty { border: 1px dashed var(--line); border-radius: var(--r-panel); padding: 28px; color: var(--pencil); text-align: center; }
+.desk-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; } /* long titles shorten with "…" instead of widening the box */
+.desk-box { padding: 16px 18px; }
+.desk-box .hint { font-size: 14px; }
+.desk-item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; text-decoration: none; color: inherit;
+  border-top: 1px solid var(--line-soft); font-size: 15px; }
+.desk-item:hover .desk-item-title { color: var(--ink); }
+.desk-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desk-link { margin-top: 8px; padding: 0; }
+
+/* Dim: between light and dark. Deep navy instead of grey: the cards are a clearly lighter blue than the
+   background, so they read as raised, like white cards on grey in light mode. */
+:root[data-theme="dim"] {
+  color-scheme: dark;
+  --dark-page: #152238; --desk: #0e1726; --sheet: #152238; --raised: #1c2c46; --field: #111b2e; --header: #152238;
+  --pop: #f2f5fa; --on-pop: #0e1726;
+  --selected: #f2f5fa; --on-selected: #0e1726;
+  --graphite: #e1e8f2; --heading: #ffffff; --reading: #d6dfeb; --pencil: #93a5bf;
+  --line: #283b59; --line-soft: #1f3049;
+  --ink: #9cb8ff; --ink-hover: #bfd0ff; --ink-fill: #3f6ce4; --ink-fill-hover: #4d79ec; --on-ink: #ffffff;
+  --ink-tint: #223a66; --done: #6acb98; --partial: #e6bd5c; --miss: #f59a92;
+  --shadow-pop: 0 16px 40px rgb(2 8 20 / .5), 0 0 0 1px rgb(255 255 255 / .08);
+  --shadow-panel: -16px 0 40px rgb(2 8 20 / .45);
+  --shadow-soft: 0 2px 10px rgb(2 8 20 / .4);
+  --shadow-card: 0 1px 2px rgb(2 8 20 / .3), 0 3px 10px rgb(2 8 20 / .25);
+  --page-filter: none;
+}
+
+/* The sections in the bar are plain words, the current one shown as a filled pill (no box around them). */
+.site-header .nav.segmented { background: transparent; border: 0; padding: 0; gap: 4px; }
+/* Theme switch: in the bottom-left corner it shows only the current theme's icon; pointing at it (or
+   focusing it) opens all three, and the knob slides to the one you pick. */
+.theme-switch { position: fixed; left: 16px; bottom: 16px; z-index: 30; display: flex; padding: 3px;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-soft); }
+.theme-switch button { position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 30px; padding: 0;
+  border: 0; background: transparent; border-radius: 999px; color: var(--pencil); cursor: pointer; overflow: hidden;
+  transition: width .45s cubic-bezier(.3, .8, .25, 1), opacity .45s, color .5s; }
+.theme-switch svg { width: 17px; height: 17px; flex-shrink: 0; }
+.theme-switch button:hover { color: var(--graphite); }
+.theme-switch button.active { color: var(--on-selected); }
+.theme-switch:not(:hover):not(:focus-within) button:not(.active) { width: 0; opacity: 0; }
+.theme-thumb { position: absolute; top: 3px; left: 3px; width: 32px; height: 30px; border-radius: 999px;
+  background: var(--selected); transition: transform .6s cubic-bezier(.3, .8, .25, 1), background-color .5s; }
+.theme-switch[data-at="dim"] .theme-thumb { transform: translateX(32px); }
+.theme-switch[data-at="dark"] .theme-thumb { transform: translateX(64px); }
+.theme-switch:not(:hover):not(:focus-within) .theme-thumb { transform: none; }
+/* The new theme spreads out in a circle from where you clicked (theme.js); no cross-fade on top of it. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+@media (prefers-reduced-motion: reduce) { .theme-thumb, .theme-switch button { transition: none; } }
+/* Long titles and words wrap instead of widening the page. */
+.paper-name, .card-title, .resume-title, .goal-text, .row-title { overflow-wrap: anywhere; }
+.container { min-width: 0; }
+
+/* PDF pages in the reader bar: white, dimmed or dark, the knob sliding like the theme switch. */
+.page-tone { display: inline-flex; align-items: center; gap: 8px; font: 700 14px var(--ui); color: var(--pencil); white-space: nowrap; }
+.page-tone[hidden] { display: none; }
+.tone-pill { position: relative; display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--desk); }
+.tone-pill button { position: relative; z-index: 1; display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0;
+  background: transparent; border-radius: 999px; color: var(--pencil); cursor: pointer; transition: color .4s; }
+.tone-pill button:hover { color: var(--graphite); }
+.tone-pill button.active { color: var(--on-selected); }
+.tone-pill svg { width: 15px; height: 15px; }
+.tone-thumb { position: absolute; top: 2px; left: 2px; width: 28px; height: 24px; border-radius: 999px; background: var(--selected);
+  transition: transform .5s cubic-bezier(.3, .8, .25, 1); }
+.page-tone[data-at="dim"] .tone-thumb { transform: translateX(28px); }
+.page-tone[data-at="dark"] .tone-thumb { transform: translateX(56px); }
+@media (max-width: 760px) { .page-tone { order: 3; } .page-tone-label { display: none; } }
+@media (prefers-reduced-motion: reduce) { .tone-thumb, .tone-pill button { transition: none; } }

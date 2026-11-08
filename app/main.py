@@ -643,6 +643,11 @@ def grade_quiz(paper_id: int, body: AnswersIn):
 
 
 SLICES = 100  # a paper is tracked as 100 equal slices, each read or not
+MAX_GAP = 3  # unread runs this short between read parts were read too (they slipped past mid-screen)
+
+
+def fill_gaps(bits: str) -> str:
+    return re.sub(r"(?<=1)0{1,%d}(?=1)" % MAX_GAP, lambda m: "1" * len(m[0]), bits)
 
 
 class ProgressIn(BaseModel):
@@ -660,6 +665,7 @@ def save_progress(paper_id: int, body: ProgressIn):
     for i in body.slices:
         if 0 <= i < SLICES:
             bits[i] = "1"
+    bits = list(fill_gaps("".join(bits)))
     read = bits.count("1") / SLICES
     # Papers tracked the old way keep their percentage until real reading overtakes it.
     progress = read if paper["read_slices"] else max(paper["progress"], read)

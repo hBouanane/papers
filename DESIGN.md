@@ -26,7 +26,7 @@ is a little lighter than the one below it, so raised things look raised (not lik
 
 Never use a light tint as a button fill in dark mode, and never invert the text colour into a
 background (it turns into a white blob in dark mode); use `--pop` and `--selected`.
-PDF pages are dimmed in dark mode; Aa > PDF pages offers White, Dimmed or Dark (inverted).
+PDF pages follow the theme by default (white in light mode, dark in dim and dark mode). In the reader bar, Pages offers white, dimmed or dark (sun, half circle, moon, with a sliding knob); `d` flips dark. Picking a theme hands the pages back to it. Dark pages are redrawn by PDF.js with light text on a dark page (the card colour in dim and dark mode, dark grey in light mode); photos keep their colours.
 
 ## Type
 

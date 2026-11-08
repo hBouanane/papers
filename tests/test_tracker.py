@@ -54,3 +54,13 @@ def test_finish_marks_everything_read_even_without_ai(client, monkeypatch):
     p = make(client)
     r = client.post(f"/api/papers/{p['id']}/finish").json()
     assert (r["status"], r["progress"], r["read_slices"], r["quiz"]) == ("read", 1, "1" * 100, None)
+
+
+def test_small_gaps_between_read_parts_are_filled(client):
+    """Reading steadily, a slice can slip past the middle of the screen too fast to count;
+    a short unread run between two read parts was read too."""
+    p = make(client)
+    r = put(client, p["id"], position=0.06, slices=[0, 1, 2, 6])
+    assert r["read_slices"][:8] == "11111110" and r["progress"] == 0.07
+    r = put(client, p["id"], position=0.2, slices=[11])  # 4 unread slices (7-10): a real jump, kept
+    assert r["read_slices"][6:12] == "100001"
