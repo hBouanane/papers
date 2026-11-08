@@ -1,0 +1,109 @@
+/* The page itself: reset, type, page widths, the top bar, the theme switch, toasts and the drop zone. */
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; } /* pages with and without a scrollbar keep the same width */
+body { margin: 0; background: var(--desk); color: var(--graphite); font: 16px/1.55 var(--ui); }
+a { color: var(--ink); }
+h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.01em; color: var(--heading); overflow-wrap: break-word; }
+h1 { font-size: 32px; line-height: 1.15; }
+h2 { font-size: 19px; line-height: 1.3; }
+h3 { font-size: 16px; }
+p { margin: 0; }
+details { margin-top: 8px; }
+summary { cursor: pointer; font-size: 14px; font-weight: 700; color: var(--ink); width: fit-content; }
+details p { margin-top: 8px; color: var(--graphite); max-width: 75ch; font-size: 15px; }
+kbd { font: 700 11px var(--ui); padding: 1px 5px; border-radius: 3px; border: 1px solid currentColor; opacity: .6; margin-left: 4px; }
+code { font-size: 13px; background: var(--raised); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+::selection { background: color-mix(in srgb, var(--ink) 32%, transparent); }
+.num { font-variant-numeric: tabular-nums; }
+.faint { color: var(--pencil); }
+.pad { padding: 18px 20px; }
+.error { color: var(--miss); }
+.hint { color: var(--pencil); font-size: 15px; }
+.hint.ok { color: var(--done); font-weight: 700; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Every page has the same width as the bar above it; narrow pages only keep their lines short. */
+.container { max-width: 1120px; margin: 0 auto; padding: 0 24px; min-width: 0; }
+.page { padding: 36px 24px 96px; }
+.page.narrow > * { max-width: 760px; }
+@media (max-width: 640px) { .container, .page { padding-left: 16px; padding-right: 16px; } .page { padding-top: 24px; } h1 { font-size: 27px; } }
+
+/* Page structure */
+.page-head { margin-bottom: 28px; }
+.page-head-split { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+/* Every page's title in the paper serif, like the Library's greeting. */
+.page-title { font-family: var(--paper); font-weight: 500; font-size: 42px; line-height: 1.12; letter-spacing: -0.005em; }
+@media (max-width: 640px) { .page-title { font-size: 32px; } }
+.lede { color: var(--pencil); margin-top: 6px; font-size: 17px; }
+.crumbs { display: flex; gap: 8px; align-items: center; font-size: 15px; color: var(--pencil); margin-bottom: 14px; min-width: 0; }
+.crumbs a { color: var(--pencil); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs a:hover { color: var(--ink); text-decoration: underline; }
+.section { margin-top: 36px; }
+.section-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.section > h2 { margin-bottom: 12px; }
+.page-section { margin-top: 40px; }
+.page-section > h2 { margin-bottom: 6px; }
+.page-section > .hint { margin-bottom: 16px; }
+
+/* Paper names are typeset like the paper itself. */
+.paper-name { font-family: var(--paper); font-weight: 600; letter-spacing: 0; }
+/* Long titles and words wrap instead of widening the page. */
+.paper-name, .card-title, .resume-title, .goal-text, .row-title { overflow-wrap: anywhere; }
+
+/* The top bar: one for every page, in the reader's style: black, white and grey, a back arrow on inner pages.
+   The sections are plain words, the current one shown as a filled pill (no box around them). */
+.site-header { background: var(--header); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.bar-start { flex: 1; min-width: 0; display: flex; }
+.wordmark { font-weight: 800; font-size: 21px; color: var(--heading); text-decoration: none; }
+.nav { flex-shrink: 0; flex-wrap: nowrap; }
+.nav a { padding: 4px 11px; border-radius: 4px; color: var(--pencil); text-decoration: none; font-weight: 700; font-size: 14px; }
+.nav a:hover { color: var(--graphite); }
+.nav a.active { background: var(--selected); color: var(--on-selected); }
+.site-header .nav.segmented { background: transparent; border: 0; padding: 0; gap: 4px; }
+/* The back arrow on inner pages (and in the reader's bar, reader.css). */
+.reader-back { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--graphite); font-weight: 700; }
+.reader-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-back:hover { color: var(--ink); }
+/* Small screens: the back arrow and title get their own row, the sections the full width below. */
+@media (max-width: 640px) {
+  .header-inner { flex-wrap: wrap; height: auto; padding: 8px 12px; row-gap: 8px; }
+  .bar-start { flex-basis: 100%; }
+  .wordmark { font-size: 18px; }
+  .nav { width: 100%; }
+  .nav a { flex: 1; text-align: center; padding: 5px 4px; font-size: 13px; }
+}
+@media (max-width: 560px) { .reader-back { flex-basis: 100%; } }
+
+/* Theme switch: in the bottom-left corner it shows only the current theme's icon; pointing at it (or
+   focusing it) opens all three, and the knob slides to the one you pick. */
+.theme-switch { position: fixed; left: 16px; bottom: 16px; z-index: 30; display: flex; padding: 3px;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-soft); }
+.theme-switch button { position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 30px; padding: 0;
+  border: 0; background: transparent; border-radius: 999px; color: var(--pencil); cursor: pointer; overflow: hidden;
+  transition: width .45s cubic-bezier(.3, .8, .25, 1), opacity .45s, color .5s; }
+.theme-switch svg { width: 17px; height: 17px; flex-shrink: 0; }
+.theme-switch button:hover { color: var(--graphite); }
+.theme-switch button.active { color: var(--on-selected); }
+.theme-switch:not(:hover):not(:focus-within) button:not(.active) { width: 0; opacity: 0; }
+.theme-thumb { position: absolute; top: 3px; left: 3px; width: 32px; height: 30px; border-radius: 999px;
+  background: var(--selected); transition: transform .6s cubic-bezier(.3, .8, .25, 1), background-color .5s; }
+.theme-switch[data-at="dim"] .theme-thumb { transform: translateX(32px); }
+.theme-switch[data-at="dark"] .theme-thumb { transform: translateX(64px); }
+.theme-switch:not(:hover):not(:focus-within) .theme-thumb { transform: none; }
+/* The new theme spreads out in a circle from where you clicked (theme.js); no cross-fade on top of it. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+@media (prefers-reduced-motion: reduce) { .theme-thumb, .theme-switch button { transition: none; } }
+
+/* Toast, with an optional action (Undo). */
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; background: var(--pop); color: var(--on-pop);
+  padding: 10px 16px; border-radius: var(--r-control); font-size: 15px; max-width: calc(100% - 32px); box-shadow: var(--shadow-pop); pointer-events: auto; }
+#toast .toast-action { border: 0; background: none; color: inherit; font: 800 14px var(--ui); text-decoration: underline; cursor: pointer; padding: 0 0 0 6px; }
+
+/* Dropping PDFs anywhere on the page. */
+#drop-zone { position: fixed; inset: 12px; z-index: 60; display: grid; place-items: center; border: 3px dashed var(--ink);
+  border-radius: 12px; background: color-mix(in srgb, var(--sheet) 88%, transparent); pointer-events: none; }
+#drop-zone p { font-size: 22px; font-weight: 800; color: var(--ink); }
