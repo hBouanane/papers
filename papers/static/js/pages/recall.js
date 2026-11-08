@@ -43,7 +43,7 @@ export async function recallPage() {
       const idea = e.target.closest(".try-idea");
       if (!idea) return;
       input.value = idea.textContent;
-      app.querySelector("#recall").requestSubmit();
+      input.focus();
     };
   }).catch(() => {});
   input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); app.querySelector("#recall").requestSubmit(); } };

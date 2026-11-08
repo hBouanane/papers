@@ -1,7 +1,4 @@
-"""Choosing the library folder: the system dialog when there is one, else listing folders in the app."""
-import subprocess
-
-from papers import folders
+"""Choosing the library folder in the app's own folder browser: listing folders, shortcuts, making a new one."""
 
 
 def test_listing_shows_folders_and_parent(client, tmp_path):
@@ -14,7 +11,15 @@ def test_listing_shows_folders_and_parent(client, tmp_path):
     body = r.json()
     assert body["folders"] == ["A", "b"]
     assert body["parent"] == str(tmp_path.parent)
-    assert body["roots"]
+
+
+def test_listing_has_shortcuts_to_usual_places(client, tmp_path, monkeypatch):
+    (tmp_path / "Documents").mkdir()
+    monkeypatch.setattr("pathlib.Path.home", classmethod(lambda cls: tmp_path))
+    places = client.get("/api/folders", params={"path": str(tmp_path)}).json()["places"]
+    names = [p["name"] for p in places]
+    assert names[:2] == ["Home", "Documents"]  # Desktop and Downloads don't exist here, so they're left out
+    assert len(places) > 2  # then the drives (or /)
 
 
 def test_listing_a_folder_not_made_yet_starts_at_its_parent(client, tmp_path):
@@ -26,20 +31,14 @@ def test_listing_needs_a_full_path(client):
     assert client.get("/api/folders", params={"path": "relative/path"}).status_code == 400
 
 
-def test_pick_without_a_dialog_says_501(client, monkeypatch):
-    monkeypatch.setenv("PAPERS_NO_DIALOG", "1")
-    assert client.post("/api/folders/pick", json={}).status_code == 501
+def test_new_folder(client, tmp_path):
+    r = client.post("/api/folders", json={"path": str(tmp_path), "name": "Papers"})
+    assert r.status_code == 201
+    assert r.json()["path"] == str(tmp_path / "Papers")
+    assert (tmp_path / "Papers").is_dir()
 
 
-def test_pick_returns_the_chosen_folder(client, monkeypatch, tmp_path):
-    monkeypatch.delenv("PAPERS_NO_DIALOG", raising=False)
-    monkeypatch.setenv("DISPLAY", ":0")
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=str(tmp_path)))
-    assert client.post("/api/folders/pick", json={"start": ""}).json() == {"path": str(tmp_path)}
-
-
-def test_pick_cancelled_is_empty(monkeypatch):
-    monkeypatch.delenv("PAPERS_NO_DIALOG", raising=False)
-    monkeypatch.setenv("DISPLAY", ":0")
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=""))
-    assert folders.pick() == ""
+def test_new_folder_refuses_bad_or_taken_names(client, tmp_path):
+    (tmp_path / "Taken").mkdir()
+    for name in ("", "a/b", "what?", "Taken"):
+        assert client.post("/api/folders", json={"path": str(tmp_path), "name": name}).status_code == 400
