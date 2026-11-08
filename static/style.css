@@ -1357,7 +1357,7 @@ body.reading #toast { bottom: 64px; }
 .chain-tree li > ol.folded::after { height: auto; bottom: 20px; } /* down to the +N more link */
 
 /* The paper list: lighter rows with a tiny first page, one progress cell, actions on hover. */
-.row { grid-template-columns: 36px minmax(0, 1fr) 190px 90px 140px; gap: 18px; padding: 12px 20px; }
+.row { grid-template-columns: 36px minmax(0, 1fr) 190px 90px 100px; gap: 18px; padding: 12px 20px; }
 .row-thumb { width: 36px; }
 .row-thumb .cover-sheet { display: none; }
 .row-thumb .cover { box-shadow: 0 2px 6px rgb(0 0 0 / .18); transition: transform .3s cubic-bezier(.3, .8, .25, 1); }
@@ -1377,8 +1377,6 @@ body.reading #toast { bottom: 64px; }
 .row-bar .bar { flex: 1; width: auto; }
 .row-actions { opacity: 0; align-items: center; gap: 6px; }
 .row.paper:hover .row-actions, .row-actions:focus-within { opacity: 1; }
-.row-open { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
-.row.paper:hover .row-open .arrow { transform: translateX(3px); }
 .row-head { padding-top: 10px; padding-bottom: 10px; }
 @media (hover: none) { .row-actions { opacity: 1; } .row-open { display: none; } }
 @media (max-width: 760px) {

@@ -112,7 +112,7 @@ export function paperRow(p, goals = {}, snippet = "") {
     <span class="row-progress"><span class="row-status status-${p.status}">${STATUS[p.status] || p.status}</span>
       <span class="row-bar">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span></span>
     <span class="row-cell num row-score">${p.understanding == null ? `<span class="faint" title="Not tested yet">—</span>` : pct(p.understanding)}</span>
-    <span class="row-actions">${actions}<span class="row-open" aria-hidden="true">Open <span class="arrow">→</span></span></span>
+    <span class="row-actions">${actions}</span>
   </div>`;
 }
 
