@@ -59,6 +59,21 @@ def _paper_context(paper: dict) -> str:
     )
 
 
+class Metadata(BaseModel):
+    title: str
+    authors: str
+    year: int | None
+
+
+def paper_metadata(head: str) -> dict:
+    prompt = (
+        f"<first_page>\n{head}\n</first_page>\n\n"
+        "This is the start of a research paper's extracted text. Give its exact title, its authors as a "
+        "comma-separated list of full names, and its publication year if stated (else null)."
+    )
+    return _parse(prompt, Metadata, effort="low").model_dump()
+
+
 class Skim(BaseModel):
     problem: str
     contributions: list[str]

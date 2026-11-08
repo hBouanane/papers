@@ -6,8 +6,6 @@ import xml.etree.ElementTree as ET
 
 import httpx
 
-from app import pdf
-
 API = "https://api.semanticscholar.org/graph/v1"
 FIELDS = "title,authors,year,abstract,url,openAccessPdf,externalIds"
 
@@ -80,7 +78,7 @@ def references(external_id: str) -> list[dict]:
     return [normalize(r["citedPaper"]) for r in data.get("data", []) if r.get("citedPaper", {}).get("title")]
 
 
-def fetch_pdf_text(url: str) -> str:
+def fetch_pdf(url: str) -> bytes:
     r = httpx.get(url, follow_redirects=True, timeout=60)
     r.raise_for_status()
-    return pdf.extract_text(r.content)
+    return r.content

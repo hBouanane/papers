@@ -40,7 +40,8 @@ def test_search_uses_ai_queries_and_dedupes(client, monkeypatch):
 
 
 def test_add_paper_fetches_pdf_text(client, monkeypatch):
-    monkeypatch.setattr(scholar, "fetch_pdf_text", lambda url: "full text")
+    monkeypatch.setattr(scholar, "fetch_pdf", lambda url: blank_pdf())
+    monkeypatch.setattr(pdf, "extract_text", lambda data: "full text")
     t = client.post("/api/topics", json={"goal": "g"}).json()
     p = client.post("/api/papers", json={"topic_id": t["id"], "title": "P", "pdf_url": "http://x.pdf"}).json()
     assert p["text"] == "full text" and p["status"] == "new" and p["progress"] == 0
@@ -54,10 +55,20 @@ def test_add_paper_without_pdf_and_missing_paper(client):
     assert client.get("/api/papers/999").status_code == 404
 
 
+def blank_pdf(title=None):
+    w = PdfWriter()
+    w.add_blank_page(100, 100)
+    if title:
+        w.add_metadata({"/Title": title})
+    buf = io.BytesIO()
+    w.write(buf)
+    return buf.getvalue()
+
+
 def test_upload_pdf(client, monkeypatch):
     monkeypatch.setattr(pdf, "extract_text", lambda data: "uploaded text")
     p = client.post("/api/papers", json={"title": "P"}).json()
-    r = client.post(f"/api/papers/{p['id']}/pdf", files={"file": ("p.pdf", b"%PDF", "application/pdf")})
+    r = client.post(f"/api/papers/{p['id']}/pdf", files={"file": ("p.pdf", blank_pdf(), "application/pdf")})
     assert r.json()["text"] == "uploaded text"
 
 
