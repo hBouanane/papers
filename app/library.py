@@ -125,6 +125,14 @@ def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
         sync_paper(parent["id"], follow_parent=False)  # its notes list this paper under "Led to"
 
 
+def remove(paper: dict) -> None:
+    """Delete a paper's files from the folder (the paper is being deleted)."""
+    base = root()
+    if base and paper.get("mirror_path"):
+        for ext in (".pdf", ".md"):
+            (base / f"{paper['mirror_path']}{ext}").unlink(missing_ok=True)
+
+
 def sync_all() -> None:
     with db.connect() as conn:
         ids = [r["id"] for r in conn.execute("select id from papers order by id")]

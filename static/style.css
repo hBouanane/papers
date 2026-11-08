@@ -331,3 +331,18 @@ select { width: 100%; height: 44px; font: 16px var(--ui); color: var(--graphite)
 #drop-zone { position: fixed; inset: 12px; z-index: 60; display: grid; place-items: center; border: 3px dashed var(--ink);
   border-radius: 12px; background: color-mix(in srgb, var(--sheet) 88%, transparent); pointer-events: none; }
 #drop-zone p { font-size: 22px; font-weight: 800; color: var(--ink); }
+
+/* Triage */
+.menu { position: relative; }
+.menu > summary { list-style: none; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu-list { position: absolute; left: 0; top: calc(100% + 6px); z-index: 25; min-width: 220px; padding: 6px; display: grid;
+  box-shadow: 0 12px 32px rgba(20, 24, 32, .14); }
+.menu-list > * { display: block; text-align: left; padding: 9px 12px; border: 0; border-radius: 4px; background: none;
+  font: 15px var(--ui); color: var(--graphite); cursor: pointer; }
+.menu-list > *:hover { background: var(--desk); }
+.menu-list .danger { color: var(--miss); }
+.abstract { margin-bottom: 20px; }
+.abstract h2 { margin-bottom: 8px; }
+.abstract p { font-family: var(--paper); font-size: 17px; line-height: 1.65; max-width: 70ch; }
+.bar-actions { display: flex; gap: 8px; align-items: center; }
