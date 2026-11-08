@@ -1,4 +1,4 @@
-from app import db, llm, pdf
+from papers import db, llm, pdf
 from tests.test_papers import blank_pdf
 
 

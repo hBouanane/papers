@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from app import llm
+from papers import llm
+from papers.ai import anthropic_api, claude_code, providers
 
 
 def put(client, **body):
@@ -38,10 +39,10 @@ def test_anthropic_key_can_be_set_in_settings(client, monkeypatch):
             seen["key"] = api_key
 
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setattr(llm.anthropic, "Anthropic", FakeAnthropic)
+    monkeypatch.setattr(anthropic_api.anthropic, "Anthropic", FakeAnthropic)
     s = put(client, ai_provider="anthropic", ai_api_key="sk-ant-test")
     assert s["ai_ready"] is True
-    llm._client()
+    anthropic_api.client()
     assert seen["key"] == "sk-ant-test"
 
 
@@ -63,12 +64,12 @@ class FakeCodex:
 @pytest.fixture
 def codex(client, monkeypatch):
     put(client, ai_provider="chatgpt-plan")
-    monkeypatch.setattr(llm, "codex_binary", lambda: "C:/codex/codex.exe")
+    monkeypatch.setattr(providers, "codex_binary", lambda: "C:/codex/codex.exe")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-should-not-be-used")
 
     def use(*a, **kw):
         fake = FakeCodex(*a, **kw)
-        monkeypatch.setattr(llm.subprocess, "run", fake)
+        monkeypatch.setattr(claude_code.subprocess, "run", fake)
         return fake
     return use
 
@@ -97,5 +98,5 @@ def test_chatgpt_plan_explanations_and_errors(codex):
 
 
 def test_chatgpt_plan_needs_codex_installed(client, monkeypatch):
-    monkeypatch.setattr(llm, "codex_binary", lambda: None)
+    monkeypatch.setattr(providers, "codex_binary", lambda: None)
     assert put(client, ai_provider="chatgpt-plan")["ai_ready"] is False

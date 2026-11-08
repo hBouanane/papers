@@ -1,12 +1,13 @@
-import io
 """The 'my Claude subscription' backend: the app runs the official Claude Code CLI (`claude -p`),
 which signs in with the user's own account. We never touch its credentials."""
+import io
 import json
 import subprocess
 
 import pytest
 
-from app import llm
+from papers import llm
+from papers.ai import claude_code, providers
 
 pytestmark = pytest.mark.llm_plumbing
 
@@ -24,12 +25,12 @@ class FakeCLI:
 @pytest.fixture
 def cli(client, monkeypatch):
     client.put("/api/settings", json={"ai_backend": "claude-code"})
-    monkeypatch.setattr(llm, "claude_binary", lambda: "C:/claude/claude.exe")
+    monkeypatch.setattr(providers, "claude_binary", lambda: "C:/claude/claude.exe")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-not-leak")
 
     def use(payload, returncode=0):
         fake = FakeCLI(payload, returncode)
-        monkeypatch.setattr(llm.subprocess, "run", fake)
+        monkeypatch.setattr(claude_code.subprocess, "run", fake)
         return fake
     return use
 
@@ -46,7 +47,7 @@ def test_structured_calls_go_through_claude_code(cli):
 
 def test_text_answers_and_json_in_result_text(cli):
     cli({"is_error": False, "result": "Plainly put, it adds noise."})
-    assert llm._claude_code("passage", "system") == "Plainly put, it adds noise."
+    assert claude_code.run("passage", "system") == "Plainly put, it adds noise."
     cli({"is_error": False, "result": '```json\n{"queries": ["x"]}\n```'})
     assert llm.search_queries("g") == ["x"]
 
@@ -58,19 +59,19 @@ def test_cli_errors_become_friendly_ai_errors(cli, monkeypatch):
     cli("not json at all", returncode=1)
     with pytest.raises(llm.AIError, match="Claude Code"):
         llm.search_queries("g")
-    monkeypatch.setattr(llm, "claude_binary", lambda: None)
+    monkeypatch.setattr(providers, "claude_binary", lambda: None)
     with pytest.raises(llm.AIError, match="install"):
         llm.search_queries("g")
 
 
 def test_configured_depends_on_backend(client, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    assert llm.configured() is False
+    assert providers.configured() is False
     client.put("/api/settings", json={"ai_backend": "claude-code"})
-    monkeypatch.setattr(llm, "claude_binary", lambda: None)
-    assert llm.configured() is False
-    monkeypatch.setattr(llm, "claude_binary", lambda: "claude")
-    assert llm.configured() is True
+    monkeypatch.setattr(providers, "claude_binary", lambda: None)
+    assert providers.configured() is False
+    monkeypatch.setattr(providers, "claude_binary", lambda: "claude")
+    assert providers.configured() is True
 
 
 def test_settings_report_and_test_the_backend(client, monkeypatch):
@@ -78,8 +79,8 @@ def test_settings_report_and_test_the_backend(client, monkeypatch):
     assert s["ai_backend"] == "api"
     assert client.put("/api/settings", json={"ai_backend": "nonsense"}).status_code == 422
     client.put("/api/settings", json={"ai_backend": "claude-code"})
-    monkeypatch.setattr(llm, "claude_binary", lambda: "C:/claude/claude.exe")
-    monkeypatch.setattr(llm.subprocess, "run", FakeCLI({"is_error": False, "result": "", "structured_output": {"queries": ["ok"]}}))
+    monkeypatch.setattr(providers, "claude_binary", lambda: "C:/claude/claude.exe")
+    monkeypatch.setattr(claude_code.subprocess, "run", FakeCLI({"is_error": False, "result": "", "structured_output": {"queries": ["ok"]}}))
     s = client.get("/api/settings").json()
     assert (s["ai_backend"], s["claude_binary"]) == ("claude-code", "C:/claude/claude.exe")
     assert client.post("/api/ai/test").json() == {"ok": True, "message": "It works: Claude answered through your Claude subscription."}
@@ -112,7 +113,7 @@ def test_long_instructions_go_through_a_file_not_the_command_line(cli, monkeypat
         def poll(self):
             return 0
 
-    monkeypatch.setattr(llm.subprocess, "Popen", Process)
+    monkeypatch.setattr(claude_code.subprocess, "Popen", Process)
     paper = {"title": "Long", "text": "word " * 20000}
     assert llm.explain(paper, "passage", "") == "ok"
     assert "word word" in seen["system"] and seen["longest_arg"] < 2000

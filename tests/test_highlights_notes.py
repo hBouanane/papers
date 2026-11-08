@@ -1,4 +1,4 @@
-from app import db, library
+from papers import db, library
 
 
 def make(client, **kw):

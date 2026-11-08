@@ -1,4 +1,4 @@
-from app import pdf
+from papers import pdf
 from tests.test_papers import blank_pdf
 
 
@@ -57,7 +57,7 @@ def test_title_skips_notices_and_urls():
 
 
 def test_upload_uses_ai_metadata_when_available(client, monkeypatch):
-    from app import llm
+    from papers import llm
     monkeypatch.setattr(pdf, "extract_text", lambda data: "junk line.\nbody")
     monkeypatch.setattr(llm, "paper_metadata", lambda head: {"title": "Real Title", "authors": "A, B", "year": 2020})
     p = upload(client, blank_pdf()).json()

@@ -1,4 +1,4 @@
-from app import llm, pdf
+from papers import llm, pdf
 from tests.test_papers import blank_pdf
 
 SKIM = {"problem": "p", "contributions": [], "method": "m", "results": [], "limitations": [], "read_closely": [], "verdict": "v"}

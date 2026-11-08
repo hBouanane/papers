@@ -4,7 +4,8 @@ import json
 import httpx
 import pytest
 
-from app import llm
+from papers import llm
+from papers.ai import openai_compat
 
 
 @pytest.fixture
@@ -20,7 +21,7 @@ def openai_like(client, monkeypatch):
         seen.append({"url": str(request.url), "auth": request.headers.get("authorization"), "body": body})
         return replies.pop(0)(body) if replies else httpx.Response(500)
 
-    monkeypatch.setattr(llm, "_TRANSPORT", httpx.MockTransport(handle))
+    monkeypatch.setattr(openai_compat, "TRANSPORT", httpx.MockTransport(handle))
     return seen, replies
 
 
@@ -70,7 +71,7 @@ def test_clear_errors(openai_like, client):
     def down(request):
         raise httpx.ConnectError("refused")
 
-    llm._TRANSPORT = httpx.MockTransport(down)
+    openai_compat.TRANSPORT = httpx.MockTransport(down)
     with pytest.raises(llm.AIError, match="Couldn't reach http://models.test/v1"):
         llm.search_queries("g")
 

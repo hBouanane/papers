@@ -1,6 +1,6 @@
 import pytest
 
-from app import pdf, scholar
+from papers import pdf, scholar
 from tests.test_papers import blank_pdf
 
 META = {"external_id": "arXiv:1706.03762", "title": "Attention Is All You Need", "authors": "Ashish Vaswani",

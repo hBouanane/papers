@@ -1,4 +1,4 @@
-from app import db
+from papers import db
 
 
 def test_health(client):

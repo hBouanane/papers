@@ -1,6 +1,6 @@
 """Claude reads a new paper ahead of time, so key points, vocabulary, review questions and
 references are ready when the reader gets there, and nothing is generated twice."""
-from app import llm, pdf, scholar
+from papers import llm, pdf, scholar
 from tests.test_papers import blank_pdf
 
 SKIM = {"tldr": "t", "problem": "p", "key_idea": "k", "contributions": [], "method": "m", "results": [],
@@ -72,7 +72,7 @@ def test_semantic_scholar_references_are_cached(client, monkeypatch):
 
 def test_main_text_end_is_where_the_references_start(client):
     p = client.post("/api/papers", json={"title": "P"}).json()
-    from app.main import update_paper
+    from papers.store import update_paper
     text = "x" * 80 + "\nReferences\n" + "y" * 18
     update_paper(p["id"], text=text)
     assert round(client.get(f"/api/papers/{p['id']}").json()["main_end"], 2) == round(81 / len(text), 2)

@@ -1,4 +1,4 @@
-from app import llm, pdf, scholar
+from papers import llm, pdf, scholar
 from tests.test_papers import blank_pdf
 
 
@@ -51,7 +51,7 @@ def test_references_fall_back_to_pdf_bibliography_and_are_cached(client, monkeyp
 
     monkeypatch.setattr(llm, "extract_references", fake)
     p = client.post("/api/papers", json={"title": "P"}).json()
-    from app.main import update_paper
+    from papers.store import update_paper
     update_paper(p["id"], text="Intro text.\nReferences\n[1] Bahdanau, Cho. Neural Machine Translation. 2014.")
     for _ in range(2):
         refs = client.get(f"/api/papers/{p['id']}/references").json()

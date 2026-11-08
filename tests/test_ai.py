@@ -1,6 +1,7 @@
 import pytest
 
-from app import llm
+from papers import ai, llm
+from papers.ai import anthropic_api
 
 SKIM = {"problem": "p", "contributions": ["c"], "method": "m", "results": ["r"],
         "limitations": ["l"], "read_closely": ["Sec 3"], "verdict": "read"}
@@ -50,7 +51,7 @@ def test_grade_without_quiz_is_400(client):
 
 
 def test_grade_averages_scores(monkeypatch):
-    monkeypatch.setattr(llm, "_parse", lambda prompt, schema, **kw: llm.Grades(results=[
+    monkeypatch.setattr(ai, "parse", lambda prompt, schema, **kw: llm.Grades(results=[
         llm.GradeItem(score=1, feedback="a"), llm.GradeItem(score=0.5, feedback="b")]))
     r = llm.grade({"title": "P"}, QUIZ, ["x", "y"])
     assert r["score"] == 0.75 and len(r["results"]) == 2
@@ -67,7 +68,7 @@ def test_ai_errors_become_503(client, monkeypatch):
             create = staticmethod(fail)
             stream = staticmethod(fail)
 
-    monkeypatch.setattr(llm, "_client", lambda: Fake)
+    monkeypatch.setattr(anthropic_api, "client", lambda: Fake)
     p = make_paper(client)
     r = client.post(f"/api/papers/{p['id']}/skim")
     assert r.status_code == 503 and "ANTHROPIC_API_KEY" in r.json()["detail"]
