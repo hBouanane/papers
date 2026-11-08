@@ -4,6 +4,15 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)
+def own_database(tmp_path, monkeypatch):
+    """Every test gets an empty database of its own, never the real library (even tests without `client`)."""
+    monkeypatch.delenv("PAPERS_DATA", raising=False)
+    monkeypatch.setenv("PAPERS_DB", str(tmp_path / "test.db"))
+    from papers import db
+    db.init()
+
+
+@pytest.fixture(autouse=True)
 def no_network(monkeypatch):
     """Tests must never reach Semantic Scholar, arXiv or PDF hosts; fake what you need."""
     def blocked(*args, **kwargs):
