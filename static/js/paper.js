@@ -1,4 +1,4 @@
-import { api, apiStream, app, busy, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
+import { api, apiStream, app, busy, cameFrom, cite, esc, setBar, knownWords, loading, markdown, pct, progressBar, quote, renderVocab, showShortcuts, statusTag, toast } from "./core.js";
 import { cover, drawCovers, forgetCover } from "./covers.js";
 import { drawPdf, drawPdfPage, drawText, pdfAnchor, textAnchor } from "./highlights.js";
 import { COLORS, bindNotesList, noteStore } from "./notes.js";
@@ -11,7 +11,7 @@ import { SLICES, startTracker, stripBackground } from "./tracker.js";
 const minutes = (text) => Math.max(1, Math.round((text || "").split(/\s+/).length / 230));
 
 // ---------- Overview ----------
-const TABS = [["overview", "Overview"], ["words", "Words"], ["notes", "Notes"], ["refs", "References"]];
+const TABS = [["overview", "Overview"], ["figures", "Figures & tables"], ["words", "Words"], ["notes", "Notes"], ["refs", "References"]];
 const prepared = (p) => p.skim && p.glossary && p.quiz && p.refs;
 
 export async function paperPage(id, stale, tab = "overview") {
@@ -22,7 +22,15 @@ export async function paperPage(id, stale, tab = "overview") {
   const readLabel = { new: "Start reading", skimmed: "Start reading", reading: `Continue reading`, read: "Read again" }[p.status];
   const ancestors = chain.path.slice(0, -1);
   const readable = p.text || p.has_pdf;
-  setBar({ back: goal ? { href: `#/goals/${goal.id}`, label: goal.goal } : { href: "#/", label: "Library" }, title: p.title });
+  // Back goes where you came from: a goal, Recall, the Map, another paper; the Library otherwise.
+  const from = cameFrom(`/papers/${id}`) || "/";
+  const fromGoal = goals.find((g) => from === `/goals/${g.id}`);
+  const SECTIONS = { "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
+  const back = fromGoal ? { href: `#${from}`, label: fromGoal.goal }
+    : SECTIONS[from] ? { href: `#${from}`, label: SECTIONS[from] }
+    : /^\/papers\/\d+$/.test(from) ? { href: `#${from}`, label: "the previous paper" }
+    : { href: "#/", label: "Library" };
+  setBar({ back, title: p.title });
 
   app.innerHTML = `<div class="container page">
     <header class="paper-header" id="header">
@@ -79,7 +87,8 @@ export async function paperPage(id, stale, tab = "overview") {
   const showTab = (key) => {
     tab = key;
     app.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === key));
-    if (key === "overview") renderOverview(panel, p, settings);
+    if (key === "overview") renderOverview(panel, p, settings, regenerate);
+    else if (key === "figures") renderFigures(panel, p);
     else if (key === "words") {
       if (!p.glossary && p.preparing) panel.innerHTML = preparingNote("the hard words");
       else renderVocab(panel, p);
@@ -102,9 +111,10 @@ export async function paperPage(id, stale, tab = "overview") {
   };
   showTab(tab);
 
-  // Claude reads the paper ahead of time; while it does, the tabs fill in as results arrive.
-  if (settings.ai_ready && p.text && !prepared(p)) {
-    if (!p.preparing) await api(`/papers/${id}/prepare`, { method: "POST" }).catch(() => {});
+  // The AI reads the paper ahead of time; while it does, the tabs fill in as results arrive.
+  async function prepareAndWatch(redo = []) {
+    if (!p.preparing || redo.length) await api(`/papers/${id}/prepare`, { method: "POST", json: { redo } });
+    redo.forEach((k) => (p[k] = null));
     p.preparing = true;
     showTab(tab);
     const started = Date.now();
@@ -118,6 +128,11 @@ export async function paperPage(id, stale, tab = "overview") {
       if (!fresh.preparing) clearInterval(poll);
     }, 3000);
   }
+  // Write the key points, words and questions again with the model chosen now.
+  async function regenerate(button) {
+    await busy(button, "Starting…", () => prepareAndWatch(["skim", "glossary", "quiz"]));
+  }
+  if (settings.ai_ready && p.text && !prepared(p)) await prepareAndWatch().catch(() => {});
 
   const menu = app.querySelector(".menu");
   app.querySelector("#edit").onclick = () => { menu.open = false; editDetails(p, goals); };
@@ -149,19 +164,27 @@ export async function paperPage(id, stale, tab = "overview") {
 }
 
 const preparingNote = (what) => `<div class="preparing"><span class="dot-pulse" aria-hidden="true"></span>
-  <p>Claude is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
+  <p>The AI is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
 
-function renderOverview(box, p, settings) {
+function renderOverview(box, p, settings, regenerate) {
   const s = p.skim;
+  const abstractFirst = p.paper_abstract ? `<section class="abstract-first">
+      <h2>Abstract <span class="faint abstract-source">${p.abstract_from_paper ? "From the paper" : "From the paper's listing"}</span></h2>
+      <p class="fold-text">${esc(p.paper_abstract)}</p></section>` : "";
+  const redo = settings.ai_ready && p.text ? `<div class="regenerate">
+      <p class="hint">Written by an AI model. A stronger one can do better: you're using <strong>${esc(settings.ai_name)}</strong>.</p>
+      <button class="button secondary small" id="regenerate" title="Writes the key points, vocabulary and review questions again. Your notes and highlights stay.">Regenerate with ${esc(settings.ai_name)}</button></div>`
+    : p.text ? `<div class="regenerate"><p class="hint">Written by an AI model. To write them again with another one, choose it in
+      <a href="#/settings">Settings</a>; a Regenerate button then appears here.</p></div>` : "";
   const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
   const fold = (title, body, open = false) => body ? `<details class="fold"${open ? " open" : ""}><summary>${title}</summary>${body}</details>` : "";
-  const abstract = p.abstract ? fold("Abstract", `<p class="fold-text">${esc(p.abstract)}</p>`, !s) : "";
+  const abstract = "";
   if (!s) {
-    box.innerHTML = p.preparing ? `${preparingNote("its key points")}${abstract}`
-      : settings.ai_ready && p.text ? `<h2>Key points</h2><p class="hint">A first pass on the paper in plain English, before you read it.</p>
+    box.innerHTML = p.preparing ? `${abstractFirst}${preparingNote("its key points")}`
+      : settings.ai_ready && p.text ? `${abstractFirst}<h2>Key points</h2><p class="hint">A first pass on the paper in plain English, before you read it.</p>
           <button class="button" id="skim-btn">Get key points</button>${abstract}`
-      : `<p class="hint">${p.text ? `Set up Claude in <a href="#/settings">Settings</a> to get key points, words and questions.`
-          : "Upload the PDF to get key points."}</p>${abstract}`;
+      : `<p class="hint">${p.text ? `Choose an AI model in <a href="#/settings">Settings</a> to get key points, words and questions.`
+          : "Upload the PDF to get key points."}</p>${abstractFirst}`;
     box.querySelector("#skim-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Reading the paper…", async () => {
       p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
       renderOverview(box, p, settings);
@@ -169,7 +192,7 @@ function renderOverview(box, p, settings) {
     return;
   }
   // Older key points have fewer fields; show what's there.
-  box.innerHTML = `
+  box.innerHTML = `${abstractFirst}<h2 class="key-points-head">Key points</h2>
     ${s.tldr ? `<p class="tldr">${esc(s.tldr)}</p>` : ""}
     <div class="callouts">
       <div class="callout"><span class="callout-label">Verdict</span><p>${esc(s.verdict)}</p></div>
@@ -182,9 +205,18 @@ function renderOverview(box, p, settings) {
     ${fold("What's new", s.contributions?.length ? list(s.contributions) : "")}
     ${fold("Results", s.results?.length ? list(s.results) : "")}
     ${fold("Limitations", s.limitations?.length ? list(s.limitations) : "")}
-    ${fold("Figures to look at", s.figures?.length ? list(s.figures) : "")}
+    ${fold("Figures to look at", s.figures?.length ? `<ul>${s.figures.map((f) => `<li>${linkFigures(esc(f))}</li>`).join("")}</ul>` : "", true)}
     ${fold("Read closely", s.read_closely?.length ? list(s.read_closely) : "")}
-    ${abstract}`;
+    ${redo}`;
+  box.querySelector("#regenerate")?.addEventListener("click", (e) => regenerate(e.currentTarget));
+  box.addEventListener("click", async (e) => {
+    const link = e.target.closest(".fig-link");
+    if (!link) return;
+    const items = await busy(link, "", () => api(`/papers/${p.id}/figures`));
+    const item = items?.find((f) => f.kind === link.dataset.kind && f.number === Number(link.dataset.n));
+    if (item) showFigure(p, item);
+    else toast(`${link.textContent} couldn't be cut out of the PDF; it's in the paper itself.`);
+  });
 }
 
 function editDetails(p, goals) {
@@ -318,7 +350,7 @@ export async function readerPage(id, stale) {
   app.innerHTML = `
     <div class="reader-bar" id="bar">
       <div class="reader-bar-inner">
-        <a href="#/papers/${id}" class="reader-back" title="Back to paper overview"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(p.title)}</span></a>
+        <a href="#/papers/${id}" class="reader-back" title="Back to ${esc(p.title)}" aria-label="Back to the paper's page"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="reader-back-label">Paper</span></a>
         ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
           <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
@@ -331,14 +363,17 @@ export async function readerPage(id, stale) {
           <span class="hl-tool-colors">${COLORS.map((c) => `<button class="hl-dot hl-${c}" data-tool-color="${c}" aria-label="${c}" title="${c[0].toUpperCase() + c.slice(1)}"></button>`).join("")}</span>
         </div>
         ${readingPrefsMenu()}
-        <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span>Skimming</button>
+        <button class="switch" id="skim" role="switch" aria-checked="false" title="Skim freely: nothing you do counts as reading (s)"><span class="switch-track" aria-hidden="true"></span><span class="switch-label">Skimming</span></button>
         ${pageToneControl()}
+        <details class="menu bar-more" id="bar-more" hidden><summary class="button secondary small" title="More tools" aria-label="More tools">⋯</summary>
+          <div class="menu-list sheet bar-more-list" id="bar-more-list"></div></details>
         <span class="reader-pct num" id="pct" title="How much you've actually read. Fast scrolling and jumps don't count."></span>
-        <button class="button secondary small" id="toggle-notes" title="Ask Claude, words, your notes (n)">Ask &amp; notes</button>
+        <button class="button secondary small" id="toggle-notes" title="Ask the AI, words, your notes (n)">Ask &amp; notes</button>
       </div>
       <div class="strip" id="strip" title="Parts you've read. Click to jump."><span class="strip-view" id="strip-view"></span></div>
     </div>
     <div class="reader-scroll" id="scroller"></div>
+    <nav class="reader-route" id="route" aria-label="Where you are"></nav>
     <aside class="notes" id="notes" aria-label="Ask, words and notes">
       <div class="panel-head">
         <div class="panel-tabs" role="tablist">
@@ -352,7 +387,7 @@ export async function readerPage(id, stale) {
         <div class="thread" id="thread">
           <div class="thread-empty">
             <p><strong>Select any text in the paper</strong> to explain, simplify, translate or hear it.</p>
-            <p>Or ask anything below. Claude answers with the whole paper in mind.</p>
+            <p>Or ask anything below. The AI answers with the whole paper in mind.</p>
           </div>
         </div>
         <form id="ask" class="composer">
@@ -407,6 +442,44 @@ export async function readerPage(id, stale) {
   let pdf = null;
   let targets = []; // "Go to…" destinations for the current view: { label, go, page? }
 
+  // Where you are: the page you opened the paper from, the paper, and Reading. Shown above the paper.
+  const origin = cameFrom(`/papers/${id}`) || "/";
+  const ORIGIN = { "/": "Library", "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
+  let originLabel = ORIGIN[origin] || (/^\/goals\/\d+$/.test(origin) ? "Goal" : /^\/papers\/\d+$/.test(origin) ? "Previous paper" : "Library");
+  const routeLine = () => `<a href="#${ORIGIN[origin] || /^\/(goals|papers)\/\d+$/.test(origin) ? origin : "/"}" data-origin>${esc(originLabel)}</a>
+      <span aria-hidden="true">›</span><a href="#/papers/${id}" class="route-paper" title="${esc(p.title)}">${esc(p.title)}</a><span aria-hidden="true">›</span><span>Reading</span>`;
+  $("#route").innerHTML = routeLine();
+  if (/^\/goals\/\d+$/.test(origin)) api("/topics").then((goals) => {
+    const g = goals.find((x) => `/goals/${x.id}` === origin);
+    if (g) { originLabel = g.goal; app.querySelectorAll("[data-origin]").forEach((a) => (a.textContent = g.goal)); }
+  }).catch(() => {});
+
+  // The bar stays one row: when it doesn't fit, the less-used tools move into the ⋯ menu, least used first,
+  // and come back when there's room again.
+  const OVERFLOW = ["#page-tone", "#skim", "#zoom", ".prefs-menu", "#jump"];
+  const homes = new Map();
+  const fitBar = () => {
+    const inner = app.querySelector(".reader-bar-inner");
+    const more = $("#bar-more"), list = $("#bar-more-list");
+    if (!inner || !more) return;
+    OVERFLOW.forEach((sel) => {
+      const el = app.querySelector(sel);
+      if (!el) return;
+      if (!homes.has(sel)) { const mark = document.createComment(sel); el.before(mark); homes.set(sel, mark); }
+      homes.get(sel).after(el);
+    });
+    more.hidden = true;
+    for (const sel of OVERFLOW) {
+      if (inner.scrollWidth <= inner.clientWidth) break;
+      const el = app.querySelector(sel);
+      if (!el || el.hidden) continue;
+      more.hidden = false;
+      list.append(el);
+    }
+    if (!more.querySelector(".bar-more-list > *:not([hidden])")) more.hidden = true;
+  };
+  new ResizeObserver(() => fitBar()).observe(app.querySelector(".reader-bar-inner"));
+
   // Your notes and highlights: the list in the side panel and the marks on the paper.
   const notes = noteStore(id);
   const drawMarks = () => (view === "text" ? drawText(scroller.querySelector("#article"), notes.items) : drawPdf(scroller, notes.items));
@@ -455,17 +528,24 @@ export async function readerPage(id, stale) {
     $("#jump").hidden = !targets.length;
     $("#zoom").hidden = !pdf;
     $("#page-tone").hidden = view !== "pdf";
+    app.querySelector(".prefs-menu").hidden = view !== "text"; // text size, spacing and font only apply to the Text view
     if (pdf) $("#zoom .zoom-value").textContent = pct(pdf.zoom);
     if (pdf) pdf.onPageRendered((n, div) => drawPdfPage(div, n, notes.items));
     drawMarks();
     setTimeout(() => (settling = false), 800); // callers put you back where you were in the meantime
+    fitBar();
   };
 
   // Open the paper, then go back to where the reader stopped.
   await show(view);
   if (stale()) { pdf?.close(); barObserver.disconnect(); return; }
   let jumpTo = null;
-  try { jumpTo = Number(sessionStorage.getItem(`papers.jump.${id}`)) || null; sessionStorage.removeItem(`papers.jump.${id}`); } catch { /* none */ }
+  let toPage = null;
+  try {
+    jumpTo = Number(sessionStorage.getItem(`papers.jump.${id}`)) || null; sessionStorage.removeItem(`papers.jump.${id}`);
+    toPage = Number(sessionStorage.getItem(`papers.page.${id}`)) || null; sessionStorage.removeItem(`papers.page.${id}`);
+  } catch { /* none */ }
+  if (toPage && pdf) { pdf.goToPage(toPage); jumpTo = jumpTo || -1; }
   if (saved > 0.01 && saved < 0.99 && !jumpTo) {
     scrollToPosition(saved);
     toast(`Back where you stopped, ${pct(saved)} in`);
@@ -936,7 +1016,7 @@ export async function quizPage(id, stale) {
   if (!p.quiz?.length) {
     app.innerHTML = `<div class="container page narrow">${crumbs}
       <div class="page-head"><h1>Test yourself</h1></div>
-      <div class="empty"><p>No questions for this paper yet. Claude writes them from the paper.</p>
+      <div class="empty"><p>No questions for this paper yet. The AI writes them from the paper.</p>
         <button class="button" id="gen">Write questions</button></div></div>`;
     app.querySelector("#gen").onclick = (e) => busy(e.currentTarget, "Writing questions…", async () => {
       await api(`/papers/${id}/quiz`, { method: "POST" });
@@ -962,7 +1042,7 @@ export async function quizPage(id, stale) {
         <button class="button" id="reveal">Show answer <kbd>Space</kbd></button>
       </div>
       <p class="card-alt">Think of your answer, then reveal it and rate yourself honestly.
-        Prefer to write? <button class="link-button" id="typed">Type answers for Claude to grade</button></p>
+        Prefer to write? <button class="link-button" id="typed">Type answers for the AI to grade</button></p>
     </div>`;
     app.querySelector("#reveal").onclick = reveal;
     app.querySelector("#typed").onclick = () => typedQuiz(p, crumbs);
@@ -1007,7 +1087,7 @@ export async function quizPage(id, stale) {
 function typedQuiz(p, crumbs) {
   app.innerHTML = `<div class="container page narrow">${crumbs}
     <div class="page-head"><h1>Test yourself</h1>
-    <p class="lede">Answer in your own words. Claude grades each answer against the paper, not against exact wording.</p></div>
+    <p class="lede">Answer in your own words. The AI grades each answer against the paper, not against exact wording.</p></div>
     <form id="quiz" class="quiz">${p.quiz.map((q, i) => `<div class="sheet question">
       <label for="a${i}"><span class="q-num">Question ${i + 1} of ${p.quiz.length}</span>${esc(q.question)}</label>
       <textarea id="a${i}" rows="3"></textarea>
@@ -1028,4 +1108,65 @@ function typedQuiz(p, crumbs) {
       app.querySelector("#score").innerHTML = `You understood <strong class="num">${pct(r.score)}</strong> of this paper`;
     });
   };
+}
+
+
+// ---------- Figures ----------
+// The paper's figures with their captions, cut out of the PDF (the first time takes a few seconds).
+async function renderFigures(box, p) {
+  if (!p.has_pdf) {
+    box.innerHTML = `<p class="hint">Figures come from the paper's PDF. Upload it to see them here.</p>`;
+    return;
+  }
+  box.innerHTML = loading("Finding the figures and tables in the paper");
+  let figs;
+  try { figs = await api(`/papers/${p.id}/figures`); } catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
+  if (!box.isConnected) return;
+  if (!figs.length) {
+    box.innerHTML = `<p class="hint">No figures or tables were found in this PDF. (They're found by their captions, like "Figure 1:" or "Table 2:".)</p>`;
+    return;
+  }
+  const section = (kind, title) => {
+    const items = figs.filter((f) => f.kind === kind);
+    return items.length ? `<h2 class="figures-head">${title}</h2><div class="figures">${items.map((f) => `<figure class="figure" data-key="${f.kind}-${f.number}">
+      <button class="figure-img ${f.kind}" title="See it larger"><img src="${f.url}" alt="${esc(f.caption)}" loading="lazy"></button>
+      <figcaption>${esc(f.caption)} <span class="faint">Page ${f.page}</span></figcaption></figure>`).join("")}</div>` : "";
+  };
+  box.innerHTML = section("figure", "Figures") + section("table", "Tables")
+    + `<p class="hint figures-note">Found by their captions in the PDF; one that couldn't be cut out cleanly is left out.</p>`;
+  box.onclick = (e) => {
+    const key = e.target.closest(".figure-img") && e.target.closest(".figure").dataset.key;
+    const fig = key && figs.find((f) => `${f.kind}-${f.number}` === key);
+    if (fig) showFigure(p, fig);
+  };
+}
+
+// One figure, large, with its caption and a way to open the paper at its page.
+function showFigure(p, f) {
+  const view = document.createElement("div");
+  view.className = "lightbox";
+  view.innerHTML = `<div class="lightbox-inner" role="dialog" aria-label="${esc(f.caption)}">
+      <img src="${f.url}" alt="">
+      <p class="lightbox-caption">${esc(f.caption)}</p>
+      <div class="lightbox-actions"><button class="button" data-open>Open at page ${f.page}</button>
+        <button class="button quiet" data-close>Close</button></div></div>`;
+  const close = () => { view.remove(); removeEventListener("keydown", onKey); removeEventListener("hashchange", close); };
+  const onKey = (e) => e.key === "Escape" && close();
+  view.onclick = (e) => {
+    if (e.target === view || e.target.closest("[data-close]")) close();
+    if (e.target.closest("[data-open]")) {
+      try { sessionStorage.setItem(`papers.page.${p.id}`, f.page); } catch { /* opens at the last place */ }
+      close();
+      location.hash = `#/papers/${p.id}/read`;
+    }
+  };
+  addEventListener("keydown", onKey);
+  addEventListener("hashchange", close); // leaving the page closes it
+  document.body.append(view);
+}
+
+// "Figure 3" or "Table 2" in a text becomes a link that opens it.
+function linkFigures(html) {
+  return html.replace(/\b(Fig(?:ure|\.)?|Table)\s*(\d+)/gi, (all, word, n) =>
+    `<button type="button" class="link fig-link" data-kind="${/^t/i.test(word) ? "table" : "figure"}" data-n="${n}">${all}</button>`);
 }

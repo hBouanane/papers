@@ -82,7 +82,7 @@ def test_settings_report_and_test_the_backend(client, monkeypatch):
     monkeypatch.setattr(llm.subprocess, "run", FakeCLI({"is_error": False, "result": "", "structured_output": {"queries": ["ok"]}}))
     s = client.get("/api/settings").json()
     assert (s["ai_backend"], s["claude_binary"]) == ("claude-code", "C:/claude/claude.exe")
-    assert client.post("/api/ai/test").json() == {"ok": True, "message": "Claude answered through Claude Code."}
+    assert client.post("/api/ai/test").json() == {"ok": True, "message": "It works: Claude answered through your Claude subscription."}
 
 
 def test_library_folder_setting_is_unaffected(client, tmp_path):

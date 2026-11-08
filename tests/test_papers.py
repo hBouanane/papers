@@ -154,3 +154,13 @@ def test_search_falls_back_to_arxiv(monkeypatch):
 def test_reflow_joins_wrapped_lines_keeps_paragraphs():
     raw = "1 Introduction\nThe model uses atten-\ntion layers and many\nother things.\nNext paragraph here"
     assert pdf.reflow(raw) == "1 Introduction\nThe model uses attention layers and many other things.\nNext paragraph here"
+
+
+def test_list_carries_each_papers_summary_line(client):
+    from app.main import update_paper
+    p = client.post("/api/papers", json={"title": "P"}).json()
+    update_paper(p["id"], skim='{"tldr": "It adds noise, then learns to undo it.", "key_idea": "Denoising as generation.", "verdict": "v"}')
+    listed = next(x for x in client.get("/api/papers").json() if x["id"] == p["id"])
+    assert (listed["tldr"], listed["key_idea"]) == ("It adds noise, then learns to undo it.", "Denoising as generation.")
+    q = client.post("/api/papers", json={"title": "Q"}).json()
+    assert next(x for x in client.get("/api/papers").json() if x["id"] == q["id"])["tldr"] is None

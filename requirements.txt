@@ -5,3 +5,4 @@ pypdf
 anthropic
 python-multipart
 pytest
+pdfplumber

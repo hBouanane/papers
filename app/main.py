@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app import bibtex, db, index, library, llm, notes, pdf, scholar
+from app import bibtex, db, figures, index, library, llm, notes, pdf, scholar
 
 
 @asynccontextmanager
@@ -96,6 +96,8 @@ def get_paper(paper_id: int) -> dict:
     paper["has_pdf"] = db.pdf_path(paper_id).exists()
     paper["preparing"] = paper_id in PREPARING
     paper["main_end"] = main_text_end(paper["text"] or "")
+    own = pdf.abstract_from(paper["text"] or "")
+    paper["paper_abstract"], paper["abstract_from_paper"] = (own, True) if own else (paper["abstract"] or "", False)
     paper["can_fetch_pdf"] = not paper["has_pdf"] and pdf_source(paper) is not None
     return paper
 
@@ -150,6 +152,7 @@ def search_topic(topic_id: int):
 
 
 def save_pdf(paper_id: int, data: bytes):
+    figures.forget(paper_id)
     path = db.pdf_path(paper_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -322,7 +325,9 @@ def resume_text(text: str, position: float) -> str:
 def list_papers(topic_id: int | None = None, archived: bool = False):
     """Papers in the library (archived ones only when asked for)."""
     cols = ("id, topic_id, title, authors, year, external_id, status, progress, position, understanding,"
-            " source_paper_id, read_slices, archived, updated_at, text")
+            " source_paper_id, read_slices, archived, updated_at, text,"
+            # one line from the key points, for overviews (goal pages, Recall)
+            " json_extract(skim, '$.tldr') as tldr, json_extract(skim, '$.key_idea') as key_idea")
     where, args = ["coalesce(archived, 0) = ?"], [int(archived)]
     if topic_id is not None:
         where.append("topic_id = ?")
@@ -348,6 +353,7 @@ def delete_paper(paper_id: int):
     library.remove(paper)
     index.remove(paper_id)
     db.pdf_path(paper_id).unlink(missing_ok=True)
+    figures.forget(paper_id)
     with db.connect() as conn:
         conn.execute("delete from explanations where paper_id = ?", (paper_id,))
         conn.execute("delete from notes where paper_id = ?", (paper_id,))
@@ -356,6 +362,22 @@ def delete_paper(paper_id: int):
     if paper["source_paper_id"]:
         library.sync_paper(paper["source_paper_id"], follow_parent=False)  # drop it from "Led to"
     return Response(status_code=204)
+
+
+@app.get("/api/papers/{paper_id}/figures")
+def paper_figures(paper_id: int):
+    """The figures cut out of the paper's PDF, with their captions (worked out once, then kept)."""
+    get_paper(paper_id)
+    return [{**f, "url": f"/api/papers/{paper_id}/figures/{figures.image_name(f['kind'], f['number'])}"}
+            for f in figures.for_paper(paper_id)]
+
+
+@app.get("/api/papers/{paper_id}/figures/{kind}-{number}.png")
+def paper_figure(paper_id: int, kind: Literal["figure", "table"], number: int):
+    path = figures.folder(paper_id) / figures.image_name(kind, number)
+    if not path.exists():
+        raise HTTPException(404, "No such figure")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
 
 
 @app.get("/api/papers/{paper_id}/bibtex", response_class=PlainTextResponse)
@@ -403,9 +425,20 @@ def pdf_source(p: dict) -> str | None:
     return None
 
 
+class PrepareIn(BaseModel):
+    # Parts to write again with the model chosen now (a better model can do better).
+    redo: list[Literal["skim", "glossary", "quiz"]] = []
+
+
 @app.post("/api/papers/{paper_id}/prepare")
-def prepare(paper_id: int, background: BackgroundTasks):
-    """Fill in whatever Claude hasn't prepared yet for this paper (runs in the background)."""
+def prepare(paper_id: int, background: BackgroundTasks, body: PrepareIn | None = None):
+    """Fill in whatever the AI hasn't prepared yet for this paper (runs in the background)."""
+    get_paper(paper_id)
+    if body and body.redo:
+        if not llm.configured():
+            raise HTTPException(400, "Choose an AI model in Settings first.")
+        with db.connect() as conn:  # cleared here, written again by prepare_paper below
+            conn.execute(f"update papers set {', '.join(f'{f} = null' for f in body.redo)} where id = ?", (paper_id,))
     background.add_task(prepare_paper, paper_id)
     return get_paper(paper_id)
 
@@ -547,9 +580,23 @@ def list_explanations(paper_id: int):
 
 class SettingsIn(BaseModel):
     library_dir: str | None = None
-    ai_backend: Literal["api", "claude-code"] | None = None
+    ai_backend: Literal["api", "claude-code", "codex", "openai"] | None = None
+    ai_provider: str | None = None  # one of llm.PROVIDERS; choosing one also sets ai_backend
+    ai_base_url: str | None = None  # empty: the provider's usual address
+    ai_api_key: str | None = None  # kept on this computer, never sent back to the page
+    ai_model: str | None = None
+    ai_context: Literal["full", "32k", "8k"] | None = None
     language: str | None = None  # the reader's first language, for translations
     name: str | None = None  # what the Library greets you with; empty means just "Good morning"
+
+
+def openai_settings() -> dict:
+    """The OpenAI-compatible model choice, without the key itself (only whether one is set)."""
+    cfg = llm.openai_config()
+    return {"ai_provider": cfg["provider"], "ai_base_url": cfg["base_url"], "ai_model": cfg["model"],
+            "codex_binary": llm.codex_binary() or "",
+            "ai_key_set": bool(cfg["api_key"]), "ai_context": setting("ai_context") or "full",
+            "ai_name": llm.ai_name(), "providers": llm.PROVIDERS}
 
 
 def settings() -> dict:
@@ -557,6 +604,7 @@ def settings() -> dict:
     return {"library_dir": str(folder) if folder else "", "inbox": str(folder / library.INBOX) if folder else "",
             "suggested": str(Path.home() / "Documents" / "Papers"),
             "ai_backend": llm.backend(), "ai_ready": llm.configured(), "claude_binary": llm.claude_binary() or "",
+            **openai_settings(),
             "language": setting("language"), "name": setting("name"),
             "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))}
 
@@ -571,6 +619,21 @@ def save_settings(body: SettingsIn):
     with db.connect() as conn:
         if body.ai_backend:
             conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)", (body.ai_backend,))
+        if body.ai_provider is not None:
+            if body.ai_provider not in llm.BY_ID:
+                raise HTTPException(422, "Unknown provider")
+            conn.execute("insert or replace into settings (key, value) values ('ai_provider', ?)", (body.ai_provider,))
+            conn.execute("insert or replace into settings (key, value) values ('ai_backend', ?)",
+                         (llm.BY_ID[body.ai_provider]["kind"],))
+        if body.ai_context is not None:
+            conn.execute("insert or replace into settings (key, value) values ('ai_context', ?)", (body.ai_context,))
+    # Key, model and address belong to the provider that is chosen now.
+    current = llm.provider()
+    with db.connect() as conn:
+        for field, key in (("ai_api_key", "ai_key"), ("ai_model", "ai_model"), ("ai_base_url", "ai_base_url")):
+            value = getattr(body, field)
+            if value is not None:
+                conn.execute("insert or replace into settings (key, value) values (?, ?)", (f"{key}:{current}", value.strip()))
         if body.language is not None:
             conn.execute("insert or replace into settings (key, value) values ('language', ?)", (body.language.strip(),))
         if body.name is not None:
@@ -593,8 +656,25 @@ def test_ai():
         llm.search_queries("checking the connection")
     except llm.AIError as e:
         return {"ok": False, "message": str(e)}
-    via = "Claude Code" if llm.backend() == "claude-code" else "the API"
-    return {"ok": True, "message": f"Claude answered through {via}."}
+    p = llm.BY_ID[llm.provider()]
+    via = f"your {p['name'].split(' (')[0]} subscription" if p["group"] == "subscription" else p["name"]
+    return {"ok": True, "message": f"It works: {llm.ai_name()} answered through {via}."}
+
+
+@app.get("/api/ai/models")
+def ai_models():
+    """The models the chosen OpenAI-compatible server offers, to pick from in Settings."""
+    kind = llm.backend()
+    if kind in ("claude-code", "codex"):
+        raise HTTPException(400, "Subscriptions use their default model; type a model name only if you want another one.")
+    try:
+        if kind == "api":
+            return {"models": sorted(m.id for m in llm._client().models.list(limit=100))}
+        return {"models": llm.list_models()}
+    except llm.AIError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # the Anthropic SDK's own errors (no key, refused key)
+        raise HTTPException(400, f"Couldn't list the models: {e}")
 
 
 _inbox_skipped: set[tuple] = set()  # files that aren't importable; don't retry until they change

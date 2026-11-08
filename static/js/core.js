@@ -1,3 +1,4 @@
+import { cover } from "./covers.js";
 import { speak } from "./speech.js";
 import { stripBackground } from "./tracker.js";
 
@@ -99,15 +100,18 @@ export function paperRow(p, goals = {}, snippet = "") {
     ? `<button class="button quiet small" data-act="restore">Restore</button>
        <button class="button quiet small danger" data-act="delete">Delete</button>`
     : `<button class="button quiet small" data-act="archive" title="Hide it from your lists. You can restore it from Archived.">Archive</button>`;
+  // A light row: a tiny first page, the title (two lines at most) with authors and goal, one progress cell
+  // (status and how much is read), the quiz score only once tested, and actions when you point at it.
   return `<div class="row paper" data-id="${p.id}" data-title="${esc(p.title)}">
+    <span class="row-thumb" aria-hidden="true">${cover(p, "small")}</span>
     <span class="row-main">
       <a class="row-title" href="#/papers/${p.id}">${esc(p.title)}</a>
-      <span class="row-meta">${cite(p)}${goal ? `<span class="row-goal">Goal: ${esc(goal)}</span>` : ""}</span>
+      <span class="row-meta">${cite(p) ? `<span>${cite(p)}</span>` : ""}${goal ? `<span class="row-goal">${esc(goal)}</span>` : ""}</span>
       ${snippet ? `<span class="row-snippet">${snippetHtml(snippet)}</span>` : ""}
     </span>
-    <span class="row-cell">${statusTag(p)}</span>
-    <span class="row-cell">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span>
-    <span class="row-cell num row-score">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span>
+    <span class="row-progress"><span class="row-status status-${p.status}">${STATUS[p.status] || p.status}</span>
+      <span class="row-bar">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span></span>
+    <span class="row-cell num row-score">${p.understanding == null ? `<span class="faint" title="Not tested yet">—</span>` : pct(p.understanding)}</span>
     <span class="row-actions">${actions}</span>
   </div>`;
 }
@@ -139,7 +143,7 @@ export function bindRows(container, onChange) {
 }
 
 export const tableHead = `<div class="row row-head" aria-hidden="true">
-  <span>Paper</span><span>Status</span><span>Read</span><span class="row-score">Understood</span><span></span></div>`;
+  <span></span><span>Paper</span><span>Progress</span><span class="row-score">Understood</span><span></span></div>`;
 
 export const empty = (text, action = "") => `<div class="empty"><p>${text}</p>${action}</div>`;
 
@@ -340,9 +344,30 @@ export function markdown(text) {
 // the same way the reader does.
 const BACK_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+// Where each page was opened from, kept on its browser history entry (so it stays right with the
+// browser's back and forward buttons). A back arrow uses it: a paper opened from the Library goes back
+// to the Library, one opened from a goal goes back to that goal.
+let lastTrail = [];
+let lastPath = null;
+export function noteVisit(path) {
+  let state = history.state;
+  if (!state?.trail) { // a new page, not a step back or forward
+    state = { ...(state || {}), trail: lastPath && lastPath !== path ? [...lastTrail, lastPath].slice(-20) : lastTrail };
+    history.replaceState(state, "");
+  }
+  lastTrail = state.trail;
+  lastPath = path;
+}
+// The page this one was opened from, skipping its own sub-pages (a paper's reader and quiz).
+export function cameFrom(here) {
+  const trail = history.state?.trail || [];
+  for (let i = trail.length - 1; i >= 0; i--) if (!trail[i].startsWith(here)) return trail[i];
+  return null;
+}
+
 export function setBar({ back, title } = {}) {
   const start = document.getElementById("bar-start");
   start.innerHTML = back
-    ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(title || back.label)}</span></a>`
+    ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(back.label)}</span></a>`
     : `<a href="#/" class="wordmark">Papers</a>`;
 }

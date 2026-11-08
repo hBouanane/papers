@@ -56,13 +56,13 @@ const darkPage = () => ({
   foreground: "#dfe3e8",
 });
 
-export async function openPdf(url, container, { zoom = 1, after = "", dark = false } = {}) {
+export async function openPdf(url, container, { zoom = 1, before = "", after = "", dark = false } = {}) {
   const { pdfjs, viewer: V } = await load();
-  container.innerHTML = `<div class="pdfViewer"></div>${after}`;
+  container.innerHTML = `${before}<div class="pdfViewer"></div>${after}`;
   const eventBus = new V.EventBus();
   const linkService = new V.PDFLinkService({ eventBus });
   const view = new V.PDFViewer({
-    container, viewer: container.firstElementChild, eventBus, linkService, textLayerMode: 1,
+    container, viewer: container.querySelector(".pdfViewer"), eventBus, linkService, textLayerMode: 1,
     pageColors: dark ? darkPage() : null,
   });
   linkService.setViewer(view);

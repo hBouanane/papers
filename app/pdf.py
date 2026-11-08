@@ -97,3 +97,20 @@ def find_ids(text: str) -> list[str]:
     ids = [f"arXiv:{m}" for m in re.findall(r"arXiv:(\d{4}\.\d{4,5})", head)]
     ids += [f"DOI:{m.rstrip('.,;)')}" for m in re.findall(r"\b(10\.\d{4,9}/[^\s\"<>]+)", head)]
     return list(dict.fromkeys(ids))
+
+
+# The abstract runs from "Abstract" to the introduction's heading ("1 Introduction", "I. INTRODUCTION",
+# letter-spaced small capitals like "1 I NTRODUCTION") or to the keywords.
+ABSTRACT = re.compile(r"\babstract\b[\s.:—–-]*(.+?)(?=(?:^|\s)(?:(?:\d+|I)\.?\s+)?I\s?NTRODUCTION\b|\n\s*(?:keywords|index terms)\b)",
+                      re.IGNORECASE | re.DOTALL)
+# Footnotes and stamps that come between the abstract and the introduction in the extracted text.
+AFTER_ABSTRACT = re.compile(r"\s(?=[∗†‡§]|\*\s?[A-Z]|\d+(?:st|nd|rd|th) Conference|arXiv:\d|Preprint\b|Published as)")
+
+
+def abstract_from(text: str) -> str:
+    """The paper's own abstract: the text between 'Abstract' and the introduction (or keywords)."""
+    m = ABSTRACT.search(text[:20000] or "")
+    if not m:
+        return ""
+    abstract = AFTER_ABSTRACT.split(re.sub(r"\s+", " ", m[1]).strip())[0].strip()
+    return abstract if 120 <= len(abstract) <= 4000 else ""

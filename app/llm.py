@@ -16,6 +16,7 @@ import tempfile
 from functools import cache
 
 import anthropic
+import httpx
 from typing import Literal
 
 from pydantic import BaseModel
@@ -23,11 +24,176 @@ from pydantic import BaseModel
 MODEL = os.environ.get("PAPERS_MODEL", "claude-opus-5-5")
 
 
-def backend() -> str:
+def _setting(key: str) -> str:
     from app import db  # late import: db doesn't depend on llm
     with db.connect() as conn:
-        row = conn.execute("select value from settings where key = 'ai_backend'").fetchone()
-    return (row["value"] if row else None) or os.environ.get("PAPERS_AI", "api")
+        row = conn.execute("select value from settings where key = ?", (key,)).fetchone()
+    return (row["value"] if row else "") or ""
+
+
+# ---------- Providers ----------
+# Every provider is chosen the same way. `kind` says how the app talks to it:
+#   claude-code / codex: a subscription, through its official CLI signed in with the user's own account
+#   api: the Anthropic API;  openai: the OpenAI-compatible chat API that most others (and local servers) speak
+PROVIDERS = [
+    {"id": "claude-plan", "group": "subscription", "kind": "claude-code", "name": "Claude (Pro, Max)", "base_url": "", "key": False},
+    {"id": "chatgpt-plan", "group": "subscription", "kind": "codex", "name": "ChatGPT (Plus, Pro)", "base_url": "", "key": False},
+    {"id": "anthropic", "group": "key", "kind": "api", "name": "Anthropic (Claude)", "base_url": "", "key": True},
+    {"id": "openai", "group": "key", "kind": "openai", "name": "OpenAI (GPT)", "base_url": "https://api.openai.com/v1", "key": True},
+    {"id": "gemini", "group": "key", "kind": "openai", "name": "Google (Gemini)", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "key": True},
+    {"id": "mistral", "group": "key", "kind": "openai", "name": "Mistral", "base_url": "https://api.mistral.ai/v1", "key": True},
+    {"id": "groq", "group": "key", "kind": "openai", "name": "Groq", "base_url": "https://api.groq.com/openai/v1", "key": True},
+    {"id": "openrouter", "group": "key", "kind": "openai", "name": "OpenRouter (hundreds of models)", "base_url": "https://openrouter.ai/api/v1", "key": True},
+    {"id": "ollama", "group": "local", "kind": "openai", "name": "Ollama", "base_url": "http://localhost:11434/v1", "key": False},
+    {"id": "lmstudio", "group": "local", "kind": "openai", "name": "LM Studio", "base_url": "http://localhost:1234/v1", "key": False},
+    {"id": "custom", "group": "other", "kind": "openai", "name": "Any OpenAI-compatible server", "base_url": "", "key": False},
+]
+BY_ID = {p["id"]: p for p in PROVIDERS}
+DEFAULT_FOR_KIND = {"claude-code": "claude-plan", "codex": "chatgpt-plan", "api": "anthropic"}
+_TRANSPORT = None  # tests put a fake server here
+
+
+def backend() -> str:
+    """How the chosen provider is reached: 'claude-code', 'codex', 'api' (Anthropic) or 'openai' (compatible API)."""
+    return _setting("ai_backend") or os.environ.get("PAPERS_AI", "api")
+
+
+def provider() -> str:
+    """The chosen provider's id (see PROVIDERS)."""
+    kind = backend()
+    if kind in DEFAULT_FOR_KIND:
+        return DEFAULT_FOR_KIND[kind]
+    chosen = _setting("ai_provider")
+    return chosen if BY_ID.get(chosen, {}).get("kind") == "openai" else "openai"
+
+
+# Each provider keeps its own key, model and address, so switching back and forth loses nothing.
+def provider_setting(name: str, pid: str | None = None) -> str:
+    return _setting(f"{name}:{pid or provider()}")
+
+
+def openai_config() -> dict:
+    pid = provider()
+    preset = BY_ID[pid]
+    env_key = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}.get(pid, "")
+    return {"provider": pid, "name": preset["name"], "needs_key": preset["key"],
+            "base_url": (provider_setting("ai_base_url", pid) or preset["base_url"]).rstrip("/"),
+            "api_key": provider_setting("ai_key", pid) or (os.environ.get(env_key, "") if env_key else ""),
+            "model": provider_setting("ai_model", pid)}
+
+
+def claude_model() -> str:
+    return provider_setting("ai_model") or MODEL if backend() in ("claude-code", "api") else MODEL
+
+
+def _http() -> httpx.Client:
+    return httpx.Client(timeout=httpx.Timeout(900, connect=10), transport=_TRANSPORT)
+
+
+def _openai_headers(cfg: dict) -> dict:
+    return {"Authorization": f"Bearer {cfg['api_key']}"} if cfg["api_key"] else {}
+
+
+def _openai_error(cfg: dict, response: httpx.Response) -> "AIError":
+    try:
+        detail = response.json().get("error") or {}
+        message = detail.get("message") if isinstance(detail, dict) else str(detail)
+    except ValueError:
+        message = response.text[:300]
+    if response.status_code in (401, 403):
+        return AIError(f"{cfg['name']} refused the API key. Check it in Settings. ({message})")
+    return AIError(f"{cfg['name']} request failed ({response.status_code}): {message}")
+
+
+def _openai_send(body: dict) -> dict:
+    cfg = openai_config()
+    if not cfg["base_url"] or not cfg["model"]:
+        raise AIError("Choose a model in Settings first.")
+    try:
+        with _http() as http:
+            r = http.post(f"{cfg['base_url']}/chat/completions", json={"model": cfg["model"], **body}, headers=_openai_headers(cfg))
+    except httpx.HTTPError as e:
+        raise AIError(f"Couldn't reach {cfg['base_url']}. If it's a model on this computer, is it running? ({e})") from e
+    if r.status_code >= 400:
+        raise _openai_error(cfg, r)
+    return r.json()
+
+
+def _json_in(text: str) -> dict:
+    try:
+        return json.loads(text[text.index("{"): text.rindex("}") + 1])
+    except ValueError as e:
+        raise AIError("The model didn't answer in the expected format. Try again, or choose a stronger model.") from e
+
+
+def _openai_parse(prompt: str, schema: type[BaseModel], system: str = "") -> BaseModel:
+    shape = schema.model_json_schema()
+    # Spelled out too, for models and servers that ignore response_format.
+    instructions = (f"{system}\n\n" if system else "") + (
+        "Reply with only a JSON object (no other text) that matches this JSON Schema:\n" + json.dumps(shape))
+    messages = [{"role": "system", "content": instructions}, {"role": "user", "content": prompt}]
+    formats = [{"type": "json_schema", "json_schema": {"name": schema.__name__, "schema": shape}}, {"type": "json_object"}, None]
+    for i, fmt in enumerate(formats):
+        try:
+            data = _openai_send({"messages": messages, **({"response_format": fmt} if fmt else {})})
+        except AIError as e:
+            if i < len(formats) - 1 and ("(400)" in str(e) or "(422)" in str(e)):
+                continue  # this server doesn't take that response_format; ask more simply
+            raise
+        text = data["choices"][0]["message"].get("content") or ""
+        try:
+            return schema.model_validate(_json_in(text))
+        except ValueError as e:
+            raise AIError("The model's answer was missing parts. Try again, or choose a stronger model.") from e
+    raise AIError("The model couldn't answer in the expected format.")
+
+
+def _openai_stream(system: str, content: str):
+    cfg = openai_config()
+    if not cfg["base_url"] or not cfg["model"]:
+        raise AIError("Choose a model in Settings first.")
+    body = {"model": cfg["model"], "stream": True,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
+    try:
+        with _http() as http, http.stream("POST", f"{cfg['base_url']}/chat/completions", json=body,
+                                          headers=_openai_headers(cfg)) as r:
+            if r.status_code >= 400:
+                r.read()
+                raise _openai_error(cfg, r)
+            for line in r.iter_lines():
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                choices = json.loads(data).get("choices") or [{}]
+                piece = (choices[0].get("delta") or {}).get("content")
+                if piece:
+                    yield piece
+    except httpx.HTTPError as e:
+        raise AIError(f"Couldn't reach {cfg['base_url']}. If it's a model on this computer, is it running? ({e})") from e
+
+
+def list_models() -> list[str]:
+    """The models the chosen OpenAI-compatible server offers."""
+    cfg = openai_config()
+    if not cfg["base_url"]:
+        raise AIError("Type the server's address first.")
+    try:
+        with _http() as http:
+            r = http.get(f"{cfg['base_url']}/models", headers=_openai_headers(cfg))
+    except httpx.HTTPError as e:
+        raise AIError(f"Couldn't reach {cfg['base_url']}. If it's a model on this computer, is it running? ({e})") from e
+    if r.status_code >= 400:
+        raise _openai_error(cfg, r)
+    items = r.json().get("data") or r.json().get("models") or []
+    return sorted({(m.get("id") or m.get("name")) if isinstance(m, dict) else str(m) for m in items} - {None})
+
+
+def ai_name() -> str:
+    """How to name the AI in messages: the chosen model, or the provider's name."""
+    cfg = openai_config()
+    return cfg["model"] or {"claude-code": "Claude", "api": "Claude", "codex": "ChatGPT"}.get(backend(), "the model")
 
 
 def claude_binary() -> str | None:
@@ -39,9 +205,73 @@ def claude_binary() -> str | None:
 
 
 def configured() -> bool:
+    if backend() == "openai":
+        cfg = openai_config()
+        return bool(cfg["base_url"] and cfg["model"] and (cfg["api_key"] or not cfg["needs_key"]))
     if backend() == "claude-code":
         return claude_binary() is not None
-    return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    if backend() == "codex":
+        return codex_binary() is not None
+    return bool(provider_setting("ai_key", "anthropic") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+
+# ---------- A ChatGPT plan, through the official Codex CLI ----------
+def codex_binary() -> str | None:
+    return os.environ.get("PAPERS_CODEX_BIN") or shutil.which("codex")
+
+
+def _strict(schema: dict) -> dict:
+    """The JSON Schema form strict structured output wants: every property required, nothing extra."""
+    if isinstance(schema, dict):
+        schema = {k: _strict(v) for k, v in schema.items() if k not in ("default", "title")}
+        if schema.get("type") == "object" and "properties" in schema:
+            schema["additionalProperties"] = False
+            schema["required"] = list(schema["properties"])
+    elif isinstance(schema, list):
+        schema = [_strict(v) for v in schema]
+    return schema
+
+
+def _codex(prompt: str, system: str = "", schema: dict | None = None) -> str | dict:
+    """One `codex exec` run with no tools that can change anything; the prompt goes in on stdin."""
+    binary = codex_binary()
+    if not binary:
+        raise AIError("Codex isn't installed. Install it (npm install -g @openai/codex), run `codex login` "
+                      "and sign in with your ChatGPT account, then try again.")
+    work = tempfile.mkdtemp(prefix="papers-codex-")
+    out_file = os.path.join(work, "answer.txt")
+    args = [binary, "exec", "-", "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "-o", out_file]
+    if model := provider_setting("ai_model", "chatgpt-plan"):
+        args += ["--model", model]
+    if schema:
+        schema_file = os.path.join(work, "schema.json")
+        with open(schema_file, "w", encoding="utf-8") as f:
+            json.dump(_strict(schema), f)
+        args += ["--output-schema", schema_file]
+    # Codex has no system prompt option; the instructions lead the prompt. Without these variables it
+    # uses the ChatGPT sign-in instead of billing an API key.
+    env = {k: v for k, v in os.environ.items() if k not in ("OPENAI_API_KEY", "CODEX_API_KEY")}
+    try:
+        done = subprocess.run(args, input=(f"{system}\n\n---\n\n{prompt}" if system else prompt), capture_output=True,
+                              text=True, encoding="utf-8", env=env, cwd=work, timeout=900)
+        if done.returncode != 0:
+            message = (done.stderr or done.stdout or "").strip()[-400:]
+            if re.search(r"log ?in|auth|sign in|credential", message, re.IGNORECASE):
+                raise AIError(f"Codex isn't signed in. Open a terminal, run `codex login` and sign in with your ChatGPT account. ({message})")
+            raise AIError(f"Codex failed: {message or 'no details'}")
+        text = open(out_file, encoding="utf-8").read() if os.path.exists(out_file) else done.stdout
+    except subprocess.TimeoutExpired as e:
+        raise AIError("Codex took too long to answer.") from e
+    except OSError as e:
+        raise AIError(f"Couldn't start Codex: {e}") from e
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return _json_in(text) if schema else text.strip()
+
+
+def _codex_stream(system: str, content: str):
+    """Codex gives the answer only once it's complete, so it arrives in one piece."""
+    yield _codex(content, system)
 
 
 def _claude_code_error(message: str | None) -> "AIError":
@@ -72,7 +302,7 @@ def _claude_code_stream(prompt: str, system: str = "", effort: str = "medium"):
         raise AIError("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
                       "and sign in with your Claude account, then try again.")
     args = [binary, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-            "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", MODEL, "--effort", effort]
+            "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", claude_model(), "--effort", effort]
     system_file = _system_file(system) if system else None
     if system_file:
         args += ["--system-prompt-file", system_file]
@@ -115,7 +345,7 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
         raise AIError("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
                       "and sign in with your Claude account, then try again.")
     args = [binary, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
-            "--no-session-persistence", "--model", MODEL, "--effort", effort]
+            "--no-session-persistence", "--model", claude_model(), "--effort", effort]
     system_file = _system_file(system) if system else None
     if system_file:
         args += ["--system-prompt-file", system_file]
@@ -148,9 +378,9 @@ def _claude_code(prompt: str, system: str = "", schema: dict | None = None, effo
         raise AIError("Claude Code didn't return the expected format. Try again.") from e
 
 
-@cache
 def _client() -> anthropic.Anthropic:
-    return anthropic.Anthropic()
+    # A key saved in Settings wins; otherwise the SDK uses ANTHROPIC_API_KEY.
+    return anthropic.Anthropic(api_key=provider_setting("ai_key", "anthropic") or None)
 
 
 class AIError(Exception):
@@ -159,7 +389,7 @@ class AIError(Exception):
 
 def _request(method: str, **kwargs):
     try:
-        response = getattr(_client().messages, method)(model=MODEL, max_tokens=16000, **kwargs)
+        response = getattr(_client().messages, method)(model=claude_model(), max_tokens=16000, **kwargs)
     except TypeError as e:
         raise AIError("Claude is not set up. In Settings, choose your Claude subscription, or set ANTHROPIC_API_KEY and restart.") from e
     except anthropic.APIError as e:
@@ -170,6 +400,10 @@ def _request(method: str, **kwargs):
 
 
 def _parse(prompt: str, schema: type[BaseModel], system: str = "", effort: str = "medium") -> BaseModel:
+    if backend() == "openai":
+        return _openai_parse(prompt, schema, system)
+    if backend() == "codex":
+        return schema.model_validate(_codex(prompt, system, schema.model_json_schema()))
     if backend() == "claude-code":
         return schema.model_validate(_claude_code(prompt, system, schema.model_json_schema(), effort))
     return _request(
@@ -193,8 +427,15 @@ def search_queries(goal: str) -> list[str]:
     return _parse(prompt, Queries, effort="low").queries
 
 
+# Small (often local) models can't take a whole paper; Settings can cap how much of it is sent.
+CONTEXT_CHARS = {"32k": 100_000, "8k": 24_000}
+
+
 def _paper_context(paper: dict) -> str:
     body = paper.get("text") or f"(Full text unavailable. Abstract only.)\n{paper.get('abstract', '')}"
+    limit = CONTEXT_CHARS.get(_setting("ai_context"))
+    if limit and len(body) > limit:
+        body = body[:limit] + "\n\n[The rest of the paper was shortened to fit the model.]"
     return (
         f"<paper>\n<title>{paper['title']}</title>\n<authors>{paper.get('authors', '')}</authors>\n"
         f"<abstract>{paper.get('abstract', '')}</abstract>\n<full_text>\n{body}\n</full_text>\n</paper>"
@@ -340,7 +581,7 @@ def explain(paper: dict, passage: str, question: str = "", mode: str = "explain"
 def _stream(system: list[dict], content: str, effort: str = "medium"):
     """The API's answer, piece by piece."""
     try:
-        with _client().messages.stream(model=MODEL, max_tokens=16000, system=system, output_config={"effort": effort},
+        with _client().messages.stream(model=claude_model(), max_tokens=16000, system=system, output_config={"effort": effort},
                                        messages=[{"role": "user", "content": content}]) as stream:
             yield from stream.text_stream
             if stream.get_final_message().stop_reason == "refusal":
@@ -369,6 +610,10 @@ def explain_stream(paper: dict, passage: str, question: str = "", mode: str = "e
         content += "\n\n" + MODES[mode].format(language=language)
     if backend() == "claude-code":
         return _claude_code_stream(content, "\n\n".join(block["text"] for block in system))
+    if backend() == "openai":
+        return _openai_stream("\n\n".join(block["text"] for block in system), content)
+    if backend() == "codex":
+        return _codex_stream("\n\n".join(block["text"] for block in system), content)
     return _stream(system, content)
 
 

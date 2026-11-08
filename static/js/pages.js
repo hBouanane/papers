@@ -5,6 +5,38 @@ const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal])
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const shorten = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, "")}…` : s);
 
+// A paper as its first page (with a sheet tilted behind it), its title and how far you've read.
+// Hovering lifts the page, fans the sheet and turns "x% read" into "Continue →".
+const paperCard = (p, note = "") => `<a class="shelf-card" href="#/papers/${p.id}">
+    <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
+    <span class="shelf-info">
+      <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
+      ${note ? `<span class="shelf-note">${note}</span>` : ""}
+      <span class="shelf-foot">${progressBar(p)}<span class="foot-swap"><span class="foot-pct num">${p.status === "read" ? "Read" : `${pct(p.progress)} read`}</span>
+        <span class="foot-go" aria-hidden="true">${p.status === "new" ? "Open" : "Continue"} <span class="arrow">→</span></span></span></span>
+    </span>
+  </a>`;
+
+// A paper that isn't in a goal yet. Pointing at it lays frosted glass over its page with "+ Add to a goal"
+// (your goals open from it); under the title, how far you've read turns into "Read →" on hover, like the Library.
+const PLUS = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
+const looseCard = (p, goals) => `<div class="shelf-card loose-card" data-paper="${p.id}">
+    <div class="loose-stage">
+      <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
+      ${goals.length ? `<details class="menu loose-goal"><summary class="glass-add" title="Add to a goal"><span class="glass-plus">${PLUS}</span><span>Add to a goal</span></summary>
+        <div class="menu-list sheet" role="menu">${goals.map((g) => `<button role="menuitem" data-goal="${g.id}">${esc(shorten(g.goal, 60))}</button>`).join("")}</div></details>`
+        : `<a class="glass-add" href="#/goals" title="Create a goal first"><span class="glass-plus">${PLUS}</span><span>Create a goal</span></a>`}
+    </div>
+    <a class="loose-title shelf-title paper-name" href="#/papers/${p.id}">${esc(p.title)}</a>
+    <a class="shelf-foot loose-foot" href="#/papers/${p.id}${p.has_pdf ? "/read" : ""}">${progressBar(p)}<span class="foot-swap">
+      <span class="foot-pct num">${p.status === "read" ? "Read" : p.progress ? `${pct(p.progress)} read` : "Not started"}</span>
+      <span class="foot-go" aria-hidden="true">${p.has_pdf ? "Read" : "Open"} <span class="arrow">→</span></span></span></a>
+  </div>`;
+
+// Up to three covers fanned out like cards in a hand; they spread a little more on hover.
+const coverFan = (papers) => `<span class="cover-fan" aria-hidden="true">${papers.length
+  ? papers.slice(0, 3).map((p) => cover(p, "small")).join("") : `<span class="fan-empty">No papers yet</span>`}</span>`;
+
 // "Good evening, Ada", or just "Good evening" until a name is set in Settings.
 function greeting(name) {
   const h = new Date().getHours();
@@ -48,15 +80,7 @@ export async function libraryPage(stale) {
         <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
       </div>
     </div>`;
-  // A card with a small stage on top: the paper's first page peeking up, a second sheet tilted behind it.
-  const shelfItem = (p) => `<a class="shelf-card" href="#/papers/${p.id}">
-      <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
-      <span class="shelf-info">
-        <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
-        <span class="shelf-foot">${progressBar(p)}<span class="foot-swap"><span class="foot-pct num">${pct(p.progress)} read</span>
-          <span class="foot-go" aria-hidden="true">Continue <span class="arrow">→</span></span></span></span>
-      </span>
-    </a>`;
+  const shelfItem = (p) => paperCard(p);
   const goalLine = (g) => {
     const mine = papers.filter((p) => p.topic_id === g.id);
     const done = mine.filter((p) => p.status === "read").length;
@@ -130,6 +154,7 @@ export async function libraryPage(stale) {
       || `<p class="faint pad">${hits ? "No papers match that search."
         : filter === "archived" ? "Nothing archived. Archive papers that turn out not to be relevant from their More menu."
         : "No papers with this status."}</p>`;
+    drawCovers(rows);
   };
   show();
   app.querySelector("#all-reading")?.addEventListener("click", () => {
@@ -160,24 +185,50 @@ export async function goalsPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const [goals, papers] = await Promise.all([api("/topics"), api("/papers")]);
   if (stale()) return;
-  app.innerHTML = `<div class="container page narrow">
+  const card = (g) => {
+    const ps = papers.filter((p) => p.topic_id === g.id);
+    const read = ps.filter((p) => p.status === "read").length;
+    const share = ps.length ? read / ps.length : 0;
+    return `<a class="goal-card sheet" href="#/goals/${g.id}">
+      ${coverFan([...ps].sort((a, b) => (b.status === "reading") - (a.status === "reading")))}
+      <span class="goal-card-text">
+        <span class="goal-card-title">${esc(g.goal)}</span>
+        <span class="goal-card-count">${plural(ps.length, "paper")}, ${read} finished</span>
+        <span class="goal-card-foot"><span class="bar"><span style="width:${Math.round(share * 100)}%"></span></span>
+          <span class="goal-card-go">Open <span class="arrow" aria-hidden="true">→</span></span></span>
+      </span></a>`;
+  };
+  app.innerHTML = `<div class="container page">
     <div class="page-head">
-      <h1>Goals</h1>
-      <p class="lede">Describe what you need to understand. Papers get found and grouped around it.</p>
+      <h1 class="page-title">Goals</h1>
+      <p class="lede">What you're trying to understand, with the papers that help. Describe a new one and papers get found for it.</p>
     </div>
-    <form class="sheet form" id="goal-form">
-      <label for="goal">What are you working on?</label>
+    ${goals.length ? `<div class="goal-cards">${goals.map(card).join("")}</div>` : ""}
+    <form class="sheet form new-goal" id="goal-form">
+      <label for="goal">${goals.length ? "A new goal" : "What are you working on?"}</label>
       <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
       <div class="form-foot"><button class="button">Create goal</button></div>
     </form>
-    ${goals.length ? `<div class="sheet list">${goals.map((g) => {
-      const ps = papers.filter((p) => p.topic_id === g.id);
-      const read = ps.filter((p) => p.status === "read").length;
-      return `<a class="goal" href="#/goals/${g.id}">
-        <span class="goal-text">${esc(g.goal)}</span>
-        <span class="goal-count">${plural(ps.length, "paper")}, ${read} finished</span></a>`;
-    }).join("")}</div>` : ""}
+    ${(() => {
+      const loose = papers.filter((p) => !p.topic_id);
+      return loose.length ? `<section class="page-section">
+        <h2>Not in a goal yet</h2>
+        <p class="hint">Point at one to add it to a goal or start reading it.</p>
+        <div class="shelf goal-shelf" id="loose">${loose.slice(0, 12).map((p) => looseCard(p, goals)).join("")}</div></section>` : "";
+    })()}
   </div>`;
+  drawCovers(app);
+  // Add a paper to a goal from its card; the page redraws, so it moves into that goal's fan.
+  app.querySelector("#loose")?.addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-goal]");
+    if (!pick) return;
+    const card = pick.closest("[data-paper]");
+    busy(pick, "Adding…", async () => {
+      await api(`/papers/${card.dataset.paper}`, { method: "PATCH", json: { topic_id: Number(pick.dataset.goal) } });
+      toast(`Added to "${shorten(goals.find((g) => g.id === Number(pick.dataset.goal)).goal, 50)}".`);
+      goalsPage(stale);
+    });
+  });
   app.querySelector("#goal-form").onsubmit = (e) => {
     e.preventDefault();
     busy(e.submitter, "Creating…", async () => {
@@ -197,14 +248,31 @@ export async function goalPage(id, stale) {
 
   const mine = (list) => list.length ? tableHead + list.map((p) => paperRow(p)).join("")
     : `<p class="faint pad">No papers yet. Find some below.</p>`;
+  const shelf = (list) => list.length ? `<div class="shelf goal-shelf">${list.map((p) => paperCard(p)).join("")}</div>`
+    : `<div class="desk-empty">No papers yet. Search below, or add one.</div>`;
+  const read = papers.filter((p) => p.status === "read").length;
+  // The goal at a glance: one line from each paper's key points.
+  const says = (list) => {
+    const withLine = list.filter((p) => p.tldr || p.key_idea);
+    return withLine.length ? `<section class="page-section"><h2>What these papers say</h2>
+      <p class="hint">One line from each paper's key points.</p>
+      <div class="sheet says">${withLine.map((p) => `<a class="say" href="#/papers/${p.id}">
+        <span aria-hidden="true">${cover(p, "small")}</span>
+        <span class="say-text"><span class="say-title">${esc(p.title)}</span><p class="say-line">${esc(p.tldr || p.key_idea)}</p></span></a>`).join("")}</div></section>` : "";
+  };
 
   app.innerHTML = `<div class="container page">
-    <h1 class="goal-title">${esc(goal.goal)}</h1>
-    <section class="section">
-      <div class="section-bar"><h2>Your papers <span class="faint num" id="count">${papers.length}</span></h2>
-        <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span></div>
-      <div class="sheet table" id="mine">${mine(papers)}</div>
+    <div class="page-head page-head-split">
+      <div><h1 class="page-title goal-title">${esc(goal.goal)}</h1>
+      <p class="lede">${plural(papers.length, "paper")}, ${read} finished.</p></div>
+      <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span>
+    </div>
+    <section>
+      <div id="shelf">${shelf(papers)}</div>
+      <details class="as-list"><summary>Show as a list (archive, delete)</summary>
+        <div class="sheet table" id="mine">${mine(papers)}</div></details>
     </section>
+    ${says(papers)}
     <section class="section">
       <div class="section-bar">
         <h2>Find more</h2>
@@ -214,7 +282,9 @@ export async function goalPage(id, stale) {
     </section></div>`;
 
   bindAddPaper();
+  drawCovers(app);
   bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  app.querySelector(".as-list")?.addEventListener("toggle", () => drawCovers(app.querySelector("#mine")));
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
     const box = app.querySelector("#suggestions");
@@ -240,17 +310,25 @@ export async function goalPage(id, stale) {
         b.outerHTML = `<span class="in-library">In library</span>`;
         const list = await api(`/papers?topic_id=${id}`);
         app.querySelector("#mine").innerHTML = mine(list);
-        app.querySelector("#count").textContent = list.length;
+        app.querySelector("#shelf").innerHTML = shelf(list);
+        drawCovers(app.querySelector("#shelf"));
       });
     };
   });
 }
 
 // ---------- Recall ----------
+// Your papers, big, behind Recall (since that's what it searches): three first pages fanned out like the
+// Goals cards. They drift slowly; while a search runs they spread out and glow.
+function recallBackdrop(papers) {
+  const order = [...papers].sort((a, b) => (b.status === "reading") - (a.status === "reading") || b.has_pdf - a.has_pdf);
+  return order.length ? `<div class="recall-backdrop" id="backdrop" aria-hidden="true"><span class="recall-hero">${coverFan(order)}</span></div>` : "";
+}
+
 export async function recallPage() {
-  app.innerHTML = `<div class="container page narrow">
+  app.innerHTML = `<div class="container page narrow recall-page">
     <div class="page-head">
-      <h1>Where did I read that?</h1>
+      <h1 class="page-title">Where did I read that?</h1>
       <p class="lede">Describe the idea in your own words. Searches every paper, your notes and the explanations you asked for; finished papers come first.</p>
     </div>
     <form id="recall" class="sheet form">
@@ -258,29 +336,73 @@ export async function recallPage() {
       <textarea id="idea" rows="3" required placeholder="Adding noise step by step, then learning to undo it"></textarea>
       <div class="form-foot"><button class="button">Search my papers</button></div>
     </form>
-    <div id="results"></div></div>`;
+    <div id="results"></div>
+    <div id="recall-extras" class="recall-extras"></div></div>`;
   const input = app.querySelector("#idea");
-  input.focus();
+  api("/papers").then((papers) => {
+    if (!app.querySelector(".recall-page")) return; // left the page meanwhile
+    app.insertAdjacentHTML("afterbegin", recallBackdrop(papers));
+    drawCovers(app.querySelector("#backdrop"));
+    // Ideas from your own papers to try, and the papers searched first (the ones you finished).
+    const ideas = papers.filter((p) => p.key_idea && p.status !== "new").slice(0, 5).map((p) => shorten(p.key_idea, 90));
+    const finished = papers.filter((p) => p.status === "read");
+    app.querySelector("#recall-extras").innerHTML = `
+      ${ideas.length ? `<section><h2>Try an idea from your papers</h2>
+        <div class="try-ideas">${ideas.map((i) => `<button type="button" class="try-idea">${esc(i)}</button>`).join("")}</div></section>` : ""}
+      ${finished.length ? `<section class="page-section"><h2>Searched first</h2>
+        <p class="hint">The papers you've finished; then everything else, your notes and the explanations you asked for.</p>
+        <div class="shelf goal-shelf">${finished.slice(0, 8).map((p) => paperCard(p)).join("")}</div></section>` : ""}`;
+    drawCovers(app.querySelector("#recall-extras"));
+    app.querySelector("#recall-extras").onclick = (e) => {
+      const idea = e.target.closest(".try-idea");
+      if (!idea) return;
+      input.value = idea.textContent;
+      app.querySelector("#recall").requestSubmit();
+    };
+  }).catch(() => {});
   input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); app.querySelector("#recall").requestSubmit(); } };
   app.querySelector("#recall").onsubmit = (e) => {
     e.preventDefault();
     const box = app.querySelector("#results");
     busy(e.submitter, "Searching…", async () => {
       box.innerHTML = loading("Looking through your papers");
+      app.querySelector("#backdrop")?.classList.add("searching");
       try {
         const found = await api("/recall", { method: "POST", json: { idea: input.value.trim() } });
-        box.innerHTML = found.length ? `<div class="sheet list">${found.map((m) => `
-          <a class="match" href="#/papers/${m.paper.id}">
-            <span class="paper-name">${esc(m.paper.title)}</span>
+        box.innerHTML = found.length ? `<div class="recall-results">${found.map((m) => `
+          <a class="match match-card sheet" href="#/papers/${m.paper.id}">
+            <span class="match-cover" aria-hidden="true">${cover(m.paper, "small")}</span>
+            <span class="match-text"><span class="paper-name">${esc(m.paper.title)}</span>
             <span class="result-cite">${cite(m.paper)}</span>
-            <span class="match-reason">${esc(m.reason)}</span></a>`).join("")}</div>`
+            <span class="match-reason">${esc(m.reason)}</span></span></a>`).join("")}</div>`
           : empty("Nothing in your library matches that. Try other words for the same idea.");
+        drawCovers(box);
       } catch (err) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
+      finally { app.querySelector("#backdrop")?.classList.remove("searching"); }
     });
   };
 }
 
 // ---------- Map ----------
+// Behind the Map: one of your papers, big, half of it in the bottom-right corner, with dashed lines flowing
+// out of it across the page to soft dots, like references leading to other papers.
+const MAP_RAYS = [[6, 70], [16, 34], [38, 10], [30, 56], [60, 6], [10, 12]];
+
+function mapBackdrop(papers, children, trees) {
+  const p = trees.find((t) => t.has_pdf) || papers.find((x) => x.has_pdf && x.status === "reading")
+    || papers.find((x) => x.has_pdf) || trees[0] || papers[0];
+  if (!p) return "";
+  const from = [80, 74];
+  const rays = MAP_RAYS.map(([x, y], i) => {
+    const c1 = [from[0] - 18, from[1] + (y - from[1]) * 0.15], c2 = [x + (from[0] - x) * 0.35, y];
+    return `<path d="M${from[0]} ${from[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
+  });
+  const dots = MAP_RAYS.map(([x, y], i) => `<span class="map-dot" style="left:${x}%;top:${y}%;--i:${i}"></span>`);
+  return `<div class="map-corner" aria-hidden="true">
+    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${rays.join("")}</svg>${dots.join("")}
+    <span class="map-corner-paper">${cover(p, "large")}</span></div>`;
+}
+
 export async function mapPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const papers = await api("/papers");
@@ -292,30 +414,76 @@ export async function mapPage(stale) {
   const trees = roots.filter((p) => children[p.id]);
   const loose = roots.filter((p) => !children[p.id]);
 
-  const node = (p) => `<li>
-    <a class="node" href="#/papers/${p.id}"><span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>
-    ${children[p.id] ? `<ul>${children[p.id].map(node).join("")}</ul>` : ""}</li>`;
+  // A chain drawn as a map: the same paper cards as everywhere, joined left to right by dashed arrows to
+  // the papers each one led you to.
+  // When a paper led to more than three, the first three show and the rest fold behind "+N more".
+  const FOLD = 3;
+  const node = (p) => {
+    const kids = children[p.id] || [];
+    const more = kids.length - FOLD;
+    return `<li>${paperCard(p)}${kids.length ? `<ol class="${more > 0 ? "folded" : ""}">${kids.map((k, i) =>
+      node(k).replace("<li>", `<li class="${i >= FOLD ? "chain-extra" : ""}">`)).join("")}
+      ${more > 0 ? `<li class="chain-more"><button type="button" class="link" data-unfold>+${more} more</button></li>` : ""}</ol>` : ""}</li>`;
+  };
+  const size = (p) => 1 + (children[p.id] || []).reduce((n, c) => n + size(c), 0);
+  const readIn = (p) => (p.status === "read" ? 1 : 0) + (children[p.id] || []).reduce((n, c) => n + readIn(c), 0);
+  const chain = (t) => `<section class="chain">
+      <p class="chain-head">Started from <strong class="paper-name">${esc(shorten(t.title, 70))}</strong>
+        <span class="faint">· ${plural(size(t), "paper")}, ${readIn(t)} read</span></p>
+      <div class="chain-scroll"><ol class="chain-tree">${node(t)}</ol></div></section>`;
 
-  app.innerHTML = `<div class="container page">
+  app.innerHTML = `${mapBackdrop(papers, children, trees)}<div class="container page map-page">
     <div class="page-head">
-      <h1>Map</h1>
+      <h1 class="page-title">Map</h1>
       <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
     </div>
-    ${trees.length ? trees.map((t) => `<div class="sheet tree-sheet"><ul class="tree">${node(t)}</ul></div>`).join("")
+    ${trees.length ? trees.map(chain).join("")
       : empty("No chains yet. They appear when you follow a reference from one paper to another.")}
     ${loose.length ? `<section class="section"><h2>Not linked to other papers</h2>
-      <div class="sheet list">${loose.map((p) => `<a class="loose" href="#/papers/${p.id}">
-        <span class="paper-name">${esc(p.title)}</span>${statusTag(p)}</a>`).join("")}</div></section>` : ""}
+      <p class="hint">Open one's References and pick a paper from them to start a chain.</p>
+      <div class="shelf goal-shelf">${loose.map((p) => paperCard(p)).join("")}</div></section>` : ""}
   </div>`;
+  drawCovers(app);
+  app.addEventListener("click", (e) => {
+    const unfold = e.target.closest("[data-unfold]");
+    if (!unfold) return;
+    const list = unfold.closest("ol");
+    list.classList.remove("folded");
+    unfold.closest("li").remove();
+    drawCovers(list);
+  });
 }
 
 // ---------- Settings ----------
+// ---------- Settings: AI providers ----------
+const AI_GROUPS = [["subscription", "Use your subscription"], ["key", "Pay per use with an API key"],
+  ["local", "On this computer (free, private)"], ["other", "Other"]];
+const KEY_PAGES = {
+  anthropic: "console.anthropic.com", openai: "platform.openai.com/api-keys", gemini: "aistudio.google.com/apikey",
+  mistral: "console.mistral.ai", groq: "console.groq.com/keys", openrouter: "openrouter.ai/keys",
+};
+// What each provider needs, in a sentence or two.
+function aboutProvider(p, s) {
+  const link = (host) => `<a href="https://${host}" target="_blank" rel="noopener">${host}</a>`;
+  if (p.id === "claude-plan") return `Runs Claude Code on this computer, signed in with your Claude account; usage counts toward your plan.
+    ${s.claude_binary ? `Found it at <code>${esc(s.claude_binary)}</code>.` : `Install it from ${link("claude.com/claude-code")}.`}
+    First time: in a terminal run <code>claude</code>, type <code>/login</code> and sign in. For your own use only.`;
+  if (p.id === "chatgpt-plan") return `Runs OpenAI's Codex on this computer, signed in with your ChatGPT account; usage counts toward your plan.
+    ${s.codex_binary ? `Found it at <code>${esc(s.codex_binary)}</code>.` : `Install it with <code>npm install -g @openai/codex</code>.`}
+    First time: in a terminal run <code>codex login</code>. Answers arrive all at once rather than word by word. For your own use only.`;
+  if (p.group === "key") return `Paid per use. Get a key at ${link(KEY_PAGES[p.id])}${p.id === "gemini" ? " (it has a free tier)" : ""}, paste it below,
+    then List models and pick one.`;
+  if (p.group === "local") return `Free and private: the model runs on this computer and nothing leaves it. Install
+    ${p.id === "ollama" ? link("ollama.com") : link("lmstudio.ai")}, download a model in it and keep it running, then List models.`;
+  return "Any server that speaks the OpenAI chat API (vLLM, llama.cpp, a company gateway). Set its address under More options.";
+}
+
 export async function settingsPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const s = await api("/settings");
   if (stale()) return;
   app.innerHTML = `<div class="container page narrow">
-    <div class="page-head"><h1>Settings</h1></div>
+    <div class="page-head"><h1 class="page-title">Settings</h1></div>
     <form class="sheet form" id="name-form">
       <h2>Your name</h2>
       <p class="hint">The Library greets you with it. Leave it empty for just "Good morning".</p>
@@ -334,20 +502,37 @@ export async function settingsPage(stale) {
         "Chinese", "Japanese", "Korean", "Russian", "Hindi", "Indonesian", "Vietnamese"].map((l) => `<option value="${l}">`).join("")}</datalist>
     </form>
     <form class="sheet form" id="ai-form">
-      <h2>Claude</h2>
-      <p class="hint">Skimming, explanations, quizzes and recall are done by Claude. Choose how the app reaches it.</p>
-      <label class="choice"><input type="radio" name="ai" value="claude-code" ${s.ai_backend === "claude-code" ? "checked" : ""}>
-        <span><span><strong>My Claude subscription</strong> (Pro, Max)</span>
-        <span class="hint">Runs Claude Code on this computer, signed in with your Claude account. Usage counts toward your plan's limits.
-        For your own use only: don't host the app for other people with your subscription.
-        ${s.claude_binary ? `Found Claude Code at <code>${esc(s.claude_binary)}</code>.`
-          : "Claude Code isn't installed yet: get it from claude.com/claude-code."}
-        First time: open a terminal, run <code>claude</code>, type <code>/login</code> and sign in.</span></span></label>
-      <label class="choice"><input type="radio" name="ai" value="api" ${s.ai_backend === "api" ? "checked" : ""}>
-        <span><strong>API key</strong>
-        <span class="hint">Pay per use on the Anthropic API. Set <code>ANTHROPIC_API_KEY</code> before starting the app.
-        ${s.api_key_set ? "A key is set." : "No key is set."}</span></span></label>
-      <div class="form-foot"><button type="button" class="button secondary" id="ai-test">Test connection</button></div>
+      <h2>AI model</h2>
+      <p class="hint">Key points, explanations, vocabulary, questions and recall are written by an AI model. Use any provider.</p>
+      <label for="ai-provider">Provider</label>
+      <select id="ai-provider">${AI_GROUPS.map(([group, label]) => `<optgroup label="${label}">${s.providers.filter((p) => p.group === group)
+        .map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+      <p class="hint" id="ai-about"></p>
+      <div class="ai-field" id="ai-key-field">
+        <label for="ai-key">API key</label>
+        <input id="ai-key" type="password" autocomplete="off">
+        <p class="hint">Kept on this computer only.</p>
+      </div>
+      <label for="ai-model">Model</label>
+      <div class="model-row"><input id="ai-model" list="ai-models" value="${esc(s.ai_model)}">
+        <button type="button" class="button secondary small" id="list-models">List models</button></div>
+      <datalist id="ai-models"></datalist>
+      <details class="advanced"><summary>More options</summary>
+        <div class="ai-field" id="ai-base-field">
+          <label for="ai-base">Server address</label>
+          <input id="ai-base" value="${esc(s.ai_base_url)}" placeholder="https://…/v1">
+          <p class="hint">Filled in for the provider you picked. Change it only for another server or port.</p>
+        </div>
+        <label for="ai-context">How much of a paper to send</label>
+        <select id="ai-context">
+          <option value="full" ${s.ai_context === "full" ? "selected" : ""}>The whole paper (large models)</option>
+          <option value="32k" ${s.ai_context === "32k" ? "selected" : ""}>About 32k tokens (most local models)</option>
+          <option value="8k" ${s.ai_context === "8k" ? "selected" : ""}>About 8k tokens (small local models)</option>
+        </select>
+        <p class="hint">Models with a small memory can't read a whole paper at once; they get its beginning.</p>
+      </details>
+      <div class="form-foot ai-actions"><button type="button" class="button secondary" id="ai-test">Test connection</button>
+        <button class="button" id="ai-save">Save</button></div>
       <p id="ai-status" class="hint" role="status"></p>
     </form>
     <form class="sheet form" id="folder-form">
@@ -384,18 +569,64 @@ export async function settingsPage(stale) {
       toast(saved.language ? `Translations will be in ${saved.language}.` : "Translations turned off.");
     });
   };
-  const aiStatus = app.querySelector("#ai-status");
-  app.querySelector("#ai-form").onchange = async (e) => {
-    if (e.target.name !== "ai") return;
-    const saved = await api("/settings", { method: "PUT", json: { ai_backend: e.target.value } });
-    aiStatus.className = "hint";
-    aiStatus.textContent = saved.ai_ready ? "Saved. Use Test connection to check it works."
-      : saved.ai_backend === "api" ? "Saved, but no API key is set." : "Saved, but Claude Code wasn't found on this computer.";
+  // ----- AI model: one list of providers, each set up the same way -----
+  const q = (sel) => app.querySelector(sel);
+  const aiStatus = q("#ai-status");
+  const say = (text, ok = true) => { aiStatus.className = ok ? "hint" : "error"; aiStatus.textContent = text; };
+  let ai = s;
+  const showProvider = () => {
+    const p = ai.providers.find((x) => x.id === ai.ai_provider);
+    const subscription = p.group === "subscription";
+    q("#ai-about").innerHTML = aboutProvider(p, ai);
+    q("#ai-key-field").hidden = !p.key;
+    q("#ai-key").value = "";
+    q("#ai-key").placeholder = ai.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key";
+    q("#ai-model").value = ai.ai_model;
+    q("#ai-model").placeholder = subscription ? "Leave empty for the default model" : "Pick from the list or type its name";
+    q("#list-models").hidden = subscription;
+    q("#ai-models").innerHTML = "";
+    q("#ai-base-field").hidden = p.kind !== "openai";
+    q("#ai-base").value = ai.ai_base_url;
   };
-  app.querySelector("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking Claude…", async () => {
+  showProvider();
+  // Picking a provider switches to it at once; its own key and model come back as you left them.
+  q("#ai-provider").onchange = async (e) => {
+    ai = await api("/settings", { method: "PUT", json: { ai_provider: e.target.value } });
+    showProvider();
+    say(ai.ai_ready ? "Switched. Use Test connection to check it works." : "Now finish setting it up below, then Save.");
+  };
+  const saveAi = async () => {
+    const p = ai.providers.find((x) => x.id === ai.ai_provider);
+    const json = { ai_model: q("#ai-model").value, ai_context: q("#ai-context").value };
+    if (p.kind === "openai") json.ai_base_url = q("#ai-base").value;
+    if (q("#ai-key").value) json.ai_api_key = q("#ai-key").value;
+    ai = await api("/settings", { method: "PUT", json });
+    return ai;
+  };
+  q("#ai-form").onsubmit = (e) => {
+    e.preventDefault();
+    busy(q("#ai-save"), "Saving…", async () => {
+      await saveAi();
+      showProvider();
+      say(ai.ai_ready ? "Saved. Use Test connection to check it works."
+        : ai.providers.find((x) => x.id === ai.ai_provider).group === "subscription" ? "Saved, but its app isn't installed yet (see above)."
+        : !ai.ai_model ? "Saved. Now choose a model." : "Saved, but an API key is still needed.");
+    });
+  };
+  // Ask the provider which models it has, so you pick a real name instead of guessing one.
+  q("#list-models").onclick = (e) => busy(e.currentTarget, "Asking…", async () => {
+    await saveAi();
+    try {
+      const { models } = await api("/ai/models");
+      q("#ai-models").innerHTML = models.map((m) => `<option value="${esc(m)}">`).join("");
+      say(models.length ? `${models.length} models available. Click the Model box to pick one, then Save.` : "The provider listed no models.");
+      q("#ai-model").focus();
+    } catch (err) { say(err.message, false); }
+  });
+  q("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking the model…", async () => {
+    await saveAi();
     const r = await api("/ai/test", { method: "POST" });
-    aiStatus.className = r.ok ? "hint ok" : "error";
-    aiStatus.textContent = r.message;
+    say(r.message, r.ok);
   });
   app.querySelector("#folder-form").onsubmit = (e) => {
     e.preventDefault();
