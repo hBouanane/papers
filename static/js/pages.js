@@ -18,7 +18,7 @@ const paperCard = (p, note = "") => `<a class="shelf-card" href="#/papers/${p.id
   </a>`;
 
 // A paper that isn't in a goal yet. Pointing at it lays frosted glass over its page with "+ Add to a goal"
-// (your goals open from it); under the title, "Read →" opens it in the reader.
+// (your goals open from it); under the title, how far you've read turns into "Read →" on hover, like the Library.
 const PLUS = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`;
 const looseCard = (p, goals) => `<div class="shelf-card loose-card" data-paper="${p.id}">
     <div class="loose-stage">
@@ -28,7 +28,9 @@ const looseCard = (p, goals) => `<div class="shelf-card loose-card" data-paper="
         : `<a class="glass-add" href="#/goals" title="Create a goal first"><span class="glass-plus">${PLUS}</span><span>Create a goal</span></a>`}
     </div>
     <a class="loose-title shelf-title paper-name" href="#/papers/${p.id}">${esc(p.title)}</a>
-    ${p.has_pdf ? `<a class="loose-read" href="#/papers/${p.id}/read">Read <span class="arrow" aria-hidden="true">→</span></a>` : ""}
+    <a class="shelf-foot loose-foot" href="#/papers/${p.id}${p.has_pdf ? "/read" : ""}">${progressBar(p)}<span class="foot-swap">
+      <span class="foot-pct num">${p.status === "read" ? "Read" : p.progress ? `${pct(p.progress)} read` : "Not started"}</span>
+      <span class="foot-go" aria-hidden="true">${p.has_pdf ? "Read" : "Open"} <span class="arrow">→</span></span></span></a>
   </div>`;
 
 // Up to three covers fanned out like cards in a hand; they spread a little more on hover.

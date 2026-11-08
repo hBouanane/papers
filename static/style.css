@@ -1268,3 +1268,4 @@ body.reading #toast { bottom: 64px; }
   animation-delay: calc(.9s + var(--i) * .15s), calc(1.4s + var(--i) * .5s); }
 @keyframes map-dot-in { from { opacity: 0; transform: scale(.3); } to { opacity: .55; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .map-corner-paper, .map-rays path, .map-dot { animation: none; } }
+.loose-foot { text-decoration: none; color: var(--pencil); }
