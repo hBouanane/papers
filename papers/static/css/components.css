@@ -154,10 +154,12 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .shelf-card:hover .bar::after, .continue:hover .bar::after { animation: bar-sweep .9s ease-out; }
 @keyframes bar-sweep { to { transform: translateX(100%); } }
 .foot-swap { display: inline-grid; }
-.foot-swap > * { grid-area: 1 / 1; white-space: nowrap; transition: opacity .3s ease, transform .4s cubic-bezier(.3, .8, .25, 1); }
+/* The two never show at once: the one leaving fades quickly, then the other comes in. */
+.foot-swap > * { grid-area: 1 / 1; white-space: nowrap; transition: opacity .15s ease, transform .4s cubic-bezier(.3, .8, .25, 1); }
+.foot-pct { transition-delay: .15s; }
 .foot-go { opacity: 0; transform: translateX(-8px); color: var(--ink); font-weight: 700; }
-.shelf-card:hover .foot-pct { opacity: 0; transform: translateX(8px); }
-.shelf-card:hover .foot-go { opacity: 1; transform: none; }
+.shelf-card:hover .foot-pct { opacity: 0; transform: translateX(8px); transition-delay: 0s; }
+.shelf-card:hover .foot-go { opacity: 1; transform: none; transition-delay: .15s; }
 .arrow { display: inline-block; transition: transform .35s cubic-bezier(.3, .8, .25, 1); }
 .shelf-card:hover .arrow, .continue:hover .arrow { transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) {

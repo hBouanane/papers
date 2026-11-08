@@ -99,7 +99,9 @@
 .chain-head strong { color: var(--heading); font-size: 15px; }
 .chain-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
   background: var(--ink-tint); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
-.chain-scroll { overflow-x: auto; padding-bottom: 6px; }
+/* Scrolling sideways also clips top and bottom, so the row keeps room around its cards for a paper that lifts
+   and tilts on hover (pulled back with negative margins, so the layout doesn't move). */
+.chain-scroll { overflow-x: auto; padding: 18px 16px 10px; margin: -18px -16px -4px; }
 .chain-tree, .chain-tree ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .chain-tree li { display: flex; align-items: flex-start; position: relative; }
 .chain-tree li > ol { position: relative; padding-left: 52px; gap: 22px; }
