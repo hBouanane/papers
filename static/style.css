@@ -1121,3 +1121,16 @@ body.reading #toast { bottom: 64px; }
 :root[data-theme="dark"] .recall-hero, :root[data-theme="dim"] .recall-hero { opacity: .4; }
 @media (max-width: 900px) { .recall-hero { width: 70vw; right: -14vw; top: 150px; opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .recall-hero, .recall-hero .cover-wrap { animation: none; transition: none; } }
+
+/* Recall's fan at rest: each page sways and bobs on its own rhythm, a little out of step with the others. */
+.recall-hero { animation-duration: 12s; }
+.recall-hero .cover-wrap .cover { animation: fan-sway 5.5s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+.recall-hero .cover-wrap:nth-child(1) .cover { animation-duration: 6.2s; animation-delay: -1.4s; }
+.recall-hero .cover-wrap:nth-child(2) .cover { animation-duration: 5.4s; animation-delay: -3.1s; }
+.recall-hero .cover-wrap:nth-child(3) .cover { animation-duration: 6.8s; animation-delay: -0.6s; }
+@keyframes fan-sway {
+  from { transform: rotate(-2.5deg) translateY(0); }
+  to { transform: rotate(2.5deg) translateY(-12px); }
+}
+.recall-backdrop.searching .recall-hero .cover-wrap .cover { animation-duration: 1.4s; } /* livelier while searching */
+@media (prefers-reduced-motion: reduce) { .recall-hero .cover-wrap .cover { animation: none; } }
