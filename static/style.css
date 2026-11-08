@@ -1161,8 +1161,24 @@ body.reading #toast { bottom: 64px; }
 @media (max-width: 900px) { .map-backdrop { width: 80vw; height: 60vw; right: -10vw; top: 120px; opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .map-lines path, .mb-node, .mb-node .cover { animation: none; } }
 
-/* On wide screens the Map's content keeps to the left, so the map of papers has the right side. */
-@media (min-width: 1100px) {
-  .map-page > * { max-width: 600px; }
-  .map-backdrop { top: 110px; width: min(560px, 40vw); height: min(520px, 46vw); }
-}
+
+/* Map: the network sits behind the whole page as a background (cards may hide part of it). */
+.map-backdrop { top: 90px; right: max(0px, calc((100vw - 1180px) / 2)); width: min(760px, 62vw); height: min(560px, 52vw); }
+
+/* Filling the quiet pages with useful things. */
+.page-section { margin-top: 40px; }
+.page-section > h2 { margin-bottom: 6px; }
+.page-section > .hint { margin-bottom: 16px; }
+.says { display: grid; gap: 0; }
+.say { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; align-items: start; padding: 16px 20px; text-decoration: none; color: inherit; }
+.say + .say { border-top: 1px solid var(--line-soft); }
+.say .cover-sheet { display: none; }
+.say-title { font-family: var(--paper); font-weight: 600; font-size: 16px; color: var(--heading); }
+.say-line { font-family: var(--paper); font-size: 16px; line-height: 1.55; color: var(--graphite); margin-top: 3px; }
+.say:hover .say-title { color: var(--ink); }
+.say-text { min-width: 0; }
+.try-ideas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.try-idea { border: 1px solid var(--line); background: var(--sheet); color: var(--graphite); border-radius: 999px; padding: 7px 14px;
+  font: 14px/1.35 var(--ui); cursor: pointer; text-align: left; max-width: 100%; transition: border-color .2s, color .2s, transform .2s; }
+.try-idea:hover { border-color: var(--ink); color: var(--ink); transform: translateY(-1px); }
+.recall-extras { margin-top: 34px; }

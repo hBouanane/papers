@@ -325,7 +325,9 @@ def resume_text(text: str, position: float) -> str:
 def list_papers(topic_id: int | None = None, archived: bool = False):
     """Papers in the library (archived ones only when asked for)."""
     cols = ("id, topic_id, title, authors, year, external_id, status, progress, position, understanding,"
-            " source_paper_id, read_slices, archived, updated_at, text")
+            " source_paper_id, read_slices, archived, updated_at, text,"
+            # one line from the key points, for overviews (goal pages, Recall)
+            " json_extract(skim, '$.tldr') as tldr, json_extract(skim, '$.key_idea') as key_idea")
     where, args = ["coalesce(archived, 0) = ?"], [int(archived)]
     if topic_id is not None:
         where.append("topic_id = ?")

@@ -192,8 +192,15 @@ export async function goalsPage(stale) {
       <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
       <div class="form-foot"><button class="button">Create goal</button></div>
     </form>
+    ${(() => {
+      const loose = papers.filter((p) => !p.topic_id);
+      return loose.length ? `<section class="page-section">
+        <h2>Not in a goal yet</h2>
+        <p class="hint">Open one and choose its goal under More, Edit details, so it joins the others it belongs with.</p>
+        <div class="shelf goal-shelf">${loose.slice(0, 10).map((p) => paperCard(p)).join("")}</div></section>` : "";
+    })()}
   </div>`;
-  drawCovers(app.querySelector(".goal-cards") || app);
+  drawCovers(app);
   app.querySelector("#goal-form").onsubmit = (e) => {
     e.preventDefault();
     busy(e.submitter, "Creating…", async () => {
@@ -216,6 +223,15 @@ export async function goalPage(id, stale) {
   const shelf = (list) => list.length ? `<div class="shelf goal-shelf">${list.map((p) => paperCard(p)).join("")}</div>`
     : `<div class="desk-empty">No papers yet. Search below, or add one.</div>`;
   const read = papers.filter((p) => p.status === "read").length;
+  // The goal at a glance: one line from each paper's key points.
+  const says = (list) => {
+    const withLine = list.filter((p) => p.tldr || p.key_idea);
+    return withLine.length ? `<section class="page-section"><h2>What these papers say</h2>
+      <p class="hint">One line from each paper's key points.</p>
+      <div class="sheet says">${withLine.map((p) => `<a class="say" href="#/papers/${p.id}">
+        <span aria-hidden="true">${cover(p, "small")}</span>
+        <span class="say-text"><span class="say-title">${esc(p.title)}</span><p class="say-line">${esc(p.tldr || p.key_idea)}</p></span></a>`).join("")}</div></section>` : "";
+  };
 
   app.innerHTML = `<div class="container page">
     <div class="page-head page-head-split">
@@ -228,6 +244,7 @@ export async function goalPage(id, stale) {
       <details class="as-list"><summary>Show as a list (archive, delete)</summary>
         <div class="sheet table" id="mine">${mine(papers)}</div></details>
     </section>
+    ${says(papers)}
     <section class="section">
       <div class="section-bar">
         <h2>Find more</h2>
@@ -237,7 +254,7 @@ export async function goalPage(id, stale) {
     </section></div>`;
 
   bindAddPaper();
-  drawCovers(app.querySelector("#shelf"));
+  drawCovers(app);
   bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
@@ -290,12 +307,29 @@ export async function recallPage() {
       <textarea id="idea" rows="3" required placeholder="Adding noise step by step, then learning to undo it"></textarea>
       <div class="form-foot"><button class="button">Search my papers</button></div>
     </form>
-    <div id="results"></div></div>`;
+    <div id="results"></div>
+    <div id="recall-extras" class="recall-extras"></div></div>`;
   const input = app.querySelector("#idea");
   api("/papers").then((papers) => {
     if (!app.querySelector(".recall-page")) return; // left the page meanwhile
     app.insertAdjacentHTML("afterbegin", recallBackdrop(papers));
     drawCovers(app.querySelector("#backdrop"));
+    // Ideas from your own papers to try, and the papers searched first (the ones you finished).
+    const ideas = papers.filter((p) => p.key_idea && p.status !== "new").slice(0, 5).map((p) => shorten(p.key_idea, 90));
+    const finished = papers.filter((p) => p.status === "read");
+    app.querySelector("#recall-extras").innerHTML = `
+      ${ideas.length ? `<section><h2>Try an idea from your papers</h2>
+        <div class="try-ideas">${ideas.map((i) => `<button type="button" class="try-idea">${esc(i)}</button>`).join("")}</div></section>` : ""}
+      ${finished.length ? `<section class="page-section"><h2>Searched first</h2>
+        <p class="hint">The papers you've finished; then everything else, your notes and the explanations you asked for.</p>
+        <div class="shelf goal-shelf">${finished.slice(0, 8).map((p) => paperCard(p)).join("")}</div></section>` : ""}`;
+    drawCovers(app.querySelector("#recall-extras"));
+    app.querySelector("#recall-extras").onclick = (e) => {
+      const idea = e.target.closest(".try-idea");
+      if (!idea) return;
+      input.value = idea.textContent;
+      app.querySelector("#recall").requestSubmit();
+    };
   }).catch(() => {});
   input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); app.querySelector("#recall").requestSubmit(); } };
   app.querySelector("#recall").onsubmit = (e) => {
