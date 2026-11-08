@@ -20,7 +20,7 @@ def test_skim_stores_result_and_marks_skimmed(client, monkeypatch):
 def test_explain_gets_full_paper(client, monkeypatch):
     seen = {}
 
-    def fake(paper, passage, question):
+    def fake(paper, passage, question, **kw):
         seen.update(title=paper["title"], passage=passage, question=question)
         return "simple words"
 

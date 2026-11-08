@@ -1,4 +1,4 @@
-import { api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl } from "./core.js";
+import { api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, paperRow, pct, statusTag, STATUS, tableHead, addPaperControl, toast } from "./core.js";
 
 const goalNames = (goals) => Object.fromEntries(goals.map((g) => [g.id, g.goal]));
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -257,6 +257,16 @@ export async function settingsPage(stale) {
   if (stale()) return;
   app.innerHTML = `<div class="container page narrow">
     <div class="page-head"><h1>Settings</h1></div>
+    <form class="sheet form" id="lang-form">
+      <h2>Your language</h2>
+      <p class="hint">If English isn't your first language, say which one is. Translate (when you select text in a paper)
+        uses it, and new vocabulary lists include a translation for each word.</p>
+      <label for="lang">First language</label>
+      <div class="lang-row"><input id="lang" value="${esc(s.language)}" placeholder="e.g. French, Arabic, Spanish" list="languages">
+        <button class="button">Save</button></div>
+      <datalist id="languages">${["Arabic", "French", "Spanish", "Portuguese", "German", "Italian", "Turkish", "Persian",
+        "Chinese", "Japanese", "Korean", "Russian", "Hindi", "Indonesian", "Vietnamese"].map((l) => `<option value="${l}">`).join("")}</datalist>
+    </form>
     <form class="sheet form" id="ai-form">
       <h2>Claude</h2>
       <p class="hint">Skimming, explanations, quizzes and recall are done by Claude. Choose how the app reaches it.</p>
@@ -294,6 +304,13 @@ export async function settingsPage(stale) {
     Vaswani et al. 2017 - Attention Is All You Need.pdf
     Vaswani et al. 2017 - Attention Is All You Need.md</pre></div>` : "";
   app.querySelector("#folder-status").innerHTML = status(s.library_dir);
+  app.querySelector("#lang-form").onsubmit = (e) => {
+    e.preventDefault();
+    busy(e.submitter, "Saving…", async () => {
+      const saved = await api("/settings", { method: "PUT", json: { language: app.querySelector("#lang").value } });
+      toast(saved.language ? `Translations will be in ${saved.language}.` : "Translations turned off.");
+    });
+  };
   const aiStatus = app.querySelector("#ai-status");
   app.querySelector("#ai-form").onchange = async (e) => {
     if (e.target.name !== "ai") return;

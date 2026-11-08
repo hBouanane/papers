@@ -197,13 +197,19 @@ class Word(BaseModel):
     kind: Literal["technical", "english"]
     meaning: str
     example: str
+    translation: str  # in the reader's language; empty when none is set
 
 
 class Glossary(BaseModel):
     words: list[Word]
 
 
-def glossary(paper: dict) -> list[dict]:
+def _translation_rule(language: str) -> str:
+    return (f" Also give each one's translation into {language} (a word or short phrase)." if language
+            else " Leave translation empty.")
+
+
+def glossary(paper: dict, language: str = "") -> list[dict]:
     prompt = (
         f"{_paper_context(paper)}\n\n"
         "The reader is a researcher whose first language is not English. List the 25 to 40 words and "
@@ -212,9 +218,20 @@ def glossary(paper: dict) -> list[dict]:
         "phrasal verbs a non-native speaker may not know, such as 'albeit', 'hence', 'on par with', 'ablation', "
         "'notwithstanding' (kind 'english'). Skip words any intermediate English speaker knows. For each, give "
         "the meaning in simple English (short sentences, everyday words), as it is used in this paper, and a "
-        "short quote from the paper where it appears."
+        "short quote from the paper where it appears." + _translation_rule(language)
     )
     return [w.model_dump() for w in _parse(prompt, Glossary).words]
+
+
+def define(paper: dict, term: str, context: str, language: str = "") -> dict:
+    """One word or phrase the reader picked, explained as this paper uses it."""
+    prompt = (
+        f"{_paper_context(paper)}\n\n<term>{term}</term>\n<sentence>{context}</sentence>\n\n"
+        "The reader's first language is not English. Explain this word or phrase as it is used here, in simple "
+        "English (short sentences, everyday words). Say whether it is a technical term or general English, and "
+        "quote the sentence it appears in." + _translation_rule(language)
+    )
+    return _parse(prompt, Word, effort="low").model_dump()
 
 
 def skim(paper: dict) -> dict:
@@ -229,7 +246,18 @@ def skim(paper: dict) -> dict:
     return _parse(prompt, Skim).model_dump()
 
 
-def explain(paper: dict, passage: str, question: str = "") -> str:
+MODES = {
+    "explain": "",
+    "simplify": ("Rewrite this passage in simple, plain English for a reader whose first language is not English: "
+                 "short sentences, common words, the same meaning. Then list up to 5 hard words from it, each with a "
+                 "short, simple meaning."),
+    "translate": ("Translate this passage into {language}, naturally and faithfully. Keep each technical term in "
+                  "English in parentheses after its translation. Then add one or two sentences in {language} on what "
+                  "it means in this paper."),
+}
+
+
+def explain(paper: dict, passage: str, question: str = "", mode: str = "explain", language: str = "") -> str:
     system = [
         {"type": "text", "text": (
             "You help a researcher understand a paper they are reading. You have the full paper. "
@@ -242,6 +270,8 @@ def explain(paper: dict, passage: str, question: str = "") -> str:
     content = f"<passage>\n{passage}\n</passage>" if passage else ""
     if question:
         content += f"\n\nMy question: {question}" if passage else question
+    if MODES.get(mode):  # after the cached paper, so every mode reuses the same cache
+        content += "\n\n" + MODES[mode].format(language=language)
     if backend() == "claude-code":
         return _claude_code(content, "\n\n".join(block["text"] for block in system))
     response = _request(
