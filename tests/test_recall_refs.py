@@ -21,7 +21,7 @@ def test_finish_indexes_and_recall_finds_paper(client, monkeypatch):
     r = client.post("/api/recall", json={"idea": "the self attention idea"}).json()
     assert seen["ids"] == [a["id"]]
     assert r == [{"paper": {"id": a["id"], "title": "Attention", "authors": "", "year": None,
-                            "status": "read"}, "reason": "talks about it"}]
+                            "status": "read", "has_pdf": False}, "reason": "talks about it"}]
 
 
 def test_recall_falls_back_to_read_papers_and_skips_unknown_ids(client, monkeypatch):
