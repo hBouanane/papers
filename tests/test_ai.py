@@ -1,6 +1,6 @@
 import pytest
 
-from app import llm
+from papers import llm
 
 SKIM = {"problem": "p", "contributions": ["c"], "method": "m", "results": ["r"],
         "limitations": ["l"], "read_closely": ["Sec 3"], "verdict": "read"}

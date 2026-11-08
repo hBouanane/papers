@@ -3,8 +3,8 @@ import io
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from app import llm, pdf
-from app.main import update_paper
+from papers import llm, pdf
+from papers.main import update_paper
 
 
 def make(client, **kw):

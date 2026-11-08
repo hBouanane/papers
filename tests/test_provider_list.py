@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app import llm
+from papers import llm
 
 
 def put(client, **body):

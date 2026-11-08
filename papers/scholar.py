@@ -1,17 +1,18 @@
 """Semantic Scholar Graph API client."""
-import os
 import re
 import time
 import xml.etree.ElementTree as ET
 
 import httpx
 
+from papers import config
+
 API = "https://api.semanticscholar.org/graph/v1"
 FIELDS = "title,authors,year,abstract,url,openAccessPdf,externalIds"
 
 
 def _get(path: str, **params) -> dict:
-    headers = {"x-api-key": key} if (key := os.environ.get("S2_API_KEY")) else {}
+    headers = {"x-api-key": key} if (key := config.semantic_scholar_key()) else {}
     for attempt in range(4):
         r = httpx.get(f"{API}{path}", params=params, headers=headers, timeout=30)
         if r.status_code != 429:

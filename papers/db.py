@@ -1,7 +1,8 @@
 import json
-import os
 import sqlite3
 from pathlib import Path
+
+from papers import config
 
 SCHEMA = """
 create table if not exists topics (
@@ -57,7 +58,7 @@ create table if not exists notes (
 
 
 def connect() -> sqlite3.Connection:
-    path = Path(os.environ.get("PAPERS_DB", "data/papers.db"))
+    path = config.db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
@@ -65,7 +66,7 @@ def connect() -> sqlite3.Connection:
 
 
 def pdf_path(paper_id: int) -> Path:
-    return Path(os.environ.get("PAPERS_DB", "data/papers.db")).parent / "pdfs" / f"{paper_id}.pdf"
+    return config.data_dir() / "pdfs" / f"{paper_id}.pdf"
 
 
 # Columns added after the first release; created on startup when missing.

@@ -4,7 +4,7 @@ import json
 import httpx
 import pytest
 
-from app import llm
+from papers import llm
 
 
 @pytest.fixture

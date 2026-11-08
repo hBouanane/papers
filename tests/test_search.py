@@ -1,5 +1,5 @@
-from app import index, llm
-from app.main import update_paper
+from papers import index, llm
+from papers.main import update_paper
 
 
 def make(client, title, authors="", text=""):
@@ -42,7 +42,7 @@ def test_unfinished_papers_are_searchable_and_recalled(client, monkeypatch):
 
 def test_backfill_indexes_existing_papers(client):
     p = make(client, "Old Paper", text="legacy content")
-    from app import db
+    from papers import db
     with db.connect() as conn:
         conn.execute("delete from papers_fts")
     index.backfill()

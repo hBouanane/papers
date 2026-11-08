@@ -1,4 +1,4 @@
-from app import llm
+from papers import llm
 
 
 def make(client):
@@ -35,7 +35,7 @@ def test_skim_mode_records_nothing_but_marks_new_papers_skimmed(client):
 
 def test_legacy_progress_kept_until_slices_catch_up(client):
     p = make(client)
-    from app.main import update_paper
+    from papers.main import update_paper
     update_paper(p["id"], progress=0.5, status="reading")
     assert put(client, p["id"], position=0.1, slices=[0])["progress"] == 0.5
 

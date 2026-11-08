@@ -6,7 +6,7 @@ The paper's `notes` column holds all of it as plain text, for search and recall.
 """
 import json
 
-from app import db
+from papers import db
 
 COLORS = ("yellow", "green", "blue", "pink")
 

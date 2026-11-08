@@ -1,4 +1,5 @@
 import io
+
 """The 'my Claude subscription' backend: the app runs the official Claude Code CLI (`claude -p`),
 which signs in with the user's own account. We never touch its credentials."""
 import json
@@ -6,7 +7,7 @@ import subprocess
 
 import pytest
 
-from app import llm
+from papers import llm
 
 pytestmark = pytest.mark.llm_plumbing
 

@@ -19,7 +19,7 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def no_real_claude(request, monkeypatch):
     """Tests fake the llm functions they need; anything that would reach Claude fails instead."""
-    from app import llm
+    from papers import llm
     if request.node.get_closest_marker("llm_plumbing"):
         return
 
@@ -36,7 +36,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PAPERS_DB", str(tmp_path / "test.db"))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)  # never call the real API from tests
     monkeypatch.setenv("PAPERS_INBOX_POLL", "0")  # tests call import_inbox() themselves
-    from app.main import app
+    from papers.main import app
 
     with TestClient(app) as c:
         yield c

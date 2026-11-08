@@ -1,9 +1,9 @@
-from app import llm
+from papers import llm
 
 
 def make(client):
     p = client.post("/api/papers", json={"title": "P"}).json()
-    from app.main import update_paper
+    from papers.main import update_paper
     update_paper(p["id"], text="Attention dispensing with recurrence.")
     return p
 

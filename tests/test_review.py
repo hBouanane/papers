@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app import llm
+from papers import llm
 
 QUIZ = [{"question": "Q1", "answer": "A1"}, {"question": "Q2", "answer": "A2"}]
 day = lambda n: (date.today() + timedelta(days=n)).isoformat()

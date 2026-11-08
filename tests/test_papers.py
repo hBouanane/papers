@@ -2,7 +2,7 @@ import io
 
 from pypdf import PdfWriter
 
-from app import llm, pdf, scholar
+from papers import llm, pdf, scholar
 
 
 def s2(pid, title):
@@ -157,7 +157,7 @@ def test_reflow_joins_wrapped_lines_keeps_paragraphs():
 
 
 def test_list_carries_each_papers_summary_line(client):
-    from app.main import update_paper
+    from papers.main import update_paper
     p = client.post("/api/papers", json={"title": "P"}).json()
     update_paper(p["id"], skim='{"tldr": "It adds noise, then learns to undo it.", "key_idea": "Denoising as generation.", "verdict": "v"}')
     listed = next(x for x in client.get("/api/papers").json() if x["id"] == p["id"])

@@ -1,4 +1,4 @@
-from app import llm, pdf, scholar
+from papers import llm, pdf, scholar
 from tests.test_papers import blank_pdf
 
 WORDS = [
@@ -16,7 +16,7 @@ def test_vocabulary_is_generated_once_and_kept(client, monkeypatch):
     calls = []
     monkeypatch.setattr(llm, "glossary", lambda paper, **kw: calls.append(1) or WORDS)
     p = make(client)
-    from app.main import update_paper
+    from papers.main import update_paper
     update_paper(p["id"], text="An attention function ... albeit at the cost of reduced resolution")
     assert client.post(f"/api/papers/{p['id']}/glossary").json() == WORDS
     assert client.get(f"/api/papers/{p['id']}").json()["glossary"] == WORDS
@@ -34,7 +34,7 @@ def test_vocabulary_goes_into_the_notes_file(client, tmp_path, monkeypatch):
     root = tmp_path / "Papers"
     client.put("/api/settings", json={"library_dir": str(root)})
     p = make(client, title="Words")
-    from app.main import update_paper
+    from papers.main import update_paper
     update_paper(p["id"], text="body")
     client.post(f"/api/papers/{p['id']}/glossary")
     md = (root / "Unsorted" / "Words.md").read_text(encoding="utf-8")
@@ -47,7 +47,7 @@ def test_fetch_original_pdf_for_older_papers(client, monkeypatch):
     monkeypatch.setattr(pdf, "extract_text", lambda data: "text from pdf")
     # created without any PDF source, then given an arXiv id (as older papers were)
     p = make(client, title="Old")
-    from app.main import update_paper
+    from papers.main import update_paper
     update_paper(p["id"], external_id="arXiv:1706.03762", text="old text")
     assert client.get(f"/api/papers/{p['id']}").json()["can_fetch_pdf"] is True
     r = client.post(f"/api/papers/{p['id']}/fetch-pdf").json()
@@ -57,7 +57,7 @@ def test_fetch_original_pdf_for_older_papers(client, monkeypatch):
 
 
 def test_pdf_source_order():
-    from app.main import pdf_source
+    from papers.main import pdf_source
     assert pdf_source({"pdf_url": "https://x/a.pdf", "external_id": "arXiv:1", "url": ""}) == "https://x/a.pdf"
     assert pdf_source({"pdf_url": "", "external_id": "", "url": "http://arxiv.org/abs/2006.11239v2"}) == "https://arxiv.org/pdf/2006.11239v2"
     assert pdf_source({"pdf_url": "", "external_id": "abc", "url": "https://semanticscholar.org/p"}) is None

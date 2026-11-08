@@ -1,4 +1,4 @@
-from app import index, llm, scholar
+from papers import index, llm, scholar
 
 
 def make_paper(client, **kw):

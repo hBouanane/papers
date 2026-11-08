@@ -1,7 +1,7 @@
 """Choosing the library folder: the system dialog when there is one, else listing folders in the app."""
 import subprocess
 
-from app import folders
+from papers import folders
 
 
 def test_listing_shows_folders_and_parent(client, tmp_path):

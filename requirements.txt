@@ -1,8 +1,2 @@
-fastapi
-uvicorn
-httpx
-pypdf
-anthropic
-python-multipart
-pytest
-pdfplumber
+# Development install: the app plus test tools. Users install with `pipx install papers-app` or `uvx papers-app`.
+-e .[dev]
