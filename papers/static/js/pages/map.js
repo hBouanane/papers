@@ -11,9 +11,12 @@ import { paperCard, plural, shorten } from "./shared.js";
 const FROM = [80, 80];
 const RAYS = [[-12, 78], [0, 44], [26, 22], [16, 64], [48, 40], [-6, 16]];
 
+// Each line fades out along its length: strongest where it leaves the paper, gone at its end.
 const curve = ([x, y], i) => {
   const c1 = [FROM[0] - 18, FROM[1] + (y - FROM[1]) * 0.15], c2 = [x + (FROM[0] - x) * 0.35, y];
-  return `<path d="M${FROM[0]} ${FROM[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" style="--i:${i}"/>`;
+  return `<linearGradient id="ray-${i}" gradientUnits="userSpaceOnUse" x1="${FROM[0]}" y1="${FROM[1]}" x2="${x}" y2="${y}">
+      <stop offset="0" class="ray-stop"/><stop offset=".55" class="ray-stop" stop-opacity=".55"/><stop offset="1" class="ray-stop" stop-opacity="0"/></linearGradient>
+    <path d="M${FROM[0]} ${FROM[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x} ${y}" stroke="url(#ray-${i})" style="--i:${i}"/>`;
 };
 
 function mapBackdrop(papers, children, trees) {
