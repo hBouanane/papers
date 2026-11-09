@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from papers import ai, config, db, folders, library, llm
+from papers import ai, config, db, folders, keys, library, llm
 from papers.ai import providers
 
 router = APIRouter(prefix="/api", tags=["settings"])
@@ -38,7 +38,10 @@ def settings() -> dict:
             "ai_vision": db.setting("ai_vision") == "on", "ai_pages": db.setting("ai_pages") == "on",
             "ai_name": providers.ai_name(), "providers": providers.PROVIDERS,
             "language": db.setting("language"), "name": db.setting("name"),
-            "api_key_set": config.anthropic_key_in_env()}
+            "api_key_set": config.anthropic_key_in_env(),
+            # which providers have a key saved ("…a1b2"), and where keys are kept, so you never paste one twice
+            "keys_saved": {p["id"]: h for p in providers.PROVIDERS if p["key"] and (h := keys.hint(f"ai_key:{p['id']}"))},
+            "keys_where": keys.where()}
 
 
 @router.get("/settings")
@@ -63,7 +66,9 @@ def save_settings(body: SettingsIn):
         db.set_setting("ai_pages", "on" if body.ai_pages else "off")
     # Key, model and address belong to the provider that is chosen now.
     current = providers.provider()
-    for field, key in (("ai_api_key", "ai_key"), ("ai_model", "ai_model"), ("ai_base_url", "ai_base_url")):
+    if body.ai_api_key is not None:  # into the system keychain; an empty key forgets it
+        keys.put(f"ai_key:{current}", body.ai_api_key)
+    for field, key in (("ai_model", "ai_model"), ("ai_base_url", "ai_base_url")):
         if (value := getattr(body, field)) is not None:
             db.set_setting(f"{key}:{current}", value.strip())
     if body.language is not None:

@@ -84,8 +84,9 @@ def pdf_path(paper_id: int) -> Path:
 # Columns added after the first release; created on startup when missing.
 NEW_COLUMNS = {"refs": "text", "read_slices": "text", "mirror_path": "text", "archived": "integer default 0",
                "review_step": "integer default 0", "review_due": "text",
-               "notes": "text default ''", "notes_mirror": "text", "glossary": "text"}
-JSON_FIELDS = ("skim", "quiz", "refs", "glossary")
+               "notes": "text default ''", "notes_mirror": "text", "glossary": "text",
+               "made_by": "text"}  # made_by: which model wrote the key points, words and questions ({skim: {model, provider}, ...})
+JSON_FIELDS = ("skim", "quiz", "refs", "glossary", "made_by")
 
 
 EXPLANATION_COLUMNS = {"mode": "text default 'explain'"}

@@ -60,7 +60,9 @@ Settings > AI model has one list of providers; each is set up the same way (key 
 - **Other**: any OpenAI-compatible server (vLLM, llama.cpp, a company gateway), by its address.
 
 Small local models can't read a whole paper; *More options* can send just its beginning.
-Keys are stored only in your local database and never sent back to the page.
+Keys are kept in your system's keychain (Windows Credential Manager, macOS Keychain, or the Secret Service on Linux),
+so you paste each one once; Settings shows which provider has a key saved (its last four characters) and can forget
+it. Where there's no keychain (Docker, servers) they stay in the app's database. Keys are never sent back to the page.
 
 With a subscription the app runs the official CLI on your computer (`claude -p` or `codex exec`, with no
 tools), which signs in with your own account; usage counts toward your plan. The app never reads or stores

@@ -8,7 +8,9 @@ def own_database(tmp_path, monkeypatch):
     """Every test gets an empty database of its own, never the real library (even tests without `client`)."""
     monkeypatch.delenv("PAPERS_DATA", raising=False)
     monkeypatch.setenv("PAPERS_DB", str(tmp_path / "test.db"))
-    from papers import db
+    monkeypatch.setenv("PAPERS_KEYRING", "off")  # tests never touch the real system keychain
+    from papers import db, keys
+    monkeypatch.setattr(keys, "_backend", None)
     db.init()
 
 

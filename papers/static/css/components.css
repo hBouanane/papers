@@ -280,3 +280,6 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
    swings out behind it), it goes under the title instead of covering it. Every card that has a paper next to its
    text is listed here. */
 .paper-header-text, .continue-text, .match-text, .goal-card-text, .say-text, .row-main, .row-progress { position: relative; z-index: 2; }
+
+/* "Show 50 more" at the end of a long list */
+.show-more { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px; }

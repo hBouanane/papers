@@ -86,3 +86,15 @@ def references_section(text: str) -> str:
     heads = list(re.finditer(r"(?m)^(references|bibliography)\s*$", text, re.IGNORECASE))
     section = text[heads[-1].start():] if heads else text[-15000:]
     return section[:40000]
+
+
+def ai_wrote(paper_id: int, *fields: str) -> None:
+    """Remember which model wrote these parts of the paper (skim, glossary, quiz), for the paper page's note."""
+    import json
+
+    from papers.ai import providers
+    with db.connect() as conn:
+        row = conn.execute("select made_by from papers where id = ?", (paper_id,)).fetchone()
+        made = json.loads(row["made_by"]) if row and row["made_by"] else {}
+        made.update({f: providers.describe() for f in fields})
+        conn.execute("update papers set made_by = ? where id = ?", (json.dumps(made), paper_id))

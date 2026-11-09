@@ -67,12 +67,12 @@ export async function settingsPage(stale) {
       <p class="hint">Key points, explanations, vocabulary, questions and recall are written by an AI model. Use any provider.</p>
       <label for="ai-provider">Provider</label>
       <select id="ai-provider">${AI_GROUPS.map(([group, label]) => `<optgroup label="${label}">${s.providers.filter((p) => p.group === group)
-        .map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+        .map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}${s.keys_saved?.[p.id] ? " · key saved" : ""}</option>`).join("")}</optgroup>`).join("")}</select>
       <p class="hint" id="ai-about"></p>
       <div class="ai-field" id="ai-key-field">
         <label for="ai-key">API key</label>
         <input id="ai-key" type="password" autocomplete="off">
-        <p class="hint">Kept on this computer only.</p>
+        <p class="hint" id="ai-key-where"></p>
       </div>
       <label for="ai-model">Model</label>
       <div class="model-row"><input id="ai-model" list="ai-models" value="${esc(s.ai_model)}">
@@ -147,7 +147,16 @@ export async function settingsPage(stale) {
     q("#ai-about").innerHTML = aboutProvider(p, ai);
     q("#ai-key-field").hidden = !p.key;
     q("#ai-key").value = "";
-    q("#ai-key").placeholder = ai.ai_key_set ? "A key is saved. Type to replace it." : "Paste your key";
+    const saved = ai.keys_saved?.[p.id];
+    q("#ai-key").placeholder = saved ? `Key ${saved === "saved" ? "" : `ending in ${saved.slice(1)} `}saved. Type to replace it.` : "Paste your key";
+    q("#ai-key-where").innerHTML = saved
+      ? `Kept in ${esc(ai.keys_where)}, so you don't need to paste it again. <button type="button" class="link-button" id="ai-key-forget">Forget this key</button>`
+      : `Kept in ${esc(ai.keys_where || "this computer")}, never sent anywhere but ${esc(p.name.split(" (")[0])}.`;
+    q("#ai-key-forget")?.addEventListener("click", async () => {
+      ai = await api("/settings", { method: "PUT", json: { ai_api_key: "" } });
+      showProvider();
+      say("Key forgotten.");
+    });
     q("#ai-model").value = ai.ai_model;
     q("#ai-model").placeholder = subscription ? "Leave empty for the default model" : "Pick from the list or type its name";
     q("#list-models").hidden = subscription;

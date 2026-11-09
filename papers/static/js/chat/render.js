@@ -42,6 +42,16 @@ const CITE = /\[([^\[\]<>]{1,80})\]/g;
 const citeKind = (ref) => (ref.startsWith("§") ? "section" : /^(Fig|Figure)/.test(ref) ? "figure" : ref.startsWith("Table") ? "table"
   : ref.startsWith("Eq") ? "equation" : "page");
 
+// Right-to-left writing (Arabic, Persian, Urdu, Hebrew): an answer mostly in it is laid out right to left. Formulas,
+// code and citations stay left to right inside it (chat.css), and each paragraph also takes its own direction.
+const RTL_CHARS = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/g;
+export function isRightToLeft(text) {
+  const words = String(text).replace(/```[\s\S]*?(```|$)/g, "").replace(/\$\$[\s\S]*?\$\$|\$[^$\n]*\$/g, "").replace(/\[[^\]]*\]/g, "");
+  const rtl = (words.match(RTL_CHARS) || []).length;
+  const latin = (words.match(/[A-Za-z]/g) || []).length;
+  return rtl > 0 && rtl >= latin;
+}
+
 export function renderAnswer(text, { streaming = false } = {}) {
   const visuals = [];
   const maths = [];
@@ -74,7 +84,7 @@ export function renderAnswer(text, { streaming = false } = {}) {
       <div class="visual-stage"></div>
       <button type="button" class="visual-open link-button" title="Open it large">Open large</button></figure>`;
   });
-  return html;
+  return isRightToLeft(text) ? `<div class="answer-rtl" dir="rtl">${html}</div>` : html;
 }
 
 // A visual's JSON, read leniently: models sometimes leave text after the closing brace, or write LaTeX with single

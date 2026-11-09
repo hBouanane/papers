@@ -1,5 +1,5 @@
 // The Library (home): greeting, what you're reading, recent papers as a shelf, and the list of all papers.
-import { addPaperControl, api, app, bindAddPaper, bindRows, cite, empty, esc, loading, paperRow, pct, progressBar, STATUS, tableHead } from "../core.js";
+import { addPaperControl, api, app, bindAddPaper, bindRows, cite, empty, esc, loading, moreButton, PAGE, paperRow, pct, progressBar, STATUS, tableHead } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { goalNames, greeting, paperCard, plural, shorten } from "./shared.js";
 
@@ -100,22 +100,26 @@ export async function libraryPage(stale) {
   // Archiving or deleting from the list refreshes the counts.
   bindRows(rows, () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   let filter = "all";
+  let limit = PAGE; // rows shown; "Show more" adds a page, a new filter or search starts again
   let hits = null; // search results, or null when the search box is empty
   let archived = []; // loaded when the Archived filter is opened
   // Switching filters or searching never makes the list shorter than it has been on this visit, so the
   // page doesn't shrink and jump up under your pointer (an empty filter just leaves room below).
-  const show = () => {
+  const show = (more = false) => {
+    limit = more ? limit + PAGE : PAGE;
     rows.style.minHeight = `${Math.max(rows.offsetHeight, parseFloat(rows.style.minHeight) || 0)}px`;
     const pool = hits ?? (filter === "archived" ? archived : papers).map((paper) => ({ paper, snippet: "" }));
     const list = pool.filter(({ paper }) => filter === "all" || paper.status === filter
       || (filter === "archived" && paper.archived));
-    rows.innerHTML = list.map(({ paper, snippet }) => paperRow(paper, names, snippet)).join("")
+    rows.innerHTML = (list.slice(0, limit).map(({ paper, snippet }) => paperRow(paper, names, snippet)).join("")
+      + moreButton(list.length - limit))
       || `<p class="faint pad">${hits ? "No papers match that search."
         : filter === "archived" ? "Nothing archived. Archive papers that turn out not to be relevant from their More menu."
         : "No papers with this status."}</p>`;
     drawCovers(rows);
   };
   show();
+  rows.addEventListener("click", (e) => { if (e.target.closest("[data-more]")) show(true); });
   app.querySelector("#all-reading")?.addEventListener("click", () => {
     app.querySelector('[data-filter="reading"]').click();
     app.querySelector("#rows").scrollIntoView({ behavior: "smooth", block: "start" });
