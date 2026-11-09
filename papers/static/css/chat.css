@@ -199,3 +199,32 @@ body:not(.notes-open) .chat-canvas { right: 16px; }
 .action-label { flex: 1; }
 .ai-mark { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; font: 800 10px/16px var(--ui); letter-spacing: .04em;
   color: var(--ink); background: var(--ink-tint); vertical-align: middle; }
+
+/* ---------- Interactive widgets (chat/widgets.js) and pages ---------- */
+.widget { display: grid; gap: 8px; }
+.widget-title { margin: 0; font: 800 14px var(--ui); color: var(--heading); }
+.widget-caption { margin: 0; font-size: 13px; color: var(--pencil); }
+.widget-body { display: grid; gap: 10px; }
+.widget-plot { width: 100%; height: auto; }
+.widget-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--graphite); }
+.widget-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.widget-sliders { display: grid; gap: 6px; }
+.widget-slider { display: grid; grid-template-columns: minmax(90px, auto) 1fr 52px; align-items: center; gap: 10px; font-size: 13px; }
+.widget-slider input { width: 100%; padding: 0; accent-color: var(--ink); }
+.widget-slider output { font-variant-numeric: tabular-nums; text-align: right; color: var(--graphite); font-weight: 700; }
+.widget-param { color: var(--pencil); }
+.widget-circles { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.widget-circle { margin: 0; display: grid; justify-items: center; gap: 2px; }
+.widget-circle svg { width: 100%; max-width: 120px; }
+.widget-circle figcaption { font-size: 12px; text-align: center; color: var(--graphite); font-weight: 700; }
+.widget-readout { display: block; font-weight: 400; color: var(--pencil); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.widget-heat canvas { width: 100%; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 4px; border: 1px solid var(--line); }
+.widget-heat-axes { display: flex; justify-content: space-between; font-size: 12px; color: var(--pencil); }
+.widget-heat .widget-readout { font-size: 12.5px; margin: 0; }
+.widget-steps { display: grid; gap: 6px; }
+.widget-steps h4 { margin: 0; font: 800 15px var(--ui); color: var(--heading); }
+.widget-step-count { margin: 0; font-size: 12px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: .04em; }
+.widget-step-nav { display: flex; gap: 8px; justify-content: flex-end; }
+.visual-page { width: 100%; height: 320px; border: 0; border-radius: 8px; background: var(--sheet); }
+.canvas-stage .widget, .canvas-stage .visual-page { width: min(860px, 100%); }
+.canvas-stage .visual-page { height: 70vh; }

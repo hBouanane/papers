@@ -63,7 +63,7 @@ class Step:
 
 def _system(paper: dict, figures: list[dict]) -> list[dict]:
     return [
-        {"type": "text", "text": llm.TUTOR + "\n\n" + AGENT},
+        {"type": "text", "text": llm.tutor() + "\n\n" + AGENT},
         {"type": "text", "text": llm._paper_context(paper) + "\n\n" + llm._figures_list(figures), "cache_control": {"type": "ephemeral"}},
     ]
 

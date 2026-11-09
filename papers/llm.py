@@ -238,10 +238,36 @@ flowchart LR
 ```figure
 {"figure": 1, "boxes": [{"x": 0.05, "y": 0.7, "w": 0.4, "h": 0.12, "label": "where position is added"}]}
 ```
+- Something the reader should play with to understand it (how a value changes with a parameter, a rotation, a grid of
+  values, a calculation done step by step): an interactive widget. Expressions use math.js syntax (sin, cos, exp, log,
+  sqrt, pi, ^). One of:
+```widget
+{"type": "plot", "title": "...", "x": {"from": 0, "to": 50, "label": "position"},
+ "params": [{"name": "i", "from": 0, "to": 8, "step": 1, "value": 0, "label": "dimension pair i"}],
+ "lines": [{"expr": "sin(x / 10000^(2*i/16))", "label": "sin"}, {"expr": "cos(x / 10000^(2*i/16))", "label": "cos"}]}
+```
+```widget
+{"type": "circles", "title": "...", "params": [{"name": "pos", "from": 0, "to": 50, "step": 1, "value": 0, "label": "position"}],
+ "circles": [{"label": "pair 0", "angle": "pos"}, {"label": "pair 1", "angle": "pos / 10"}, {"label": "pair 2", "angle": "pos / 100"}]}
+```
+  ("heatmap": {"rows": {"name": "pos", "from": 0, "to": 50}, "cols": {"name": "j", "from": 0, "to": 31}, "expr": "...",
+  "params": [...]}; "steps": {"steps": [{"title": "...", "text": "Markdown"}]}.) Use a widget at most once per answer,
+  when it really helps.
 Only cite or show figures and tables listed in <figures> below. Write visual blocks directly in the Markdown, never
 inside HTML tags.
 
 This is a conversation: build on what you already said; don't repeat it."""
+
+PAGES = r"""Interactive pages: when no widget fits and the idea truly needs a custom interactive demonstration, you may write
+one small self-contained page as a ```page block: HTML with inline <style> and <script> (vanilla JavaScript, or
+libraries only from https://cdn.jsdelivr.net). It runs in a sealed frame with no network: no fetch, no forms, no
+external images. Keep it under 150 lines, readable on a narrow panel, and use the CSS variables --ink, --text,
+--muted, --line and --bg for colours. Prefer a widget whenever one fits."""
+
+
+def tutor() -> str:
+    """The tutor's rules, with interactive pages when the reader turned them on in Settings."""
+    return TUTOR + ("\n\n" + PAGES if ai.setting("ai_pages") == "on" else "")
 
 TASKS = {
     "explain": """Explain this passage the way a patient expert teacher would, as deeply as it needs: a short, simple
@@ -321,7 +347,7 @@ def conversation_stream(paper: dict, turns: list[dict], language: str = "", figu
     while turns and turns[0]["role"] != "user":
         turns = turns[1:]
     system = [
-        {"type": "text", "text": TUTOR},
+        {"type": "text", "text": tutor()},
         {"type": "text", "text": _paper_context(paper) + "\n\n" + _figures_list(figures or []),
          "cache_control": {"type": "ephemeral"}},
     ]

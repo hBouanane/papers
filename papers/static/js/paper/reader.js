@@ -31,7 +31,7 @@ export async function readerPage(id, stale) {
     if (stale()) return;
   }
   if (!p.text && !p.has_pdf) { location.replace(`#/papers/${id}`); return; }
-  const { language } = await api("/settings").catch(() => ({ language: "" }));
+  const { language, ai_pages: allowPages } = await api("/settings").catch(() => ({ language: "" }));
   if (stale()) return;
   document.body.classList.add("reading");
   app.innerHTML = readerHtml(p, id, language);
@@ -56,7 +56,7 @@ export async function readerPage(id, stale) {
       if (fresh) { p.glossary = fresh.glossary; panel.renderWords(); vocab.refresh(); }
     }
   };
-  const panel = setupPanel(r, { notes, cite: citeHandler(r, views), onLibraryChanged: (kind) => libraryChanged(kind) });
+  const panel = setupPanel(r, { notes, cite: citeHandler(r, views), allowPages, onLibraryChanged: (kind) => libraryChanged(kind) });
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
     here: () => ({ position: r.positionNow(), page: r.pdf ? r.pdf.page : null }),
     jump: (note) => views.jumpToNote(note),

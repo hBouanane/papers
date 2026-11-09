@@ -22,9 +22,9 @@ if (katex && !document.querySelector("link[data-katex]")) {
 }
 const marked = Marked ? new Marked({ gfm: true, breaks: false }) : null;
 
-export const VISUALS = ["chart", "diagram", "math", "figure", "widget"];
+export const VISUALS = ["chart", "diagram", "math", "figure", "widget", "page"];
 const FENCE = new RegExp("```(" + VISUALS.join("|") + "|followups)[^\\n]*\\n([\\s\\S]*?)(```|$)", "g");
-const KIND = { chart: "Chart", diagram: "Diagram", math: "Formula", figure: "Figure", widget: "Interactive" };
+const KIND = { chart: "Chart", diagram: "Diagram", math: "Formula", figure: "Figure", widget: "Interactive", page: "Interactive page" };
 
 // Formulas: KaTeX, with \htmlClass{t1}{...} allowed so a formula's parts can be coloured to match their meanings.
 const tex = (src, display) => {
@@ -161,6 +161,39 @@ async function drawFigure(stage, spec, ctx) {
       <span class="faint">${esc(fig.caption)} · page ${fig.page}</span></figcaption>`;
 }
 
+// A page the model wrote (```page, only when Settings allows it): run in a sealed frame. The frame can't reach the
+// app, your files or the network (no same-origin, a Content-Security-Policy with no connections); scripts may load
+// only from the jsdelivr CDN. Otherwise the code is shown, not run.
+const PAGE_POLICY = "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; "
+  + "img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'";
+
+function drawPage(stage, html, ctx) {
+  if (!ctx.allowPages) {
+    stage.innerHTML = `<details class="visual-failed"><summary>An interactive page the AI wrote. Turn on "Interactive pages" in
+      Settings to run it (in a sealed frame).</summary><pre>${esc(html.slice(0, 4000))}</pre></details>`;
+    return;
+  }
+  const theme = `<style>:root{color-scheme:${dark() ? "dark" : "light"};--ink:${css("--ink")};--text:${css("--graphite")};--muted:${css("--pencil")};
+    --line:${css("--line")};--bg:${css("--sheet")}}body{margin:0;padding:12px;font:15px/1.5 system-ui,sans-serif;color:var(--text);background:var(--bg)}</style>`;
+  const doc = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${PAGE_POLICY}">${theme}</head>
+    <body>${html}<script>{const s=()=>parent.postMessage({paperPageHeight:document.documentElement.scrollHeight},"*");
+      addEventListener("load",s);new ResizeObserver(s).observe(document.body)}<\/script></body></html>`;
+  const frame = document.createElement("iframe");
+  frame.className = "visual-page";
+  frame.setAttribute("sandbox", "allow-scripts");
+  frame.setAttribute("referrerpolicy", "no-referrer");
+  frame.title = "Interactive page";
+  frame.srcdoc = doc;
+  stage.innerHTML = "";
+  stage.append(frame);
+  const resize = (e) => {
+    if (e.source === frame.contentWindow && Number.isFinite(e.data?.paperPageHeight)) {
+      frame.style.height = `${Math.min(Math.max(e.data.paperPageHeight, 120), 900)}px`;
+    }
+  };
+  addEventListener("message", resize);
+}
+
 const DRAW = { diagram: drawDiagram, chart: drawChart, math: drawMath, figure: drawFigure };
 
 export async function drawVisuals(root, ctx = {}) {
@@ -177,8 +210,9 @@ export async function drawOne(stage, kind, spec, ctx = {}) {
   try {
     if (kind === "widget") {
       const { drawWidget } = await import("./widgets.js");
-      await drawWidget(stage, looseJSON(spec), ctx);
-    } else await DRAW[kind](stage, spec, ctx);
+      await drawWidget(stage, looseJSON(spec), { ...ctx, render: renderAnswer });
+    } else if (kind === "page") drawPage(stage, spec, ctx);
+    else await DRAW[kind](stage, spec, ctx);
   } catch (e) {
     stage.innerHTML = `<details class="visual-failed"><summary>This ${KIND[kind]?.toLowerCase() || "visual"} couldn't be drawn.</summary>
       <p class="faint">${esc(e.message || String(e))}</p><pre>${esc(String(spec).slice(0, 2000))}</pre></details>`;

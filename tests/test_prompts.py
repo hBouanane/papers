@@ -51,3 +51,11 @@ def test_the_papers_figures_are_listed_for_the_model(monkeypatch):
     seen = ask(monkeypatch, [{"role": "user", "kind": "ask", "content": "Q", "attachments": []}],
                figures=[{"kind": "figure", "number": 1, "page": 3, "caption": "Figure 1: The Transformer"}])
     assert "<figures>\nFigure 1 (page 3): Figure 1: The Transformer\n</figures>" in seen["system"][1]["text"]
+
+
+def test_widgets_are_always_offered_and_pages_only_when_turned_on(client, monkeypatch):
+    turns = [{"role": "user", "kind": "ask", "content": "Q", "attachments": []}]
+    tutor = ask(monkeypatch, turns)["system"][0]["text"]
+    assert "```widget" in tutor and "```page" not in tutor
+    assert client.put("/api/settings", json={"ai_pages": True}).json()["ai_pages"] is True
+    assert "```page" in ask(monkeypatch, turns)["system"][0]["text"]

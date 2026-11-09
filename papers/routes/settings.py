@@ -20,6 +20,7 @@ class SettingsIn(BaseModel):
     ai_model: str | None = None
     ai_context: Literal["full", "32k", "8k"] | None = None
     ai_vision: bool | None = None  # OpenAI-compatible models: send them the figures they look at (Deep mode)
+    ai_pages: bool | None = None  # let the AI write interactive pages (run in a sealed frame)
     language: str | None = None  # the reader's first language, for translations
     name: str | None = None  # what the Library greets you with; empty means just "Good morning"
 
@@ -34,7 +35,7 @@ def settings() -> dict:
             "claude_binary": providers.claude_binary() or "", "codex_binary": providers.codex_binary() or "",
             "ai_provider": cfg["provider"], "ai_base_url": cfg["base_url"], "ai_model": cfg["model"],
             "ai_key_set": bool(cfg["api_key"]), "ai_context": db.setting("ai_context") or "full",
-            "ai_vision": db.setting("ai_vision") == "on",
+            "ai_vision": db.setting("ai_vision") == "on", "ai_pages": db.setting("ai_pages") == "on",
             "ai_name": providers.ai_name(), "providers": providers.PROVIDERS,
             "language": db.setting("language"), "name": db.setting("name"),
             "api_key_set": config.anthropic_key_in_env()}
@@ -58,6 +59,8 @@ def save_settings(body: SettingsIn):
         db.set_setting("ai_context", body.ai_context)
     if body.ai_vision is not None:
         db.set_setting("ai_vision", "on" if body.ai_vision else "off")
+    if body.ai_pages is not None:
+        db.set_setting("ai_pages", "on" if body.ai_pages else "off")
     # Key, model and address belong to the provider that is chosen now.
     current = providers.provider()
     for field, key in (("ai_api_key", "ai_key"), ("ai_model", "ai_model"), ("ai_base_url", "ai_base_url")):
