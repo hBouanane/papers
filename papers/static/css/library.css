@@ -34,8 +34,7 @@
 
 /* Continue reading: the paper you opened last. Hovering anywhere on the card counts as hovering the paper. */
 .continue { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 28px; padding: 24px; align-items: start; }
-.continue-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-self: stretch;
-  position: relative; z-index: 2; } /* above the paper when it tilts out on hover */
+.continue-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-self: stretch; }
 .continue-title { font-size: 26px; line-height: 1.2; color: var(--heading); text-decoration: none; margin-top: 2px;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .continue-title:hover { color: var(--ink); }

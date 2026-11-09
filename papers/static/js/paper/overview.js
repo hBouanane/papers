@@ -79,18 +79,23 @@ export async function paperPage(id, stale, tab = "overview") {
 
   drawCovers(app.querySelector("#header"));
   const panel = app.querySelector("#panel");
+  // Each time a tab opens it gets a fresh box in the panel. Switching tabs removes the old box, so something that
+  // was still loading for it (figures being cut out, references) finds it gone and doesn't land in the new tab.
   const showTab = (key) => {
     tab = key;
     app.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === key));
-    if (key === "overview") renderOverview(panel, p, settings, regenerate);
-    else if (key === "figures") renderFigures(panel, p);
+    const box = document.createElement("div");
+    box.className = "tab-body";
+    panel.replaceChildren(box);
+    if (key === "overview") renderOverview(box, p, settings, regenerate);
+    else if (key === "figures") renderFigures(box, p);
     else if (key === "words") {
-      if (!p.glossary && p.preparing) panel.innerHTML = preparingNote("the hard words");
-      else renderVocab(panel, p);
+      if (!p.glossary && p.preparing) box.innerHTML = preparingNote("the hard words");
+      else renderVocab(box, p);
     } else if (key === "notes") {
-      panel.innerHTML = `<h2>Notes and highlights</h2><div id="overview-notes"></div>`;
+      box.innerHTML = `<h2>Notes and highlights</h2><div id="overview-notes"></div>`;
       const store = noteStore(id);
-      bindNotesList(panel.querySelector("#overview-notes"), store, {
+      bindNotesList(box.querySelector("#overview-notes"), store, {
         here: () => ({ position: p.position || 0 }),
         jump: (note) => {
           try { sessionStorage.setItem(`papers.jump.${id}`, note.id); } catch { /* opens at the last place instead */ }
@@ -98,7 +103,7 @@ export async function paperPage(id, stale, tab = "overview") {
         },
       });
       store.load().catch((e) => toast(e.message));
-    } else loadRefs(panel, p);
+    } else loadRefs(box, p);
   };
   app.querySelector(".tabs").onclick = (e) => {
     const b = e.target.closest("[data-tab]");
@@ -263,7 +268,8 @@ async function loadRefs(box, p) {
   box.innerHTML = p.refs ? "" : (p.preparing ? preparingNote("its references") : loading("Loading references"));
   let refs;
   try { refs = await api(`/papers/${p.id}/references`); }
-  catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
+  catch (e) { if (box.isConnected) box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
+  if (!box.isConnected) return; // you went to another tab meanwhile
   box.innerHTML = refs.length ? `<p class="hint">Pick one to read next; the map remembers which paper led you where.</p>
     <div class="list">${refs.map((r, i) => `<div class="ref">
       <span><span class="ref-title">${esc(r.title)}</span><span class="result-cite">${cite(r)}</span></span>
