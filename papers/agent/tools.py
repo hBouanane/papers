@@ -1,0 +1,232 @@
+"""The tools the agent can use while it answers (Deep mode). Each is a plain function on the paper being read:
+read tools look things up precisely, and (later) act tools add notes, words and highlights.
+
+Every tool has a short label shown to the reader while it runs ("Reading §3.5"), a JSON schema for the model, and
+returns a Result: text for the model, an optional image (a figure it can look at), and a one-line summary for the
+steps list.
+"""
+import base64
+import re
+from dataclasses import dataclass, field
+
+from papers import db, figures, index
+from papers import notes as notes_db
+from papers.store import get_paper
+
+
+@dataclass
+class Result:
+    text: str
+    summary: str = ""
+    image: bytes | None = None  # PNG
+    data: dict = field(default_factory=dict)  # for act tools: what was done (for Undo)
+
+    def image_b64(self) -> str:
+        return base64.b64encode(self.image).decode() if self.image else ""
+
+
+# ---------- Finding things in the paper's text ----------
+NUMBERED = re.compile(r"(?:^|\s)(\d{1,2}(?:\.\d{1,2}){0,3})\s+(?=[A-Z])")
+SMALL = {"and", "of", "the", "for", "with", "to", "in", "on", "a", "an", "by", "via", "vs", "from", "as", "at", "or"}
+NOT_HEADINGS = ("Figure", "Table", "Fig", "Eq", "Equation", "Algorithm", "Published", "Under", "Preprint", "Proceedings", "arXiv")
+OPENERS = {"We", "In", "Here", "This", "The", "Our", "It", "As", "For", "These", "That", "To", "On", "A", "An", "If", "When",
+           "Available", "Note", "See", "Then", "Thus", "However", "Since", "From", "With", "At", "By", "Each", "All"}
+SMALL_CAPS = re.compile(r"\b([A-Z]) ([A-Z]{2,})\b")  # "I NTRODUCTION": small capitals split by the PDF's text
+
+
+def _title(after: str) -> str:
+    """A heading's title from the text after its number: words until the next sentence starts ("Encoder and Decoder
+    Stacks | The encoder is composed of...", "Embeddings and Softmax | Similarly to the...")."""
+    words = SMALL_CAPS.sub(r"\1\2", after).split()[:14]
+    lower = lambda w: w[:1].islower()  # noqa: E731
+    title = []
+    for i, w in enumerate(words):
+        nxt = words[i + 1] if i + 1 < len(words) else ""
+        then = words[i + 2] if i + 2 < len(words) else ""
+        if w[:1].isdigit():
+            break  # the next heading's number
+        if lower(w) and w.lower() not in SMALL:
+            break
+        # a capitalised word that starts a sentence: "The encoder", "Similarly to the", "Instead of using"
+        if i and w[:1].isupper() and lower(nxt) and (nxt.lower() not in SMALL or lower(then)):
+            break
+        title.append(w)
+        if len(title) == 8 or w.endswith((".", ":")):
+            break
+    title = " ".join(title).rstrip(".:")
+    return title.title() if title.isupper() and len(title) > 3 else title  # "INTRODUCTION" → "Introduction"
+
+
+def sections(text: str) -> list[dict]:
+    """The numbered sections found in the text, in order: [{number, title, start}]. Each must follow the one before
+    (3.1 after 3, 3.2 after 3.1.4, 4 after 3.2), so page numbers, dates and figure numbers are left out, and so are
+    running headers ("3 Published as a conference paper...") and sentences after a page number ("6 We show")."""
+    found, last = [], (0,)
+    for m in NUMBERED.finditer(text):
+        number = tuple(int(x) for x in m.group(1).split("."))
+        # what may come next: a first subsection, or the next number at any level, allowing a few missed headings
+        # (up to 4 within a section, 2 between top-level ones; a page number like 12 after 7 is too far)
+        nexts = {last + (1,)} | {last[:k] + (last[k] + d,) for k in range(len(last)) for d in range(1, 3 if k == 0 else 5)}
+        if number not in nexts:
+            continue
+        title = _title(text[m.end():m.end() + 200])
+        words = title.split()
+        if not title or words[0].rstrip(".:") in NOT_HEADINGS or title.endswith(","):
+            continue
+        if words[0] in OPENERS and (len(words) == 1 or words[1][:1].islower()):
+            continue  # "6 We show...", "7 In this...": a sentence after a page number, not a heading
+        found.append({"number": ".".join(map(str, number)), "title": title, "start": m.start(1)})
+        last = number
+    return found
+
+
+def chunks(text: str, size: int = 900) -> list[dict]:
+    """The text in overlapping pieces, each knowing its section."""
+    secs = sections(text)
+    out = []
+    for start in range(0, max(len(text), 1), size - 150):
+        piece = text[start:start + size]
+        if not piece.strip():
+            continue
+        sec = next((s for s in reversed(secs) if s["start"] <= start + 100), None)
+        out.append({"start": start, "text": piece, "section": f"§{sec['number']} {sec['title']}" if sec else ""})
+    return out
+
+
+def _words(s: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2]
+
+
+# ---------- Read tools ----------
+def search_paper(paper: dict, query: str, limit: int = 5) -> Result:
+    text = paper.get("text") or ""
+    if not text:
+        return Result("This paper has no text (no PDF was added).", "No text to search")
+    terms = set(_words(query))
+    scored = []
+    for c in chunks(text):
+        words = _words(c["text"])
+        score = sum(words.count(t) for t in terms) + 3 * sum(1 for t in terms if t in words)
+        if score:
+            scored.append((score, c))
+    scored.sort(key=lambda x: -x[0])
+    best = [c for _, c in scored[:limit]]
+    if not best:
+        return Result(f'Nothing in the paper matches "{query}".', f"Searched “{query}”: nothing")
+    body = "\n\n".join(f"[{c['section'] or 'start of the paper'}, about {round(100 * c['start'] / len(text))}% in]\n{c['text']}" for c in best)
+    return Result(body, f"Searched “{query}”")
+
+
+def read_section(paper: dict, section: str) -> Result:
+    text = paper.get("text") or ""
+    secs = sections(text)
+    want = section.strip().lstrip("§").strip().lower()
+    hit = next((s for s in secs if s["number"] == want.split()[0]), None) if want and want[0].isdigit() else None
+    hit = hit or next((s for s in secs if want and want in s["title"].lower()), None)
+    if not hit:
+        names = ", ".join(f"{s['number']} {s['title']}" for s in secs[:40])
+        return Result(f'No section "{section}". The sections are: {names or "(none found)"}', f"Looked for §{section}")
+    depth = hit["number"].count(".")
+    after = next((s for s in secs if s["start"] > hit["start"] and s["number"].count(".") <= depth), None)
+    body = text[hit["start"]:after["start"] if after else hit["start"] + 8000][:8000]
+    return Result(body, f"Read §{hit['number']} {hit['title']}")
+
+
+def _figure(paper: dict, kind: str, number: int) -> dict | None:
+    return next((f for f in figures.for_paper(paper["id"]) if f["kind"] == kind and f["number"] == number), None)
+
+
+def look_at_figure(paper: dict, number: int, kind: str = "figure") -> Result:
+    kind = "table" if kind.lower().startswith("tab") else "figure"
+    name = "Table" if kind == "table" else "Figure"
+    f = _figure(paper, kind, int(number))
+    if not f:
+        have = ", ".join(f"{'Table' if x['kind'] == 'table' else 'Figure'} {x['number']}" for x in figures.for_paper(paper["id"]))
+        return Result(f"{name} {number} wasn't found in the PDF. Found: {have or 'none'}.", f"Looked for {name} {number}")
+    image = (figures.folder(paper["id"]) / figures.image_name(kind, f["number"])).read_bytes()
+    text = paper.get("text") or ""
+    mentions = [m.start() for m in re.finditer(rf"\b{name}\s+{number}\b", text)][:3]
+    around = "\n…\n".join(text[max(0, i - 300):i + 400] for i in mentions)
+    return Result(f"{f['caption']} (page {f['page']}).\nWhere the paper mentions it:\n{around or '(not mentioned in the text)'}",
+                  f"Looked at {name} {number}", image=image)
+
+
+def search_library(paper: dict, idea: str) -> Result:
+    found = [c for c in index.candidates(idea, limit=6) if c["id"] != paper["id"]]
+    if not found:
+        return Result("No other paper in the library matches.", f"Searched your library for “{idea}”")
+    body = "\n\n".join(f"{c['title']}: {c.get('snippet') or c.get('abstract', '')[:300]}" for c in found)
+    return Result(body, f"Searched your library for “{idea}”")
+
+
+def get_notes(paper: dict) -> Result:
+    items = notes_db.list_for(paper["id"])
+    if not items:
+        return Result("The reader has no notes or highlights on this paper.", "Read your notes: none")
+    body = "\n".join(f"- {'Highlight' if n['kind'] == 'highlight' else 'Note'}: {n['quote'] or ''} {n['body'] or ''}".strip() for n in items)
+    return Result(body, f"Read your notes ({len(items)})")
+
+
+def get_vocabulary(paper: dict) -> Result:
+    words = paper.get("glossary") or []
+    if not words:
+        return Result("No vocabulary list for this paper yet.", "Read the word list: empty")
+    return Result("\n".join(f"- {w['term']}: {w['meaning']}" for w in words), f"Read the word list ({len(words)})")
+
+
+# ---------- The registry ----------
+def _schema(props: dict, required: list[str]) -> dict:
+    return {"type": "object", "properties": props, "required": required, "additionalProperties": False}
+
+
+TOOLS = {
+    "search_paper": {
+        "fn": search_paper, "label": "Searching the paper",
+        "description": "Find passages in this paper about something (keywords). Returns the passages with their section.",
+        "schema": _schema({"query": {"type": "string", "description": "a few keywords"}}, ["query"]),
+    },
+    "read_section": {
+        "fn": read_section, "label": "Reading a section",
+        "description": "Read one section of the paper in full, by number ('3.5') or title. Lists the sections if not found.",
+        "schema": _schema({"section": {"type": "string"}}, ["section"]),
+    },
+    "look_at_figure": {
+        "fn": look_at_figure, "label": "Looking at a figure",
+        "description": "See one of the paper's figures or tables (the image, its caption and where the text mentions it).",
+        "schema": _schema({"number": {"type": "integer"}, "kind": {"type": "string", "enum": ["figure", "table"]}}, ["number", "kind"]),
+    },
+    "search_library": {
+        "fn": search_library, "label": "Searching your library",
+        "description": "Find the reader's other papers about an idea, to connect this paper to what they read before.",
+        "schema": _schema({"idea": {"type": "string"}}, ["idea"]),
+    },
+    "get_notes": {
+        "fn": get_notes, "label": "Reading your notes",
+        "description": "The reader's notes and highlights on this paper.", "schema": _schema({}, []),
+    },
+    "get_vocabulary": {
+        "fn": get_vocabulary, "label": "Reading the word list",
+        "description": "The paper's hard words with their meanings (what the reader is learning).", "schema": _schema({}, []),
+    },
+}
+
+
+def run(name: str, paper_id: int, args: dict) -> Result:
+    """Run a tool by name; errors come back as text for the model, not exceptions."""
+    tool = TOOLS.get(name)
+    if not tool:
+        return Result(f"There is no tool called {name}.", f"Unknown tool {name}")
+    try:
+        paper = get_paper(paper_id)
+        return tool["fn"](paper, **{k: v for k, v in (args or {}).items() if k in tool["schema"]["properties"]})
+    except Exception as e:  # the model sees what went wrong and can carry on
+        return Result(f"The tool failed: {e}", f"{tool['label']}: failed")
+
+
+def specs() -> list[dict]:
+    return [{"name": n, "description": t["description"], "schema": t["schema"]} for n, t in TOOLS.items()]
+
+
+def setting_vision() -> bool:
+    """Whether to send figure images to OpenAI-compatible models (many local and free ones can't take images)."""
+    return db.setting("ai_vision") == "on"

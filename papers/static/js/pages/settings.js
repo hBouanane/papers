@@ -91,6 +91,8 @@ export async function settingsPage(stale) {
           <option value="8k" ${s.ai_context === "8k" ? "selected" : ""}>About 8k tokens (small local models)</option>
         </select>
         <p class="hint">Models with a small memory can't read a whole paper at once; they get its beginning.</p>
+        <label class="check"><input type="checkbox" id="ai-vision" ${s.ai_vision ? "checked" : ""}> This model can see images</label>
+        <p class="hint">In Deep mode the AI can look at the paper's figures. Claude always can; for other providers, tick this only if your model accepts images (most free and small local models don't).</p>
       </details>
       <div class="form-foot ai-actions"><button type="button" class="button secondary" id="ai-test">Test connection</button>
         <button class="button" id="ai-save">Save</button></div>
@@ -160,7 +162,7 @@ export async function settingsPage(stale) {
   };
   const saveAi = async () => {
     const p = ai.providers.find((x) => x.id === ai.ai_provider);
-    const json = { ai_model: q("#ai-model").value, ai_context: q("#ai-context").value };
+    const json = { ai_model: q("#ai-model").value, ai_context: q("#ai-context").value, ai_vision: q("#ai-vision").checked };
     if (p.kind === "openai") json.ai_base_url = q("#ai-base").value;
     if (q("#ai-key").value) json.ai_api_key = q("#ai-key").value;
     ai = await api("/settings", { method: "PUT", json });

@@ -7,7 +7,7 @@
 //   chat.start("explain", passage, label)   chat.attach(passage, label)   chat.open(id)   chat.newChat()
 import { api, esc, quote } from "../core.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "../speech.js";
-import { answerView } from "./answer.js";
+import { answerView, checkedLabel } from "./answer.js";
 import { openCanvas } from "./canvas.js";
 import { drawVisuals, renderAnswer } from "./render.js";
 import { streamEvents } from "./stream.js";
@@ -38,7 +38,11 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
     <form class="composer">
       <div class="composer-chips"></div>
       <textarea rows="1" placeholder="Ask about this paper…" aria-label="Your message"></textarea>
-      <div class="composer-foot"><span class="composer-hint">Enter to send · Shift+Enter for a new line</span>
+      <div class="composer-foot">
+        <div class="segmented small depth" role="group" aria-label="How to answer">
+          <button type="button" data-depth="quick" title="Answer straight from the paper (fast)">Quick</button>
+          <button type="button" data-depth="deep" title="Deep: the AI reads sections, looks at figures and checks your notes before it answers (slower, more thorough)">Deep</button></div>
+        <span class="composer-hint">Enter to send</span>
         <button class="button small composer-send">Send</button></div>
     </form>`;
   const $ = (s) => root.querySelector(s);
@@ -50,6 +54,9 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
   let current = null; // { id, title, messages }
   let pending = []; // attachments waiting in the composer
   let running = null; // the AbortController of the answer being written
+  const DEPTH_KEY = "papers.chatDepth";
+  let depth = (() => { try { return localStorage.getItem(DEPTH_KEY) === "deep" ? "deep" : "quick"; } catch { return "quick"; } })();
+  const drawDepth = () => root.querySelectorAll("[data-depth]").forEach((b) => b.classList.toggle("active", b.dataset.depth === depth));
 
   // ---------- Drawing ----------
   const emptyHtml = `<div class="thread-empty">
@@ -61,6 +68,8 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
       ${ACTION[m.kind] ? `<span class="msg-action">${ACTION[m.kind]}</span>` : ""}
       ${attachmentsHtml(m.meta?.attachments || [])}
       ${m.content ? `<p>${esc(m.content)}</p>` : ""}</div>`;
+  const stepsHtml = (m) => (m.meta?.steps?.length ? `<details class="answer-steps"><summary><span class="steps-label">${checkedLabel(m.meta.steps.length)}</span></summary>
+      <ol class="steps-list">${m.meta.steps.map((s) => `<li class="step">${esc(s.summary || s.name)}</li>`).join("")}</ol></details>` : "");
   const thinkingHtml = (m) => (m.thinking ? `<details class="answer-thinking"><summary><span class="thinking-label">Thought it through</span></summary>
       <div class="thinking-text">${esc(m.thinking)}</div></details>` : "");
   const actionsHtml = (m, last) => `<div class="msg-actions">
@@ -74,11 +83,11 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
       `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}`;
   const assistantHtml = (m, last) => {
     if (m.status === "done") {
-      return `<div class="msg msg-claude answer is-done" data-message="${m.id}">${thinkingHtml(m)}
+      return `<div class="msg msg-claude answer is-done" data-message="${m.id}">${thinkingHtml(m)}${stepsHtml(m)}
         <div class="answer-body">${render(m.content)}</div></div>${actionsHtml(m, last)}`;
     }
     const problem = m.status === "stopped" ? `<p class="faint">Stopped.</p>` : `<p class="error">${esc(m.meta?.error || "Something went wrong.")}</p>`;
-    return `<div class="msg msg-claude answer is-${m.status}" data-message="${m.id}">${thinkingHtml(m)}
+    return `<div class="msg msg-claude answer is-${m.status}" data-message="${m.id}">${thinkingHtml(m)}${stepsHtml(m)}
       <div class="answer-body">${m.content ? render(m.content) : ""}<div class="answer-problem">${problem}
         ${last ? `<button type="button" class="button secondary small" data-act="retry">Retry</button>` : ""}</div></div></div>`;
   };
@@ -143,6 +152,7 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
         if (type === "conversation") { current = { id: msg.conversation.id, title: "", messages: [] }; }
         else if (type === "user") { current.messages.push(msg.message); if (!current.title) refreshTitle(); }
         else if (type === "thinking") view.thinking(msg.thinking);
+        else if (type === "tool") view.step(msg.tool);
         else if (type === "text") view.text(msg.text);
         else if (type === "status") view.status(msg.status);
       });
@@ -165,9 +175,9 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
     if (c) { current.title = c.title; setTitle(); }
   };
 
-  const send = (kind, content, attachments) => {
+  const send = (kind, content, attachments, how = kind === "ask" ? depth : "quick") => {
     if (running) return;
-    const message = { kind, content, attachments };
+    const message = { kind, content, attachments, depth: how };
     turnEl(userHtml({ kind, content, meta: { attachments } }));
     const path = current ? `/conversations/${current.id}/messages` : `/papers/${paperId}/conversations/start`;
     return stream((signal, on) => streamEvents(path, message, on, { signal }));
@@ -196,6 +206,14 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $(".composer").requestSubmit(); }
   });
   box.addEventListener("input", grow);
+  root.querySelector(".depth").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-depth]");
+    if (!b) return;
+    depth = b.dataset.depth;
+    try { localStorage.setItem(DEPTH_KEY, depth); } catch { /* not remembered */ }
+    drawDepth();
+  });
+  drawDepth();
   chipsEl.addEventListener("click", (e) => {
     const i = e.target.closest("[data-unchip]")?.dataset.unchip;
     if (i != null) { pending.splice(+i, 1); drawChips(); }
@@ -242,7 +260,7 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
     const m = current?.messages.find((x) => String(x.id) === msgEl?.dataset.message);
     if (act === "retry") return retry();
     if (act === "simpler") return send("ask", SIMPLER, []);
-    if (act === "deeper") return send("ask", DEEPER, []);
+    if (act === "deeper") return send("ask", DEEPER, [], "deep");
     if (!m) return;
     if (act === "copy") { await navigator.clipboard?.writeText(m.content).catch(() => {}); return toast("Copied."); }
     if (act === "listen") return speaking() ? stopSpeaking() : speak(m.content.replace(/```[\s\S]*?```/g, ""));

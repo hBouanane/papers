@@ -4,6 +4,7 @@
 // Errors and Stop end it with a message and Retry. Never stuck: the server gives up after a silence too.
 import { esc } from "../core.js";
 
+export const checkedLabel = (n) => `Checked ${n} thing${n === 1 ? "" : "s"} in the paper`;
 const SKELETON = `<div class="answer-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>`;
 
 export function answerView(el, { render, onRetry, onStop } = {}) {
@@ -20,6 +21,7 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
   el.innerHTML = `
     <details class="answer-thinking" hidden><summary><span class="thinking-label">Thinking…</span></summary>
       <div class="thinking-text"></div></details>
+    <details class="answer-steps" open hidden><summary><span class="steps-label">Working</span></summary><ol class="steps-list"></ol></details>
     <div class="answer-body">${SKELETON}</div>
     <div class="answer-status" role="status"><span class="status-dot" aria-hidden="true"></span>
       <span class="status-text">Thinking</span><span class="status-time"></span>
@@ -27,6 +29,8 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
   const body = el.querySelector(".answer-body");
   const statusRow = el.querySelector(".answer-status");
   const think = el.querySelector(".answer-thinking");
+  const stepsEl = el.querySelector(".answer-steps");
+  const steps = new Map(); // tool call id → its <li>
 
   const seconds = () => Math.round((Date.now() - started) / 1000);
   const tick = () => {
@@ -50,6 +54,7 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
     clearInterval(ticker);
     statusRow.hidden = true;
     if (thinking) think.querySelector(".thinking-label").textContent = `Thought for ${thoughtFor || seconds()}s`;
+    if (steps.size) { stepsEl.open = false; stepsEl.querySelector(".steps-label").textContent = checkedLabel(steps.size); }
     el.classList.remove("is-waiting", "is-writing");
     el.classList.add(`is-${next}`);
   };
@@ -62,6 +67,22 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
     status(label) {
       status = label;
       statusRow.querySelector(".status-text").textContent = status;
+    },
+    // A step of Deep mode: a tool starting ("Reading a section…") or done ("Read §3.5 Positional Encoding").
+    step(tool) {
+      stepsEl.hidden = false;
+      let li = steps.get(tool.id);
+      if (!li) {
+        li = document.createElement("li");
+        li.className = "step is-running";
+        stepsEl.querySelector(".steps-list").append(li);
+        steps.set(tool.id, li);
+      }
+      li.textContent = tool.state === "done" ? tool.summary || tool.label : `${tool.label}…`;
+      li.classList.toggle("is-running", tool.state !== "done");
+      if (tool.state !== "done") this.status(tool.label);
+      else if (state === "waiting") this.status("Thinking");
+      el.dispatchEvent(new CustomEvent("answer-grew", { bubbles: true }));
     },
     thinking(piece) {
       thinking += piece;

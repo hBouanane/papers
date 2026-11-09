@@ -9,6 +9,7 @@ import re
 from collections.abc import Iterator
 
 from papers import db, figures, index, library, llm
+from papers.agent import loop as agent
 from papers.ai.streaming import Thinking, guarded
 from papers.chat import store
 
@@ -43,10 +44,19 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     thought: list[str] = []
     status, error = "done", ""
     known = figures.known(paper["id"])
-    stream = guarded(lambda: llm.conversation_stream(paper, turns(conversation), language=language, figures=known))
+    deep = asked["meta"].get("depth") == "deep"  # Deep mode: the agent uses tools while it answers
+    steps: list[dict] = []
+    if deep:
+        stream = guarded(lambda: agent.run(paper, turns(conversation), language=language, figures=known))
+    else:
+        stream = guarded(lambda: llm.conversation_stream(paper, turns(conversation), language=language, figures=known))
     try:
         for piece in stream:
-            if isinstance(piece, Thinking):
+            if isinstance(piece, agent.Step):
+                if piece.state == "done":
+                    steps.append({"name": piece.name, "summary": piece.summary})
+                yield line(type="tool", tool=piece.event())
+            elif isinstance(piece, Thinking):
                 thought.append(piece)
                 yield line(type="thinking", thinking=piece)
             else:
@@ -64,7 +74,8 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
             status, error = "error", NO_ANSWER
         message = store.add_message(conversation_id, "assistant", kind=asked["kind"], content=content,
                                     thinking="".join(thought), status=status,
-                                    meta={"followups": followups, **({"error": error} if error else {})})
+                                    meta={"followups": followups, **({"steps": steps} if deep else {}),
+                                          **({"error": error} if error else {})})
         if status == "done":
             index.index_paper(paper)
             library.sync_paper(paper["id"])

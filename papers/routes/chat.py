@@ -22,6 +22,7 @@ class Attachment(BaseModel):
 
 class MessageIn(BaseModel):
     kind: Literal["ask", "explain", "simplify", "translate"] = "ask"
+    depth: Literal["quick", "deep"] = "quick"  # deep: the agent uses tools while it answers
     content: str = Field("", max_length=8000)
     attachments: list[Attachment] = []
 
@@ -53,7 +54,7 @@ def send(conversation: dict, body: MessageIn, first: dict | None = None) -> Stre
     """Save the reader's message, then stream the answer (after a line with the saved message)."""
     paper = get_paper(conversation["paper_id"])
     mine = store.add_message(conversation["id"], "user", kind=body.kind, content=body.content,
-                             meta={"attachments": [a.model_dump() for a in body.attachments]})
+                             meta={"attachments": [a.model_dump() for a in body.attachments], "depth": body.depth})
 
     def lines():
         if first:

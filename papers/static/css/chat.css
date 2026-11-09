@@ -163,3 +163,27 @@ body:not(.notes-open) .chat-canvas { right: 16px; }
 .canvas-stage .math-formula { font-size: 1.35em; }
 .canvas-stage .vega-embed { min-width: min(820px, 100%); }
 @media (max-width: 900px) { .chat-canvas { left: 8px; right: 8px; top: 8px; bottom: 8px; } }
+
+/* ---------- Deep mode: the steps it takes (chat/answer.js) ---------- */
+.answer-steps { margin: 0 0 8px; font-size: 13px; }
+.answer-steps[hidden] { display: none; }
+.answer-steps > summary { cursor: pointer; color: var(--pencil); font-weight: 700; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.answer-steps > summary::-webkit-details-marker { display: none; }
+.answer-steps > summary::before { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg); transition: transform .2s; }
+.answer-steps[open] > summary::before { transform: rotate(45deg); }
+.steps-list { list-style: none; margin: 6px 0 0; padding: 0 0 0 4px; display: grid; gap: 4px; border-left: 2px solid var(--line); }
+.step { position: relative; padding-left: 20px; color: var(--graphite); line-height: 1.4; }
+.step::before { content: "✓"; position: absolute; left: 4px; top: 0; color: var(--done, #1d7a4e); font-weight: 800; font-size: 12px; }
+.step.is-running { color: var(--pencil); }
+.step.is-running::before { content: ""; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink);
+  animation: status-breathe 1.2s ease-in-out infinite; }
+/* Quick / Deep, by Send */
+.composer .depth { flex-shrink: 0; }
+.composer .depth button { font-size: 12.5px; padding: 4px 10px; }
+@media (prefers-reduced-motion: reduce) { .step.is-running::before { animation: none; } }
+
+/* Wide content (a matrix, a long table) scrolls inside its own box; the conversation never scrolls sideways. */
+.chat .thread { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
+.chat .turn, .chat .msg, .chat .answer-body { min-width: 0; max-width: 100%; }
+.chat .msg-you { max-width: 88%; }

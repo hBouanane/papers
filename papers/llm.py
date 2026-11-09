@@ -234,7 +234,7 @@ flowchart LR
   B["Position encoding"] --> C
 ```
 - The paper's own figure or table, with numbered boxes on the parts you talk about (x, y, w, h are fractions of the
-  image; leave "boxes" out when you can't see the figure):
+  image). Only add "boxes" after you have looked at the image itself; otherwise show the figure without them:
 ```figure
 {"figure": 1, "boxes": [{"x": 0.05, "y": 0.7, "w": 0.4, "h": 0.12, "label": "where position is added"}]}
 ```
