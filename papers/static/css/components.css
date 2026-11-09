@@ -275,3 +275,7 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 .fb-gap { flex: 1; }
 @media (max-width: 520px) { .fb-foot { flex-wrap: wrap; } .fb-foot [data-new] { width: 100%; } }
 
+/* Text beside a paper's first page stays above it: when the paper lifts, tilts or fans out on hover (or its sheet
+   swings out behind it), it goes under the title instead of covering it. Every card that has a paper next to its
+   text is listed here. */
+.paper-header-text, .continue-text, .match-text, .goal-card-text, .say-text, .row-main, .row-progress { position: relative; z-index: 2; }
