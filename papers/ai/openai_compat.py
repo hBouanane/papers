@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from papers.ai import providers
 from papers.ai.errors import AIError, json_in
+from papers.ai.streaming import Thinking, ThinkTags, as_messages
 
 TRANSPORT = None  # tests put a fake server here
 
@@ -77,11 +78,13 @@ def parse(prompt: str, schema: type[BaseModel], system: str = "") -> BaseModel:
     raise AIError("The model couldn't answer in the expected format.")
 
 
-def stream(system: str, content: str):
-    """The answer as it is written, from the server's event stream."""
+def stream(system: str, content: str | list[dict]):
+    """The answer as it is written, from the server's event stream. Reasoning comes as Thinking pieces: in its own
+    field (OpenRouter's `reasoning`, DeepSeek's and vLLM's `reasoning_content`) or inside <think> tags."""
     cfg = _ready()
     body = {"model": cfg["model"], "stream": True,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
+            "messages": [{"role": "system", "content": system}, *as_messages(content)]}
+    tags = ThinkTags()
     try:
         with _http() as http, http.stream("POST", f"{cfg['base_url']}/chat/completions", json=body,
                                           headers=_headers(cfg)) as r:
@@ -95,8 +98,12 @@ def stream(system: str, content: str):
                 if data == "[DONE]":
                     break
                 choices = json.loads(data).get("choices") or [{}]
-                if piece := (choices[0].get("delta") or {}).get("content"):
-                    yield piece
+                delta = choices[0].get("delta") or {}
+                if thought := delta.get("reasoning") or delta.get("reasoning_content"):
+                    yield Thinking(thought)
+                if piece := delta.get("content"):
+                    yield from tags.feed(piece)
+            yield from tags.flush()
     except httpx.HTTPError as e:
         raise _unreachable(cfg, e) from e
 

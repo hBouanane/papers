@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from papers import db, index, library, llm
+from papers.ai.streaming import Thinking, guarded
 from papers.store import get_paper, goal_of, update_paper
 
 router = APIRouter(prefix="/api", tags=["learning"])
@@ -93,13 +94,20 @@ def explain_passage_stream(paper_id: int, body: ExplainIn):
     def lines():
         parts = []
         try:
-            for piece in llm.explain_stream(paper, passage, question, mode=body.mode, language=language):
+            for piece in guarded(lambda: llm.explain_stream(paper, passage, question, mode=body.mode, language=language)):
+                if isinstance(piece, Thinking):
+                    yield json.dumps({"thinking": piece}) + "\n"
+                    continue
                 parts.append(piece)
                 yield json.dumps({"text": piece}) + "\n"
         except llm.AIError as e:
             yield json.dumps({"error": str(e)}) + "\n"
             return
-        save_explanation(paper_id, passage, question, "".join(parts), body.mode)
+        answer = "".join(parts).strip()
+        if not answer:  # it only thought, or said nothing: say so, and keep nothing
+            yield json.dumps({"error": "No answer came back from the model. Try again, or choose another model in Settings."}) + "\n"
+            return
+        save_explanation(paper_id, passage, question, answer, body.mode)
         yield json.dumps({"done": True}) + "\n"
 
     return StreamingResponse(lines(), media_type="application/x-ndjson",

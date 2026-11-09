@@ -242,7 +242,6 @@ body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(-
 .msg-claude p:last-of-type { margin-bottom: 0; }
 .msg-claude ul, .msg-claude ol { margin: 0 0 .6em; padding-left: 20px; }
 .msg-listen { font-size: 13px; margin-top: 6px; }
-.typing { color: var(--pencil); animation: pulse 1.2s ease-in-out infinite; }
 /* A streaming answer: a soft blinking caret where the text is still coming. */
 .caret { display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: text-bottom; border-radius: 1px;
   background: var(--ink); animation: caret 1s steps(2, start) infinite; }

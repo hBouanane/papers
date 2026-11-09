@@ -1,6 +1,8 @@
 // The side panel: Ask (a conversation with the AI about the paper, answers streamed as they're written),
 // Words (the paper's vocabulary) and Notes, one tab at a time.
-import { api, apiStream, esc, markdown, quote, renderVocab } from "../../core.js";
+import { answerView } from "../../chat/answer.js";
+import { streamEvents } from "../../chat/stream.js";
+import { api, esc, markdown, quote, renderVocab } from "../../core.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "../../speech.js";
 
 const ACTION = { explain: "Explain", simplify: "Simplify", translate: "Translate" };
@@ -9,7 +11,8 @@ const ACTION = { explain: "Explain", simplify: "Simplify", translate: "Translate
 const turnHtml = (e) => `<div class="msg msg-you">
       ${e.passage ? `<span class="msg-action">${ACTION[e.mode] || "Explain"}</span>${quote(e.passage)}` : ""}
       ${e.question ? `<p>${esc(e.question)}</p>` : ""}</div>
-    <div class="msg msg-claude">${e.answer ? markdown(e.answer) : e.error ? `<p class="error">${esc(e.error)}</p>` : `<p class="typing">Thinking…</p>`}
+    <div class="msg msg-claude">${e.answer ? markdown(e.answer) : e.error ? `<p class="error">${esc(e.error)}</p>`
+      : e.streaming ? "" : `<p class="faint">No answer came back for this one.</p>`}
       ${e.answer && canSpeak() ? `<button class="link-button msg-listen">Listen</button>` : ""}</div>`;
 
 export function setupPanel(r) {
@@ -35,31 +38,33 @@ export function setupPanel(r) {
     toBottom();
     return turn;
   };
-  // The answer appears as it's written (redrawn every few dozen milliseconds), with a caret while it's coming.
-  const explain = async (passage, question = "", mode = "explain") => {
+  // The answer appears as it's written (chat/answer.js): placeholder lines and a status line until the first
+  // word, the model's thinking folded away, Stop at any time, Retry when it fails. Nothing stays "Thinking".
+  const explain = async (passage, question = "", mode = "explain", turn = null) => {
     setOpen(true, "ask");
-    const turn = addTurn({ passage, question, mode });
-    const answer = turn.querySelector(".msg-claude");
-    let text = "";
-    let queued = false;
-    const paint = () => {
-      queued = false;
-      const follow = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80; // don't pull you down if you scrolled up
-      answer.innerHTML = markdown(text);
-      (answer.lastElementChild || answer).insertAdjacentHTML("beforeend", `<span class="caret" aria-hidden="true"></span>`);
-      if (follow) toBottom();
-    };
+    if (turn) turn.innerHTML = turnHtml({ passage, question, mode, streaming: true });
+    else turn = addTurn({ passage, question, mode, streaming: true });
+    const stop = new AbortController();
+    const view = answerView(turn.querySelector(".msg-claude"), {
+      render: markdown,
+      onStop: () => stop.abort(),
+      onRetry: () => explain(passage, question, mode, turn),
+    });
+    const follow = () => thread.scrollHeight - thread.scrollTop - thread.clientHeight < 120; // not if you scrolled up
+    turn.addEventListener("answer-grew", () => { if (follow()) toBottom(); });
     try {
-      text = await apiStream(`/papers/${id}/explain/stream`, { passage, question, mode }, (_, sofar) => {
-        text = sofar;
-        if (!queued) { queued = true; setTimeout(paint, 40); } // at most ~25 redraws a second
-      });
-      turn.innerHTML = turnHtml({ passage, question, mode, answer: text });
+      await streamEvents(`/papers/${id}/explain/stream`, { passage, question, mode }, (type, msg) => {
+        if (type === "thinking") view.thinking(msg.thinking);
+        else if (type === "text") view.text(msg.text);
+        else if (type === "status") view.status(msg.status);
+      }, { signal: stop.signal });
+      view.done();
+      if (canSpeak()) turn.querySelector(".msg-claude").insertAdjacentHTML("beforeend", `<button class="link-button msg-listen">Listen</button>`);
     } catch (err) {
-      turn.innerHTML = turnHtml({ passage, question, mode, answer: text, error: text ? "" : err.message });
-      if (text) turn.querySelector(".msg-claude").insertAdjacentHTML("beforeend", `<p class="error">${esc(err.message)}</p>`);
+      if (stop.signal.aborted) view.stopped();
+      else view.error(err.message);
     }
-    toBottom();
+    if (follow()) toBottom();
   };
   thread.addEventListener("click", (e) => {
     const listen = e.target.closest(".msg-listen");

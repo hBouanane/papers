@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from papers import ai
 from papers.ai import AIError  # noqa: F401  (callers catch llm.AIError)
+from papers.ai.streaming import Thinking
 
 
 class Queries(BaseModel):
@@ -172,7 +173,7 @@ MODES = {
 
 
 def explain(paper: dict, passage: str, question: str = "", mode: str = "explain", language: str = "") -> str:
-    return "".join(explain_stream(paper, passage, question, mode=mode, language=language))
+    return "".join(p for p in explain_stream(paper, passage, question, mode=mode, language=language) if not isinstance(p, Thinking))
 
 
 def explain_stream(paper: dict, passage: str, question: str = "", mode: str = "explain", language: str = ""):
