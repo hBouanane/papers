@@ -89,12 +89,13 @@ JSON_FIELDS = ("skim", "quiz", "refs", "glossary")
 
 
 EXPLANATION_COLUMNS = {"mode": "text default 'explain'"}
+NOTE_COLUMNS = {"source": "text default ''"}  # 'ai': made by the AI in Deep mode (marked as such)
 
 
 def init():
     with connect() as conn:
         conn.executescript(SCHEMA)
-        for table, columns in (("papers", NEW_COLUMNS), ("explanations", EXPLANATION_COLUMNS)):
+        for table, columns in (("papers", NEW_COLUMNS), ("explanations", EXPLANATION_COLUMNS), ("notes", NOTE_COLUMNS)):
             have = {r["name"] for r in conn.execute(f"pragma table_info({table})")}
             for name, kind in columns.items():
                 if name not in have:
@@ -104,6 +105,8 @@ def init():
             conn.execute("insert into notes (paper_id, body) select id, trim(notes) from papers p"
                          " where trim(coalesce(notes, '')) != '' and not exists (select 1 from notes n where n.paper_id = p.id)")
             conn.execute("insert into settings (key, value) values ('notes_migrated', '1')")
+        from papers.chat import store as chat  # late import: chat builds on db
+        chat.init(conn)
 
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:

@@ -1,0 +1,230 @@
+/* Answers being written (chat/answer.js), and the chat around them. */
+
+/* Before the first word: soft grey lines shimmer where the answer will go. */
+.answer-skeleton { display: grid; gap: 9px; padding: 4px 0 2px; }
+.answer-skeleton span { height: 11px; border-radius: 6px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pencil) 16%, transparent) 0%,
+    color-mix(in srgb, var(--pencil) 30%, transparent) 40%, color-mix(in srgb, var(--pencil) 16%, transparent) 80%);
+  background-size: 300% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+.answer-skeleton span:nth-child(1) { width: 92%; }
+.answer-skeleton span:nth-child(2) { width: 78%; animation-delay: .12s; }
+.answer-skeleton span:nth-child(3) { width: 55%; animation-delay: .24s; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* What it's doing now, how long it's taking, and Stop. */
+.answer-status { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--pencil); }
+.answer-status[hidden] { display: none; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); animation: status-breathe 1.4s ease-in-out infinite; }
+@keyframes status-breathe { 0%, 100% { opacity: .35; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+.status-text { font-weight: 700; color: var(--graphite); }
+.status-time { font-variant-numeric: tabular-nums; }
+.answer-stop { margin-left: auto; font-size: 13px; }
+
+/* The model's reasoning, folded: "Thinking…" while it thinks, "Thought for 12s" after. */
+.answer-thinking { margin: 0 0 8px; font-size: 13px; }
+.answer-thinking > summary { cursor: pointer; color: var(--pencil); font-weight: 700; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.answer-thinking > summary::-webkit-details-marker { display: none; }
+.answer-thinking > summary::before { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg); transition: transform .2s; }
+.answer-thinking[open] > summary::before { transform: rotate(45deg); }
+.answer.is-waiting .thinking-label { background: linear-gradient(90deg, var(--pencil) 0%, var(--graphite) 50%, var(--pencil) 100%);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 1.8s linear infinite; }
+.thinking-text { margin-top: 6px; padding: 8px 10px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; color: var(--pencil);
+  border-left: 2px solid var(--line); line-height: 1.5; }
+
+/* When it can't finish: what happened, and Retry. */
+.answer-problem { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.answer-problem p { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .answer-skeleton span, .status-dot, .answer.is-waiting .thinking-label { animation: none; }
+}
+
+/* ---------- A conversation (chat/conversation.js) ---------- */
+.chat { display: flex; flex-direction: column; min-height: 0; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 14px; border-bottom: 1px solid var(--line-soft, var(--line)); }
+.chat-title-btn { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1; border: 0; background: none; padding: 6px 8px;
+  margin-left: -8px; border-radius: 8px; font: 700 14px var(--ui); color: var(--heading); cursor: pointer; text-align: left; }
+.chat-title-btn:hover, .chat-title-btn[aria-expanded="true"] { background: var(--raised); }
+.chat-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-caret { flex-shrink: 0; width: 7px; height: 7px; border: solid var(--pencil); border-width: 0 1.5px 1.5px 0; transform: translateY(-2px) rotate(45deg); }
+.chat-rename { flex: 1; font: 700 14px var(--ui); padding: 5px 8px; }
+/* History: every conversation about the paper */
+.chat-history { border-bottom: 1px solid var(--line); background: var(--sheet); max-height: 46%; overflow-y: auto; padding: 6px 8px 10px; }
+.chat-history-head { margin: 4px 8px 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.chat-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.chat-history-list li { display: flex; align-items: stretch; border-radius: 8px; }
+.chat-history-list li:hover, .chat-history-list li.current { background: var(--raised); }
+.history-open { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; text-align: left; border: 0;
+  background: none; padding: 8px 10px; cursor: pointer; color: inherit; font: inherit; }
+.history-title { font-weight: 700; color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.history-time { font-size: 12px; color: var(--pencil); white-space: nowrap; }
+.history-preview { grid-column: 1 / -1; font-size: 13px; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-delete { border: 0; background: none; color: var(--pencil); padding: 0 10px; cursor: pointer; font: 700 15px var(--ui); opacity: 0; }
+.chat-history-list li:hover .history-delete, .history-delete.confirm, .history-delete:focus { opacity: 1; }
+.history-delete.confirm { color: var(--miss, #b42318); font-size: 12px; }
+.history-none { padding: 10px; color: var(--pencil); }
+
+/* Messages */
+.chat .thread { flex: 1; min-height: 0; }
+.msg-attachment { margin-top: 4px; }
+.msg-attachment .answer-quote { max-height: 7.5em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent); }
+.attachment-label { display: inline-block; font-size: 11px; font-weight: 800; color: var(--pencil); text-transform: uppercase; letter-spacing: .04em; }
+.msg-you p { margin: 6px 0 0; }
+.msg-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 4px; opacity: .55; transition: opacity .2s; }
+.turn:hover .msg-actions, .turn:last-child .msg-actions, .msg-actions:focus-within { opacity: 1; }
+.msg-actions .link-button { font-size: 12.5px; color: var(--pencil); }
+.msg-actions .link-button:hover { color: var(--ink); }
+.followups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.followup { border: 1px solid var(--line); background: var(--sheet); color: var(--graphite); border-radius: 999px; padding: 6px 12px;
+  font: 13.5px/1.3 var(--ui); cursor: pointer; text-align: left; transition: border-color .2s, color .2s; }
+.followup:hover { border-color: var(--ink); color: var(--ink); }
+
+/* The box to write in: attached passages as chips above it, Send (Stop while answering) below */
+.composer { display: grid; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--line); background: var(--sheet); }
+.composer textarea { resize: none; font-size: 15px; line-height: 1.45; min-height: 44px; max-height: 200px; }
+.composer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.composer-chips[hidden] { display: none; }
+.chip-attachment { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 6px 4px 10px; border-radius: 8px;
+  background: var(--ink-tint); color: var(--graphite); font-size: 13px; }
+.chip-attachment-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-attachment button { border: 0; background: none; color: var(--pencil); cursor: pointer; font: 700 15px var(--ui); padding: 0 4px; }
+.composer-foot { display: flex; align-items: center; gap: 10px; }
+.composer-hint { flex: 1; font-size: 12px; color: var(--pencil); }
+.chat.is-answering .composer-send { background: var(--raised); color: var(--graphite); }
+
+/* ---------- What an answer contains (chat/render.js) ---------- */
+.answer-body { overflow-wrap: anywhere; }
+.answer-body h1, .answer-body h2, .answer-body h3, .answer-body h4 { font: 800 15.5px/1.35 var(--ui); color: var(--heading); margin: 1.1em 0 .4em; }
+.answer-body h1:first-child, .answer-body h2:first-child, .answer-body h3:first-child { margin-top: 0; }
+.answer-body p { margin: 0 0 .7em; }
+.answer-body ul, .answer-body ol { margin: 0 0 .7em; padding-left: 22px; }
+.answer-body li { margin: .2em 0; }
+.answer-body blockquote { margin: .6em 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); color: var(--pencil); }
+.answer-body code { font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--sheet); padding: 1px 5px; border-radius: 4px; }
+.answer-body pre { margin: .6em 0; padding: 10px 12px; background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+.answer-body pre code { background: none; padding: 0; }
+.answer-body table { border-collapse: collapse; margin: .6em 0; font-size: 13.5px; display: block; overflow-x: auto; max-width: 100%; }
+.answer-body th, .answer-body td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; font-variant-numeric: tabular-nums; }
+.answer-body th { background: var(--sheet); font-weight: 700; }
+.answer-body hr { border: 0; border-top: 1px solid var(--line); margin: 1em 0; }
+.answer-body .katex-display { margin: .7em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.answer-body .katex { font-size: 1.05em; }
+
+/* Citations: [§3.4], [Fig. 1], [p. 5] take you there */
+.cite { display: inline; border: 0; padding: 0 3px; margin: 0 1px; border-radius: 4px; background: var(--ink-tint); color: var(--ink);
+  font: 700 .82em var(--ui); cursor: pointer; vertical-align: baseline; }
+.cite:hover { background: var(--ink); color: var(--on-selected, #fff); }
+
+/* Visuals: a card in the answer, "Open large" puts it in the canvas */
+.visual { margin: .8em 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--sheet); display: grid; gap: 8px; }
+.visual-pending { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.visual-kind { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); }
+.visual-stage { min-height: 40px; overflow-x: auto; }
+.visual-stage svg { max-width: 100%; height: auto; }
+.visual-open { justify-self: end; font-size: 12px; }
+.visual-loading { font-size: 13px; margin: 0; }
+.visual-failed summary { cursor: pointer; color: var(--pencil); font-size: 13px; }
+.visual-failed pre { max-height: 160px; overflow: auto; font-size: 12px; }
+.visual-chart .vega-embed { width: 100%; }
+.visual-diagram .visual-stage { display: grid; justify-items: center; }
+
+/* A formula with its parts coloured; the same colours in the list of what each part means */
+.math-formula { overflow-x: auto; }
+.math-terms { display: grid; gap: 6px; margin: 4px 0 0; }
+.math-term { display: grid; grid-template-columns: minmax(48px, auto) 1fr; gap: 10px; align-items: baseline; }
+.math-term dt { font-weight: 700; padding: 1px 6px; border-radius: 5px; justify-self: start; }
+.math-term dd { margin: 0; font-size: 14px; }
+.math-example { margin: 4px 0 0; font-size: 14px; color: var(--pencil); }
+.t1 { color: #1d3fbb; } .t2 { color: #b45309; } .t3 { color: #15803d; } .t4 { color: #b42318; } .t5 { color: #7c3aed; } .t6 { color: #0e7490; }
+dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { background: #15803d18; } dt.t4 { background: #b4231818; } dt.t5 { background: #7c3aed18; } dt.t6 { background: #0e749018; }
+:root[data-theme="dark"] :is(.t1, .t2, .t3, .t4, .t5, .t6), :root[data-theme="dim"] :is(.t1, .t2, .t3, .t4, .t5, .t6) { filter: brightness(1.7) saturate(.85); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) :is(.t1, .t2, .t3, .t4, .t5, .t6) { filter: brightness(1.7) saturate(.85); } }
+
+/* The paper's own figure, with numbered "look here" boxes */
+.figure-frame { position: relative; display: inline-block; max-width: 100%; }
+.figure-frame img { display: block; max-width: 100%; border-radius: 4px; background: #fff; }
+.figure-box { position: absolute; border: 2.5px solid var(--ink); border-radius: 6px; box-shadow: 0 0 0 9999px rgb(0 0 0 / .0); }
+.figure-box-label { position: absolute; top: -10px; left: -10px; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: #fff;
+  font: 800 12px/20px var(--ui); text-align: center; }
+.visual-figure figcaption, .chat-canvas figcaption { display: grid; gap: 4px; font-size: 13px; margin-top: 6px; }
+.figure-box-note b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; margin-right: 6px; }
+
+/* The canvas: a visual opened large over the paper, beside the chat */
+.chat-canvas { position: fixed; z-index: 45; top: 16px; bottom: 16px; left: 16px; right: calc(var(--panel-w, 420px) + 16px);
+  display: flex; flex-direction: column; border-radius: 14px; box-shadow: 0 30px 80px -30px rgb(0 0 0 / .45); overflow: hidden; }
+body:not(.notes-open) .chat-canvas { right: 16px; }
+.canvas-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.canvas-title { font: 800 15px var(--ui); color: var(--heading); }
+.canvas-stage { flex: 1; overflow: auto; padding: 22px; display: grid; align-content: start; justify-items: center; }
+.canvas-stage > * { max-width: 100%; }
+.canvas-stage .figure-frame img { max-height: 70vh; }
+.canvas-stage .math-formula { font-size: 1.35em; }
+.canvas-stage .vega-embed { min-width: min(820px, 100%); }
+@media (max-width: 900px) { .chat-canvas { left: 8px; right: 8px; top: 8px; bottom: 8px; } }
+
+/* ---------- Deep mode: the steps it takes (chat/answer.js) ---------- */
+.answer-steps { margin: 0 0 8px; font-size: 13px; }
+.answer-steps[hidden] { display: none; }
+.answer-steps > summary { cursor: pointer; color: var(--pencil); font-weight: 700; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.answer-steps > summary::-webkit-details-marker { display: none; }
+.answer-steps > summary::before { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg); transition: transform .2s; }
+.answer-steps[open] > summary::before { transform: rotate(45deg); }
+.steps-list { list-style: none; margin: 6px 0 0; padding: 0 0 0 4px; display: grid; gap: 4px; border-left: 2px solid var(--line); }
+.step { position: relative; padding-left: 20px; color: var(--graphite); line-height: 1.4; }
+.step::before { content: "✓"; position: absolute; left: 4px; top: 0; color: var(--done, #1d7a4e); font-weight: 800; font-size: 12px; }
+.step.is-running { color: var(--pencil); }
+.step.is-running::before { content: ""; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink);
+  animation: status-breathe 1.2s ease-in-out infinite; }
+/* Quick / Deep, by Send */
+.composer .depth { flex-shrink: 0; }
+.composer .depth button { font-size: 12.5px; padding: 4px 10px; }
+@media (prefers-reduced-motion: reduce) { .step.is-running::before { animation: none; } }
+
+/* Wide content (a matrix, a long table) scrolls inside its own box; the conversation never scrolls sideways. */
+.chat .thread { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
+.chat .turn, .chat .msg, .chat .answer-body { min-width: 0; max-width: 100%; }
+.chat .msg-you { max-width: 88%; }
+
+/* What the AI did (Deep mode), with Undo; and the AI's mark on its notes and words */
+.answer-actions { list-style: none; margin: 10px 0 0; padding: 8px 10px; display: grid; gap: 4px; border-radius: 8px;
+  background: color-mix(in srgb, var(--done, #1d7a4e) 9%, transparent); font-size: 13px; }
+.answer-actions li { display: flex; align-items: baseline; gap: 10px; }
+.answer-actions li::before { content: "✓"; color: var(--done, #1d7a4e); font-weight: 800; }
+.answer-actions li.is-undone { color: var(--pencil); }
+.answer-actions li.is-undone::before { content: "↺"; color: var(--pencil); }
+.answer-actions li.is-undone .action-label { text-decoration: line-through; }
+.action-label { flex: 1; }
+.ai-mark { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; font: 800 10px/16px var(--ui); letter-spacing: .04em;
+  color: var(--ink); background: var(--ink-tint); vertical-align: middle; }
+
+/* ---------- Interactive widgets (chat/widgets.js) and pages ---------- */
+.widget { display: grid; gap: 8px; }
+.widget-title { margin: 0; font: 800 14px var(--ui); color: var(--heading); }
+.widget-caption { margin: 0; font-size: 13px; color: var(--pencil); }
+.widget-body { display: grid; gap: 10px; }
+.widget-plot { width: 100%; height: auto; }
+.widget-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--graphite); }
+.widget-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.widget-sliders { display: grid; gap: 6px; }
+.widget-slider { display: grid; grid-template-columns: minmax(90px, auto) 1fr 52px; align-items: center; gap: 10px; font-size: 13px; }
+.widget-slider input { width: 100%; padding: 0; accent-color: var(--ink); }
+.widget-slider output { font-variant-numeric: tabular-nums; text-align: right; color: var(--graphite); font-weight: 700; }
+.widget-param { color: var(--pencil); }
+.widget-circles { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.widget-circle { margin: 0; display: grid; justify-items: center; gap: 2px; }
+.widget-circle svg { width: 100%; max-width: 120px; }
+.widget-circle figcaption { font-size: 12px; text-align: center; color: var(--graphite); font-weight: 700; }
+.widget-readout { display: block; font-weight: 400; color: var(--pencil); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.widget-heat canvas { width: 100%; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 4px; border: 1px solid var(--line); }
+.widget-heat-axes { display: flex; justify-content: space-between; font-size: 12px; color: var(--pencil); }
+.widget-heat .widget-readout { font-size: 12.5px; margin: 0; }
+.widget-steps { display: grid; gap: 6px; }
+.widget-steps h4 { margin: 0; font: 800 15px var(--ui); color: var(--heading); }
+.widget-step-count { margin: 0; font-size: 12px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: .04em; }
+.widget-step-nav { display: flex; gap: 8px; justify-content: flex-end; }
+.visual-page { width: 100%; height: 320px; border: 0; border-radius: 8px; background: var(--sheet); }
+.canvas-stage .widget, .canvas-stage .visual-page { width: min(860px, 100%); }
+.canvas-stage .visual-page { height: 70vh; }

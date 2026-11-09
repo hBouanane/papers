@@ -1,7 +1,7 @@
 // The two ways to read: the original PDF or the paper's reflowed text. Opening one, the "Go to…" list,
 // coming back to where you stopped, and jumping to a note.
 import { esc, loading, pct, toast } from "../../core.js";
-import { drawPdf, drawPdfPage, drawText } from "../../highlights.js";
+import { drawPdf, drawPdfPage, drawPdfQuotes, drawText } from "../../highlights.js";
 import { openPdf } from "../../pdfview.js";
 import { pdfPagesDark } from "../../readprefs.js";
 import { renderPaperText } from "../../textview.js";
@@ -63,7 +63,7 @@ export function createViews(r, { notes, vocab, fitBar }) {
     $(".prefs-menu").hidden = r.view !== "text"; // text size, spacing and font only apply to the Text view
     if (r.pdf) $("#zoom .zoom-value").textContent = pct(r.pdf.zoom);
     if (r.pdf) r.pdf.onPageRendered((n, div) => drawPdfPage(div, n, notes.items));
-    if (r.pdf) r.pdf.onTextLayerRendered((n, layer) => vocab.markPage(layer));
+    if (r.pdf) r.pdf.onTextLayerRendered((n, layer) => { vocab.markPage(layer); drawPdfQuotes(layer, notes.items); });
     drawMarks();
     setTimeout(() => (r.settling = false), 800); // callers put you back where you were in the meantime
     fitBar();

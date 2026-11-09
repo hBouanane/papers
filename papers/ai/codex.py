@@ -9,6 +9,7 @@ import tempfile
 
 from papers.ai import providers
 from papers.ai.errors import AIError, json_in
+from papers.ai.streaming import as_transcript
 
 
 def strict(schema: dict) -> dict:
@@ -60,6 +61,6 @@ def run(prompt: str, system: str = "", schema: dict | None = None) -> str | dict
     return json_in(text) if schema else text.strip()
 
 
-def stream(system: str, content: str):
+def stream(system: str, content: str | list[dict]):
     """Codex gives the answer only once it's complete, so it arrives in one piece."""
-    yield run(content, system)
+    yield run(as_transcript(content), system)

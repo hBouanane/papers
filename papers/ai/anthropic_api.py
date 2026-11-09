@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from papers.ai import providers
 from papers.ai.errors import AIError
+from papers.ai.streaming import as_messages
 
 NOT_SET_UP = "Claude is not set up. In Settings, choose your Claude subscription, or set ANTHROPIC_API_KEY and restart."
 
@@ -30,12 +31,12 @@ def parse(prompt: str, schema: type[BaseModel], system: str = "", effort: str = 
                    messages=[{"role": "user", "content": prompt}], output_format=schema).parsed_output
 
 
-def stream(system: list[dict], content: str, effort: str = "medium"):
+def stream(system: list[dict], content: str | list[dict], effort: str = "medium"):
     """The answer, piece by piece."""
     try:
         with client().messages.stream(model=providers.claude_model(), max_tokens=16000, system=system,
                                       output_config={"effort": effort},
-                                      messages=[{"role": "user", "content": content}]) as answer:
+                                      messages=as_messages(content)) as answer:
             yield from answer.text_stream
             if answer.get_final_message().stop_reason == "refusal":
                 raise AIError("The model declined this request.")

@@ -35,33 +35,6 @@ export async function api(path, opts = {}) {
   return data;
 }
 
-// A streamed answer: the server sends one JSON object per line, {"text"} pieces then {"done"} or {"error"}.
-// `onText` gets each piece as it arrives; resolves with the whole text.
-export async function apiStream(path, json, onText) {
-  const res = await fetch(`/api${path}`, { method: "POST", body: JSON.stringify(json), headers: { "Content-Type": "application/json" } });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(typeof data.detail === "string" ? data.detail : `Request failed (${res.status})`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let text = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-    const lines = buffer.split("\n");
-    buffer = done ? "" : lines.pop();
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      const msg = JSON.parse(line);
-      if (msg.error) throw new Error(msg.error);
-      if (msg.text) { text += msg.text; onText(msg.text, text); }
-    }
-    if (done) return text;
-  }
-}
-
 // Runs an action with the button disabled and a busy label; errors become a toast.
 export async function busy(button, label, fn) {
   const original = button?.innerHTML;
@@ -283,6 +256,7 @@ export function renderVocab(box, paper, { compact = false } = {}) {
         </div></div>
       <dl class="vocab">${visible.map((w) => `<div class="word${known.has(w.term.toLowerCase()) ? " known" : ""}">
           <dt><span class="term-name">${esc(w.term)}</span><span class="chip">${w.kind === "english" ? "English" : "Technical"}</span>
+            ${w.source === "ai" ? `<span class="ai-mark" title="Added by the AI (Deep mode)">AI</span>` : ""}
             <span class="word-actions"><button class="link-button" data-vocab-listen="${esc(w.term)}" title="Hear how it's pronounced">Listen</button>
             <button class="link-button" data-vocab-known="${esc(w.term)}">${known.has(w.term.toLowerCase()) ? "Show again" : "I know this"}</button></span></dt>
           <dd>${w.translation ? `<span class="translation">${esc(w.translation)}</span>` : ""}${esc(w.meaning)}${w.example ? `<q>${esc(w.example)}</q>` : ""}</dd></div>`).join("")

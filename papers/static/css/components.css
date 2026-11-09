@@ -13,7 +13,8 @@
 .button.small { height: 34px; padding: 0 12px; font-size: 14px; }
 .button:disabled { opacity: .6; cursor: progress; }
 /* A button that looks like a link. */
-.link { border: 0; background: none; padding: 0; font: 700 13px var(--ui); color: var(--ink); cursor: pointer; }
+.link, .link-button { border: 0; background: none; padding: 0; font: 700 13px var(--ui); color: var(--ink); cursor: pointer; }
+.link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .link:hover { text-decoration: underline; }
 .link.danger { color: var(--miss); }
 textarea, input { width: 100%; font: 16px/1.5 var(--ui); color: var(--graphite); background: var(--field);

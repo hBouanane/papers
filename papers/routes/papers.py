@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from papers import db, figures, index, library, pdf, scholar
 from papers.ai import providers
+from papers.chat import store as chat
 from papers.ingest import describe_pdf, prepare_paper, read_pdf, store_pdf_paper
 from papers.store import find_existing, get_paper, insert_paper, pdf_source, save_pdf, update_paper
 
@@ -155,6 +156,8 @@ def delete_paper(paper_id: int):
     figures.forget(paper_id)
     with db.connect() as conn:
         conn.execute("delete from explanations where paper_id = ?", (paper_id,))
+    chat.delete_for_paper(paper_id)
+    with db.connect() as conn:
         conn.execute("delete from notes where paper_id = ?", (paper_id,))
         conn.execute("update papers set source_paper_id = null where source_paper_id = ?", (paper_id,))
         conn.execute("delete from papers where id = ?", (paper_id,))

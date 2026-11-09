@@ -3,6 +3,7 @@ import json
 import re
 
 from papers import db
+from papers.chat import store as chat
 
 STOPWORDS = {"the", "and", "for", "that", "this", "with", "from", "are", "was", "where", "did", "read", "idea"}
 
@@ -16,9 +17,7 @@ def index_paper(paper: dict):
     """Index the paper with its key points, your notes and the explanations you asked for."""
     skim = paper.get("skim")
     parts = [(skim if isinstance(skim, str) else json.dumps(skim)) if skim else "", paper.get("notes") or ""]
-    with db.connect() as conn:
-        parts += [" ".join(r) for r in conn.execute(
-            "select passage, question, answer from explanations where paper_id = ?", (paper["id"],))]
+    parts += [" ".join((a["passage"], a["question"], a["answer"])) for a in chat.answers_for(paper["id"])]
     summary = "\n".join(p for p in parts if p)
     with db.connect() as conn:
         conn.execute("delete from papers_fts where rowid = ?", (paper["id"],))

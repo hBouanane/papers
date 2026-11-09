@@ -30,11 +30,11 @@ def get(note_id: int) -> dict | None:
 
 
 def add(paper_id: int, kind: str = "note", body: str = "", quote: str = "", color: str = "yellow",
-        page: int | None = None, position: float = 0, anchor: dict | None = None) -> dict:
+        page: int | None = None, position: float = 0, anchor: dict | None = None, source: str = "") -> dict:
     with db.connect() as conn:
         cur = conn.execute(
-            "insert into notes (paper_id, kind, body, quote, color, page, position, anchor) values (?, ?, ?, ?, ?, ?, ?, ?)",
-            (paper_id, kind, body, quote, color, page, position, json.dumps(anchor) if anchor else None))
+            "insert into notes (paper_id, kind, body, quote, color, page, position, anchor, source) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (paper_id, kind, body, quote, color, page, position, json.dumps(anchor) if anchor else None, source))
     return get(cur.lastrowid)
 
 

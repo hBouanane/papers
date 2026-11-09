@@ -43,8 +43,9 @@ def parse(prompt: str, schema: type[BaseModel], system: str = "", effort: str = 
     return anthropic_api.parse(prompt, schema, system, effort)
 
 
-def stream(system: list[dict], content: str):
-    """The chosen model's answer as it is written (an iterator of text pieces).
+def stream(system: list[dict], content: str | list[dict]):
+    """The chosen model's answer as it is written: str pieces for the answer, Thinking pieces for its reasoning.
+    `content` is the question, or the conversation so far ([{role, content}], ending with the question).
 
     `system` is a list of Anthropic-style text blocks; the paper goes in a cached block so asking
     again about the same paper is cheap with the API. Other backends get the blocks joined."""

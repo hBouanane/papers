@@ -11,6 +11,7 @@ import tempfile
 
 from papers.ai import providers
 from papers.ai.errors import AIError
+from papers.ai.streaming import Thinking, as_transcript
 
 NOT_INSTALLED = ("Claude Code isn't installed. Install it (claude.com/claude-code), run `claude` once "
                  "and sign in with your Claude account, then try again.")
@@ -80,8 +81,9 @@ def run(prompt: str, system: str = "", schema: dict | None = None, effort: str =
         raise AIError("Claude Code didn't return the expected format. Try again.") from e
 
 
-def stream(prompt: str, system: str = "", effort: str = "medium"):
-    """A turn whose text is passed on piece by piece, as Claude writes it."""
+def stream(prompt: str | list[dict], system: str = "", effort: str = "medium"):
+    """A turn whose text is passed on piece by piece, as Claude writes it (its thinking as Thinking pieces)."""
+    prompt = as_transcript(prompt)
     binary = providers.claude_binary()
     if not binary:
         raise AIError(NOT_INSTALLED)
@@ -107,9 +109,12 @@ def stream(prompt: str, system: str = "", effort: str = "medium"):
                 continue
             if event.get("type") == "stream_event":
                 e = event.get("event") or {}
-                if e.get("type") == "content_block_delta" and (e.get("delta") or {}).get("type") == "text_delta":
+                delta = e.get("delta") or {}
+                if e.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
                     wrote = True
-                    yield e["delta"]["text"]
+                    yield delta["text"]
+                elif e.get("type") == "content_block_delta" and delta.get("type") == "thinking_delta":
+                    yield Thinking(delta.get("thinking", ""))
             elif event.get("type") == "result" and event.get("is_error"):
                 raise _error(event.get("result"))
         if proc.wait(timeout=60) and not wrote:

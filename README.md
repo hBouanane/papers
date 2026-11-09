@@ -66,6 +66,20 @@ With a subscription the app runs the official CLI on your computer (`claude -p` 
 tools), which signs in with your own account; usage counts toward your plan. The app never reads or stores
 those credentials. `PAPERS_CLAUDE_BIN` and `PAPERS_CODEX_BIN` point at a specific binary if needed.
 
+## Asking the AI
+
+Select text in a paper and press **Explain** (a short lesson: the problem, the idea, the formula read slowly, a worked
+example, why it works, where it connects in the paper), **Simplify** (the same passage in plain English) or
+**Translate**. Each starts a conversation you can keep going; **History** keeps them per paper, and **Add to chat**
+attaches more passages.
+
+Answers can contain formulas, clickable citations ([§3.4], [Fig. 1]), charts, diagrams, the paper's own figures with
+"look here" boxes, and interactive widgets. Switch the chat to **Deep** and the AI first reads the sections, looks at
+the figures and checks your notes and library before it answers; ask it to and it saves notes, words and
+highlights, or adds a paper from the references (each with Undo). Deep mode works with Claude (subscription or API
+key) and with models that support tool calling; in **More options**, tick *This model can see images* if yours does,
+and *Interactive pages* to let the AI write small demos that run in a sealed frame.
+
 ## Library folder
 
 In Settings, choose a folder (**Choose…** opens a folder browser with your usual folders and drives) and the app keeps a copy of your

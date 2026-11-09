@@ -10,6 +10,7 @@ import { setupFinish } from "./reader/finish.js";
 import { setupHighlighter } from "./reader/highlighter.js";
 import { bindKeys } from "./reader/keys.js";
 import { readerHtml } from "./reader/layout.js";
+import { citeHandler } from "./reader/cite.js";
 import { setupPanel } from "./reader/panel.js";
 import { setupProgress } from "./reader/progress.js";
 import { setupRoute } from "./reader/route.js";
@@ -30,7 +31,7 @@ export async function readerPage(id, stale) {
     if (stale()) return;
   }
   if (!p.text && !p.has_pdf) { location.replace(`#/papers/${id}`); return; }
-  const { language } = await api("/settings").catch(() => ({ language: "" }));
+  const { language, ai_pages: allowPages } = await api("/settings").catch(() => ({ language: "" }));
   if (stale()) return;
   document.body.classList.add("reading");
   app.innerHTML = readerHtml(p, id, language);
@@ -47,7 +48,15 @@ export async function readerPage(id, stale) {
   await views.show(r.view);
   if (stale()) { r.pdf?.close(); bar.cleanup(); vocab.cleanup(); return; }
   const jumpTo = views.restore();
-  const panel = setupPanel(r);
+  // Deep mode can change the library (a note, a highlight, a word): show it right away.
+  const libraryChanged = async (kind) => {
+    if (kind === "note" || kind === "highlight") return notes.load().catch(() => {});
+    if (kind === "word") {
+      const fresh = await api(`/papers/${id}`).catch(() => null);
+      if (fresh) { p.glossary = fresh.glossary; panel.renderWords(); vocab.refresh(); }
+    }
+  };
+  const panel = setupPanel(r, { notes, cite: citeHandler(r, views), allowPages, onLibraryChanged: (kind) => libraryChanged(kind) });
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
     here: () => ({ position: r.positionNow(), page: r.pdf ? r.pdf.page : null }),
     jump: (note) => views.jumpToNote(note),

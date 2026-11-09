@@ -192,6 +192,16 @@ def folder(paper_id: int):
     return config.data_dir() / "figures" / str(paper_id)
 
 
+def known(paper_id: int) -> list[dict]:
+    """The figures already cut out for this paper (none if that hasn't happened yet); never cuts them out itself."""
+    index = folder(paper_id) / "index.json"
+    try:
+        stored = json.loads(index.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return stored["items"] if isinstance(stored, dict) and stored.get("version") == VERSION else []
+
+
 def for_paper(paper_id: int) -> list[dict]:
     """The paper's figures and tables ({kind, number, page, caption}), cut out once and kept."""
     pdf_file = db.pdf_path(paper_id)

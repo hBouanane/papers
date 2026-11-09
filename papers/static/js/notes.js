@@ -73,6 +73,7 @@ export function bindNotesList(root, store, { here = () => ({ position: 0 }), jum
     const isEditing = editing === n.id;
     const goes = jump ? ` data-act="jump" role="button" tabindex="0" title="Go to this place"` : "";
     return `<article class="note-item ${n.kind === "highlight" ? `is-highlight hl-${n.color}` : ""}" data-id="${n.id}">
+      ${n.source === "ai" ? `<span class="ai-mark" title="Added by the AI (Deep mode)">AI</span>` : ""}
       ${n.quote ? `<blockquote class="note-quote"${goes}>${esc(n.quote)}</blockquote>` : ""}
       ${isEditing ? `<textarea class="note-edit" rows="3" placeholder="${n.kind === "highlight" ? "Add a note to this highlight…" : ""}">${esc(n.body)}</textarea>
           <div class="note-actions"><button type="button" class="button small" data-act="save">Save</button>

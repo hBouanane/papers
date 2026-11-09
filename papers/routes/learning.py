@@ -8,6 +8,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from papers import db, index, library, llm
+from papers.ai.streaming import Thinking, guarded
+from papers.chat import store as chat
 from papers.store import get_paper, goal_of, update_paper
 
 router = APIRouter(prefix="/api", tags=["learning"])
@@ -51,6 +53,15 @@ def save_word(paper_id: int, body: WordIn):
     return words
 
 
+@router.delete("/papers/{paper_id}/words")
+def remove_word(paper_id: int, term: str):
+    """Take a word off the paper's list (Undo for a word the AI added)."""
+    paper = get_paper(paper_id)
+    words = [w for w in paper["glossary"] or [] if w["term"].lower() != term.strip().lower()]
+    update_paper(paper_id, glossary=json.dumps(words))
+    return words
+
+
 # ---------- Explain, simplify, translate, ask ----------
 class ExplainIn(BaseModel):
     passage: str = ""
@@ -70,9 +81,11 @@ def explain_request(paper_id: int, body: ExplainIn) -> tuple[dict, str, str, str
 
 
 def save_explanation(paper_id: int, passage: str, question: str, answer: str, mode: str) -> None:
-    with db.connect() as conn:
-        conn.execute("insert into explanations (paper_id, passage, question, answer, mode) values (?, ?, ?, ?, ?)",
-                     (paper_id, passage, question, answer, mode))
+    """A one-off explanation is kept as a conversation of two messages (see papers/chat), so it shows in History."""
+    c = chat.create(paper_id)
+    chat.add_message(c["id"], "user", kind=mode, content=question,
+                     meta={"attachments": [{"kind": "passage", "text": passage}] if passage else []})
+    chat.add_message(c["id"], "assistant", kind=mode, content=answer)
     index.index_paper(get_paper(paper_id))
     library.sync_paper(paper_id)
 
@@ -93,13 +106,20 @@ def explain_passage_stream(paper_id: int, body: ExplainIn):
     def lines():
         parts = []
         try:
-            for piece in llm.explain_stream(paper, passage, question, mode=body.mode, language=language):
+            for piece in guarded(lambda: llm.explain_stream(paper, passage, question, mode=body.mode, language=language)):
+                if isinstance(piece, Thinking):
+                    yield json.dumps({"thinking": piece}) + "\n"
+                    continue
                 parts.append(piece)
                 yield json.dumps({"text": piece}) + "\n"
         except llm.AIError as e:
             yield json.dumps({"error": str(e)}) + "\n"
             return
-        save_explanation(paper_id, passage, question, "".join(parts), body.mode)
+        answer = "".join(parts).strip()
+        if not answer:  # it only thought, or said nothing: say so, and keep nothing
+            yield json.dumps({"error": "No answer came back from the model. Try again, or choose another model in Settings."}) + "\n"
+            return
+        save_explanation(paper_id, passage, question, answer, body.mode)
         yield json.dumps({"done": True}) + "\n"
 
     return StreamingResponse(lines(), media_type="application/x-ndjson",
@@ -108,10 +128,8 @@ def explain_passage_stream(paper_id: int, body: ExplainIn):
 
 @router.get("/papers/{paper_id}/explanations")
 def list_explanations(paper_id: int):
-    with db.connect() as conn:
-        return [dict(r) for r in conn.execute(
-            "select id, passage, question, answer, mode, created_at from explanations where paper_id = ? order by id desc",
-            (paper_id,))]
+    """Every answer about the paper, newest first (they live in conversations now)."""
+    return list(reversed(chat.answers_for(paper_id)))
 
 
 # ---------- Quiz and spaced review ----------
