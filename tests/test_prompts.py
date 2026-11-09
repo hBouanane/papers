@@ -25,7 +25,8 @@ def test_explain_asks_for_a_deep_lesson_with_visuals_and_follow_ups(monkeypatch)
 
 def test_simplify_is_a_rewrite_not_a_lesson(monkeypatch):
     last = ask(monkeypatch, [{"role": "user", "kind": "simplify", "content": "", "attachments": [{"text": "x"}]}])["messages"][-1]["content"]
-    assert "rewrite, not a lesson" in last and "no visuals" in last.lower()
+    last = " ".join(last.split())
+    assert "rewrite, not a lesson" in last and "no visuals" in last.lower() and "Leave nothing out" in last
 
 
 def test_translate_names_the_language_and_skips_follow_ups(monkeypatch):
