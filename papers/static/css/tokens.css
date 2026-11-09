@@ -35,7 +35,7 @@
   --shadow-card: 0 1px 2px rgb(20 24 32 / .04), 0 2px 8px rgb(20 24 32 / .03);
   --page-filter: none;
   --dark-page: #1b1e23; /* dark PDF pages: a real dark page even in light mode */
-  --ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --ui: "Atkinson Hyperlegible Next", "Noto Sans Arabic", system-ui, sans-serif; /* Arabic letters fall back to Noto */
   --paper: "STIX Two Text", "Times New Roman", serif;
   --r-panel: 8px;
   --r-control: 6px;

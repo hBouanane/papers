@@ -171,8 +171,13 @@ function renderOverview(box, p, settings, regenerate) {
   const abstractFirst = p.paper_abstract ? `<section class="abstract-first">
       <h2>Abstract <span class="faint abstract-source">${p.abstract_from_paper ? "From the paper" : "From the paper's listing"}</span></h2>
       <p class="fold-text">${esc(p.paper_abstract)}</p></section>` : "";
+  const made = p.made_by?.skim;
+  const now = settings.ai_name;
+  const writtenBy = made
+    ? `Written by <strong>${esc(made.model)}</strong> (${esc(made.provider)}).${made.model !== now ? ` You're using <strong>${esc(now)}</strong> now; Regenerate to write them again with it.` : " A stronger model can do better."}`
+    : `Written by an AI model. A stronger one can do better: you're using <strong>${esc(now)}</strong>.`;
   const redo = settings.ai_ready && p.text ? `<div class="regenerate">
-      <p class="hint">Written by an AI model. A stronger one can do better: you're using <strong>${esc(settings.ai_name)}</strong>.</p>
+      <p class="hint">${writtenBy}</p>
       <button class="button secondary small" id="regenerate" title="Writes the key points, vocabulary and review questions again. Your notes and highlights stay.">Regenerate with ${esc(settings.ai_name)}</button></div>`
     : p.text ? `<div class="regenerate"><p class="hint">Written by an AI model. To write them again with another one, choose it in
       <a href="#/settings">Settings</a>; a Regenerate button then appears here.</p></div>` : "";

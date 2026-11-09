@@ -9,6 +9,7 @@ from papers import db, library, llm, pdf, scholar
 from papers.ai import providers
 from papers.store import (
     PREPARING,
+    ai_wrote,
     find_existing,
     get_paper,
     goal_of,
@@ -94,6 +95,8 @@ def prepare_paper(paper_id: int) -> None:
             try:
                 if value := make(paper):
                     update_paper(paper_id, **{field: value})
+                    if field != "refs":
+                        ai_wrote(paper_id, field)
             except (llm.AIError, httpx.HTTPError, HTTPException):
                 pass
     finally:

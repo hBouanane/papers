@@ -48,6 +48,9 @@ def provider() -> str:
 
 # Each provider keeps its own key, model and address, so switching back and forth loses nothing.
 def provider_setting(name: str, pid: str | None = None) -> str:
+    if name == "ai_key":  # API keys live in the system keychain (papers/keys.py)
+        from papers import keys
+        return keys.get(f"ai_key:{pid or provider()}")
     return setting(f"{name}:{pid or provider()}")
 
 
@@ -95,3 +98,15 @@ def configured() -> bool:
     if kind == "codex":
         return codex_binary() is not None
     return bool(provider_setting("ai_key", "anthropic") or config.anthropic_key_in_env())
+
+
+def describe() -> dict:
+    """Which model answers now and through what, for "Written by ..." notes: {model, provider}."""
+    pid = provider()
+    kind = backend()
+    model = claude_model() if kind in ("claude-code", "api") else openai_config()["model"] or ""
+    if kind == "codex":
+        model = provider_setting("ai_model", "chatgpt-plan") or "ChatGPT (default model)"
+    name = BY_ID[pid]["name"].split(" (")[0]
+    via = {"claude-plan": "Claude subscription", "chatgpt-plan": "ChatGPT subscription"}.get(pid, name)
+    return {"model": model or name, "provider": via}

@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from papers import ai, config, db, index, library
+from papers import ai, config, db, index, keys, library
 from papers.ingest import import_inbox
 from papers.routes import ROUTERS
 
@@ -20,6 +20,7 @@ from papers.routes import ROUTERS
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.init()
+    keys.move_to_keychain()  # API keys saved in the database before move to the system keychain
     index.backfill()
     poll = config.inbox_poll_seconds()
     watcher = asyncio.create_task(watch_inbox(poll)) if poll > 0 else None

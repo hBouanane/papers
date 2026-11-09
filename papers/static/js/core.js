@@ -350,3 +350,9 @@ export function setBar({ back, title } = {}) {
     ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(back.label)}</span></a>`
     : `<a href="#/" class="wordmark">Papers</a>`;
 }
+
+// Long lists show a page at a time: the first PAGE items, then "Show 50 more" (with how many are left).
+export const PAGE = 50;
+export const moreButton = (left, step = PAGE) => (left > 0
+  ? `<div class="show-more"><button type="button" class="button secondary small" data-more>Show ${Math.min(left, step)} more</button>
+      <span class="faint">${left} more</span></div>` : "");

@@ -1,7 +1,7 @@
 // Your notes and highlights on a paper: one list, in the paper's order.
 // A highlight shows the quoted text (its colour as a bar) and can carry a note; a plain note is just text.
 // Click the quote or the place to jump there; Edit and Delete work in place, and a delete can be undone.
-import { api, esc, toast } from "./core.js";
+import { api, esc, moreButton, PAGE, toast } from "./core.js";
 
 export const COLORS = ["yellow", "green", "blue", "pink"];
 
@@ -53,6 +53,7 @@ export function bindNotesList(root, store, { here = () => ({ position: 0 }), jum
   const list = root.querySelector(".note-items");
   const filterBar = root.querySelector(".note-filter");
 
+  let limit = PAGE; // notes shown; "Show more" adds a page
   const draw = () => {
     const items = store.items;
     const used = COLORS.filter((c) => items.some((n) => n.kind === "highlight" && n.color === c));
@@ -63,7 +64,7 @@ export function bindNotesList(root, store, { here = () => ({ position: 0 }), jum
         ${label || `<span class="hl-dot hl-${value}"></span>`}</button>`).join("");
     const shown = items.filter((n) => filter === "all" || (filter === "note" ? !!n.body : n.kind === "highlight" && n.color === filter));
     list.innerHTML = (undo ? `<div class="note-undo">Deleted. <button type="button" class="link" data-act="undo">Undo</button></div>` : "")
-      + (shown.length ? shown.map(item).join("") : `<p class="hint note-empty">${items.length
+      + (shown.length ? shown.slice(0, limit).map(item).join("") + moreButton(shown.length - limit) : `<p class="hint note-empty">${items.length
         ? "Nothing here with this filter."
         : "Select text in the paper and pick a colour to highlight it, or write a note above."}</p>`);
     if (editing) list.querySelector(`[data-id="${editing}"] textarea`)?.focus();
@@ -140,6 +141,7 @@ export function bindNotesList(root, store, { here = () => ({ position: 0 }), jum
     }
   };
   list.addEventListener("click", act);
+  list.addEventListener("click", (e) => { if (e.target.closest("[data-more]")) { limit += PAGE; draw(); } });
   list.addEventListener("keydown", (e) => {
     if (e.target.matches("textarea.note-edit")) {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) save(Number(e.target.closest("[data-id]").dataset.id));

@@ -99,7 +99,7 @@
 .answer-body h1, .answer-body h2, .answer-body h3, .answer-body h4 { font: 800 15.5px/1.35 var(--ui); color: var(--heading); margin: 1.1em 0 .4em; }
 .answer-body h1:first-child, .answer-body h2:first-child, .answer-body h3:first-child { margin-top: 0; }
 .answer-body p { margin: 0 0 .7em; }
-.answer-body ul, .answer-body ol { margin: 0 0 .7em; padding-left: 22px; }
+.answer-body ul, .answer-body ol { margin: 0 0 .7em; padding-inline-start: 22px; }
 .answer-body li { margin: .2em 0; }
 .answer-body blockquote { margin: .6em 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); color: var(--pencil); }
 .answer-body code { font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--sheet); padding: 1px 5px; border-radius: 4px; }
@@ -228,3 +228,14 @@ body:not(.notes-open) .chat-canvas { right: 16px; }
 .visual-page { width: 100%; height: 320px; border: 0; border-radius: 8px; background: var(--sheet); }
 .canvas-stage .widget, .canvas-stage .visual-page { width: min(860px, 100%); }
 .canvas-stage .visual-page { height: 70vh; }
+
+/* Right-to-left answers (Arabic, Persian, Urdu, Hebrew; render.js decides). Each paragraph takes its own direction
+   from its first letters, so a mixed answer reads right; formulas, code and citations stay left to right. */
+.answer-body :is(p, li, h1, h2, h3, h4, blockquote, td, th, figcaption), .msg-you p, .answer-quote { unicode-bidi: plaintext; text-align: start; }
+.answer-rtl { line-height: 1.8; }
+.answer-rtl table { direction: rtl; }
+.answer-body .katex, .answer-body code, .answer-body pre, .cite, .visual { direction: ltr; unicode-bidi: isolate; }
+.answer-body .katex-display { direction: ltr; }
+
+/* Which model wrote an answer, at the end of its buttons */
+.msg-model { margin-inline-start: auto; font-size: 12px; color: var(--pencil); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -10,6 +10,7 @@ from collections.abc import Iterator
 
 from papers import db, figures, index, library, llm
 from papers.agent import loop as agent
+from papers.ai import providers
 from papers.ai.streaming import Thinking, guarded
 from papers.chat import store
 
@@ -44,6 +45,7 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     thought: list[str] = []
     status, error = "done", ""
     known = figures.known(paper["id"])
+    model = providers.describe()  # shown under the answer: "Written by ..."
     deep = asked["meta"].get("depth") == "deep"  # Deep mode: the agent uses tools while it answers
     steps: list[dict] = []
     actions: list[dict] = []
@@ -78,7 +80,7 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
             status, error = "error", NO_ANSWER
         message = store.add_message(conversation_id, "assistant", kind=asked["kind"], content=content,
                                     thinking="".join(thought), status=status,
-                                    meta={"followups": followups, **({"steps": steps} if deep else {}),
+                                    meta={"followups": followups, "model": model, **({"steps": steps} if deep else {}),
                                           **({"actions": actions} if actions else {}),
                                           **({"error": error} if error else {})})
         if status == "done":

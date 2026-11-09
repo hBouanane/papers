@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from papers import db, index, library, llm
 from papers.ai.streaming import Thinking, guarded
 from papers.chat import store as chat
-from papers.store import get_paper, goal_of, update_paper
+from papers.store import ai_wrote, get_paper, goal_of, update_paper
 
 router = APIRouter(prefix="/api", tags=["learning"])
 
@@ -21,6 +21,7 @@ def skim_paper(paper_id: int):
     result = llm.skim(paper, goal=goal_of(paper))
     status = "skimmed" if paper["status"] == "new" else paper["status"]
     update_paper(paper_id, skim=json.dumps(result), status=status)
+    ai_wrote(paper_id, "skim")
     return result
 
 
@@ -37,6 +38,7 @@ def make_glossary(paper_id: int):
         raise HTTPException(400, "This paper has no text yet. Upload its PDF first.")
     words = llm.glossary(paper, language=db.setting("language"))
     update_paper(paper_id, glossary=json.dumps(words))
+    ai_wrote(paper_id, "glossary")
     return words
 
 
@@ -160,6 +162,7 @@ def make_quiz(paper_id: int):
     paper = get_paper(paper_id)
     questions = llm.quiz(paper)
     update_paper(paper_id, quiz=json.dumps(questions), review_due=paper["review_due"] or date.today().isoformat())
+    ai_wrote(paper_id, "quiz")
     return questions
 
 

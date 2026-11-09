@@ -141,3 +141,38 @@ def test_old_explanations_become_conversations_once(client):
     assert len(convs) == 1 and convs[0]["title"] == "Simplify: a passage"
     msgs = store.get(convs[0]["id"])["messages"]
     assert msgs[0]["meta"]["attachments"] == [{"kind": "passage", "text": "a passage"}] and msgs[1]["content"] == "An answer."
+
+
+def test_history_and_long_conversations_come_a_page_at_a_time(client):
+    p = make(client)
+    ids = [store.create(p["id"], title=f"c{i}")["id"] for i in range(5)]
+    for cid in ids:  # touch them in order so the newest is last
+        store.add_message(cid, "user", content="q")
+    page1 = client.get(f"/api/papers/{p['id']}/conversations", params={"limit": 2}).json()
+    page2 = client.get(f"/api/papers/{p['id']}/conversations", params={"limit": 2, "offset": 2}).json()
+    assert len(page1) == 2 and len(page2) == 2 and not {c["id"] for c in page1} & {c["id"] for c in page2}
+
+    cid = ids[0]
+    for i in range(9):
+        store.add_message(cid, "assistant" if i % 2 else "user", content=f"m{i}")
+    latest = client.get(f"/api/conversations/{cid}", params={"last": 4}).json()
+    assert [m["content"] for m in latest["messages"]] == ["m5", "m6", "m7", "m8"] and latest["earlier"] == 6
+    older = client.get(f"/api/conversations/{cid}", params={"last": 4, "before": latest["messages"][0]["id"]}).json()
+    assert [m["content"] for m in older["messages"]] == ["m1", "m2", "m3", "m4"] and older["earlier"] == 2
+
+
+def test_each_answer_says_which_model_wrote_it(client, monkeypatch):
+    fake_model(monkeypatch, ["An answer."])
+    client.put("/api/settings", json={"ai_backend": "openai", "ai_provider": "openrouter", "ai_model": "some/model:free"})
+    p = make(client)
+    done = events(client.post(f"/api/papers/{p['id']}/conversations/start", json={"content": "Q?"}))[-1]
+    assert done["message"]["meta"]["model"] == {"model": "some/model:free", "provider": "OpenRouter"}
+
+
+def test_the_key_points_remember_their_model(client, monkeypatch):
+    monkeypatch.setattr(llm, "skim", lambda paper, goal="": {"tldr": "x"})
+    client.put("/api/settings", json={"ai_provider": "claude-plan"})
+    p = make(client)
+    client.post(f"/api/papers/{p['id']}/skim")
+    made = client.get(f"/api/papers/{p['id']}").json()["made_by"]
+    assert made["skim"]["provider"] == "Claude subscription" and made["skim"]["model"]

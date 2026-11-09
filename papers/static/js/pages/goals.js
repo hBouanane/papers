@@ -1,5 +1,5 @@
 // Goals: what you're working on, each with its papers; and one goal's page.
-import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, paperRow, setBar, tableHead, toast } from "../core.js";
+import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, moreButton, PAGE, paperRow, setBar, tableHead, toast } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
 
@@ -69,8 +69,10 @@ export async function goalPage(id, stale) {
   if (!goal) throw new Error("This goal doesn't exist. It may have been removed.");
   setBar({ back: { href: "#/goals", label: "Goals" }, title: goal.goal });
 
-  const mine = (list) => list.length ? tableHead + list.map((p) => paperRow(p)).join("")
-    : `<p class="faint pad">No papers yet. Find some below.</p>`;
+  let mineShown = PAGE;
+  let mineList = papers;
+  const mine = (list) => (mineList = list).length ? tableHead + list.slice(0, mineShown).map((p) => paperRow(p)).join("")
+    + moreButton(list.length - mineShown) : `<p class="faint pad">No papers yet. Find some below.</p>`;
   const shelf = (list) => list.length ? `<div class="shelf goal-shelf">${list.map((p) => paperCard(p)).join("")}</div>`
     : `<div class="desk-empty">No papers yet. Search below, or add one.</div>`;
   const read = papers.filter((p) => p.status === "read").length;
@@ -108,6 +110,12 @@ export async function goalPage(id, stale) {
   drawCovers(app);
   bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   app.querySelector(".as-list")?.addEventListener("toggle", () => drawCovers(app.querySelector("#mine")));
+  app.querySelector("#mine").addEventListener("click", (e) => {
+    if (!e.target.closest("[data-more]")) return;
+    mineShown += PAGE;
+    e.currentTarget.innerHTML = mine(mineList);
+    drawCovers(e.currentTarget);
+  });
   const known = new Set(all.map((p) => p.external_id).filter(Boolean));
   app.querySelector("#find").onclick = (e) => busy(e.currentTarget, "Searching…", async () => {
     const box = app.querySelector("#suggestions");

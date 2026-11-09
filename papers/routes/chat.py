@@ -66,9 +66,10 @@ def send(conversation: dict, body: MessageIn, first: dict | None = None) -> Stre
 
 
 @router.get("/papers/{paper_id}/conversations")
-def list_conversations(paper_id: int):
+def list_conversations(paper_id: int, limit: int = 1000, offset: int = 0):
+    """History, newest first; `limit` and `offset` page through it."""
     get_paper(paper_id)
-    return store.list_for(paper_id)
+    return store.list_for(paper_id, limit=min(max(limit, 1), 1000), offset=max(offset, 0))
 
 
 @router.post("/papers/{paper_id}/conversations/start")
@@ -81,8 +82,13 @@ def start_conversation(paper_id: int, body: MessageIn):
 
 
 @router.get("/conversations/{conversation_id}")
-def read_conversation(conversation_id: int):
-    return conversation_or_404(conversation_id)
+def read_conversation(conversation_id: int, last: int | None = None, before: int | None = None):
+    """A conversation; `last=40` gives only the latest messages (with how many are `earlier`), `before` the ones
+    before a message (for "Show earlier messages")."""
+    c = store.get(conversation_id, last=last, before=before)
+    if not c:
+        raise HTTPException(404, "Conversation not found")
+    return c
 
 
 @router.post("/conversations/{conversation_id}/messages")

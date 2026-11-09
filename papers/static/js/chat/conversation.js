@@ -13,6 +13,7 @@ import { drawVisuals, renderAnswer } from "./render.js";
 import { streamEvents } from "./stream.js";
 
 const ACTION = { explain: "Explain", simplify: "Simplify", translate: "Translate" };
+const LAST = 40; // messages shown when a conversation opens; "Show earlier messages" loads 40 more
 const SIMPLER = "Say that again more simply: plain English, short sentences, and an everyday example.";
 const DEEPER = "Go deeper: the details, the math step by step, a worked example with numbers, and why it works.";
 const ago = (iso) => {
@@ -82,7 +83,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       <button type="button" class="link-button" data-act="simpler">Simpler</button>
       <button type="button" class="link-button" data-act="deeper">Deeper</button>
       <button type="button" class="link-button" data-act="note">Save as note</button>
-      ${canSpeak() ? `<button type="button" class="link-button" data-act="listen">Listen</button>` : ""}</div>
+      ${canSpeak() ? `<button type="button" class="link-button" data-act="listen">Listen</button>` : ""}
+      ${m.meta?.model ? `<span class="msg-model" title="The model that wrote this answer">${esc(m.meta.model.model)} · ${esc(m.meta.model.provider)}</span>` : ""}</div>
     ${last && m.meta?.followups?.length ? `<div class="followups">${m.meta.followups.map((q) =>
       `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}`;
   const assistantHtml = (m, last) => {
@@ -106,6 +108,10 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     thread.innerHTML = "";
     const ms = current?.messages || [];
     if (!ms.length) { thread.innerHTML = emptyHtml; return; }
+    if (current.earlier) {
+      thread.insertAdjacentHTML("beforeend", `<div class="show-more"><button type="button" class="button secondary small" data-earlier>Show earlier messages</button>
+        <span class="faint">${current.earlier} more</span></div>`);
+    }
     ms.forEach((m, i) => turnEl(m.role === "user" ? userHtml(m) : assistantHtml(m, i === ms.length - 1)));
     draw(thread);
     thread.scrollTop = thread.scrollHeight;
@@ -120,16 +126,19 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   const grow = () => { box.style.height = "auto"; box.style.height = `${Math.min(box.scrollHeight, 200)}px`; };
 
   // ---------- History ----------
+  let historyShown = 20; // conversations listed; "Show older" adds 20
   const showHistory = async (open = historyEl.hidden) => {
     historyEl.hidden = !open;
     $(".chat-title-btn").setAttribute("aria-expanded", open);
     if (!open) return;
-    const list = await api(`/papers/${paperId}/conversations`).catch(() => []);
-    $(".chat-history-list").innerHTML = list.length ? list.map((c) => `<li class="${c.id === current?.id ? "current" : ""}">
+    const list = await api(`/papers/${paperId}/conversations?limit=${historyShown + 1}`).catch(() => []);
+    const more = list.length > historyShown;
+    $(".chat-history-list").innerHTML = (list.length ? list.slice(0, historyShown).map((c) => `<li class="${c.id === current?.id ? "current" : ""}">
         <button type="button" class="history-open" data-open="${c.id}"><span class="history-title">${esc(c.title || "New conversation")}</span>
           <span class="history-preview">${esc(c.preview || "")}</span><span class="history-time">${ago(c.updated_at)}</span></button>
         <button type="button" class="history-delete" data-delete="${c.id}" title="Delete this conversation" aria-label="Delete">×</button></li>`).join("")
-      : `<li class="history-none">No conversations yet.</li>`;
+      : `<li class="history-none">No conversations yet.</li>`)
+      + (more ? `<li class="history-more"><button type="button" class="link-button" data-older>Show older</button></li>` : "");
   };
 
   // ---------- Sending ----------
@@ -247,6 +256,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   let titleButton = $(".chat-title-btn");
   const makeTitleButton = () => titleButton;
   historyEl.addEventListener("click", async (e) => {
+    if (e.target.closest("[data-older]")) { historyShown += 20; return showHistory(true); }
     const openId = e.target.closest("[data-open]")?.dataset.open;
     if (openId) { await open(+openId); return showHistory(false); }
     const del = e.target.closest("[data-delete]");
@@ -257,6 +267,15 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     showHistory(true);
   });
   thread.addEventListener("click", async (e) => {
+    if (e.target.closest("[data-earlier]")) { // the messages before the ones shown, kept in place on screen
+      const older = await api(`/conversations/${current.id}?last=${LAST}&before=${current.messages[0].id}`);
+      const height = thread.scrollHeight;
+      current.messages = [...older.messages, ...current.messages];
+      current.earlier = older.earlier;
+      drawThread();
+      thread.scrollTop = thread.scrollHeight - height;
+      return;
+    }
     const f = e.target.closest("[data-followup]");
     if (f) return send("ask", f.dataset.followup, []);
     const act = e.target.closest("[data-act]")?.dataset.act;
@@ -286,7 +305,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   // ---------- Opening ----------
   async function open(id, { keepScroll = false } = {}) {
     const top = thread.scrollTop;
-    current = await api(`/conversations/${id}`);
+    current = await api(`/conversations/${id}?last=${LAST}`);
     setTitle();
     drawThread();
     if (keepScroll) thread.scrollTop = top;

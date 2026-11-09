@@ -71,13 +71,14 @@ def _message(row) -> dict:
 
 
 # ---------- Reading ----------
-def list_for(paper_id: int) -> list[dict]:
+def list_for(paper_id: int, limit: int = 1000, offset: int = 0) -> list[dict]:
     with db.connect() as conn:
         rows = conn.execute(
             "select c.*, (select count(*) from messages m where m.conversation_id = c.id) as messages,"
             " (select content from messages m where m.conversation_id = c.id and m.role = 'assistant'"
             "  and m.status = 'done' order by m.id desc limit 1) as last_answer"
-            " from conversations c where c.paper_id = ? order by c.updated_at desc, c.id desc", (paper_id,)).fetchall()
+            " from conversations c where c.paper_id = ? order by c.updated_at desc, c.id desc limit ? offset ?",
+            (paper_id, limit, offset)).fetchall()
     out = []
     for r in rows:
         c = dict(r)
@@ -86,14 +87,22 @@ def list_for(paper_id: int) -> list[dict]:
     return out
 
 
-def get(conversation_id: int) -> dict | None:
+def get(conversation_id: int, last: int | None = None, before: int | None = None) -> dict | None:
+    """The conversation with its messages, oldest first. `last`: only the latest ones (and how many come before:
+    `earlier`); `before`: those before this message id (for "Show earlier messages")."""
     with db.connect() as conn:
         c = conn.execute("select * from conversations where id = ?", (conversation_id,)).fetchone()
         if not c:
             return None
-        messages = [_message(r) for r in conn.execute(
-            "select * from messages where conversation_id = ? order by id", (conversation_id,))]
-    return {**dict(c), "messages": messages}
+        where, args = "conversation_id = ?", [conversation_id]
+        if before:
+            where, args = where + " and id < ?", [*args, before]
+        rows = conn.execute(f"select * from messages where {where} order by id desc"
+                            + (" limit ?" if last else ""), (*args, last) if last else args).fetchall()
+        messages = [_message(r) for r in reversed(rows)]
+        earlier = conn.execute(f"select count(*) from messages where {where} and id < ?",
+                               (*args, messages[0]["id"])).fetchone()[0] if messages else 0
+    return {**dict(c), "messages": messages, "earlier": earlier}
 
 
 def answers_for(paper_id: int) -> list[dict]:
