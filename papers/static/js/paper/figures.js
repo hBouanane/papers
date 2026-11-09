@@ -10,8 +10,8 @@ export async function renderFigures(box, p) {
   }
   box.innerHTML = loading("Finding the figures and tables in the paper");
   let figs;
-  try { figs = await api(`/papers/${p.id}/figures`); } catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
-  if (!box.isConnected) return;
+  try { figs = await api(`/papers/${p.id}/figures`); } catch (e) { if (box.isConnected) box.innerHTML = `<p class="error">${esc(e.message)}</p>`; return; }
+  if (!box.isConnected) return; // you went to another tab meanwhile
   if (!figs.length) {
     box.innerHTML = `<p class="hint">No figures or tables were found in this PDF. (They're found by their captions, like "Figure 1:" or "Table 2:".)</p>`;
     return;
