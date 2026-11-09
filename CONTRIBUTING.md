@@ -43,8 +43,13 @@ papers/
 
   store.py          reading and writing papers; every change also updates the search index and the folder
   ingest.py         turning a PDF into a paper, the Inbox, and preparing papers ahead of time with the AI
-  llm.py            every prompt: one function per task (skim, explain, glossary, quiz, grade, recall, ...)
-  ai/               getting a prompt to the chosen model and its answer back
+  llm.py            every prompt: one function per task (skim, explain, glossary, quiz, grade, recall, ...), and the
+                    tutor's rules for conversations (TUTOR, TASKS: how Explain, Simplify, Translate and questions answer)
+  ai/               getting a prompt to the chosen model and its answer back; streaming.py: thinking vs answer, Stop,
+                    and giving up on a silent model
+  chat/             conversations: store.py (conversations and messages), answer.py (streams an answer and saves it)
+  agent/            Deep mode: tools.py (what the AI can look up and do), loop.py (the tool loop for each provider),
+                    mcp_server.py (the same tools for Claude Code)
     providers.py      the provider list and which one is chosen, with its key, model and address
     anthropic_api.py  claude_code.py  codex.py  openai_compat.py   one file per way of reaching a model
 
@@ -73,6 +78,9 @@ papers/
                         Notes; streamed answers), finish, zoom, keys (shortcuts), terms + vocab (the Words switch:
                         hard words marked in the page, with a card for each)
     js/components/    reusable widgets: combobox (searchable dropdown), folderpicker
+    js/chat/          the conversation panel: conversation.js (History, composer, Quick/Deep), answer.js (an answer
+                      being written), stream.js, render.js (Markdown, math, citations, visuals), widgets.js,
+                      canvas.js (a visual opened large)
     js/*.js           shared by the paper screens: pdfview (PDF.js), textview, highlights, notes, tracker,
                       speech, readprefs (font, size, page tone), covers (first-page thumbnails), theme
 
@@ -91,6 +99,9 @@ Two rules keep it easy to follow:
 | You want to | Look at |
 | --- | --- |
 | Change what the AI writes (key points, quiz, ...) | the prompt in `papers/llm.py` |
+| Change how Explain or Simplify answer | `TASKS` in `papers/llm.py` (the rules all answers follow are `TUTOR`) |
+| Give the AI a new tool in Deep mode | a function and an entry in `TOOLS`, `papers/agent/tools.py` (`"act": True` if it changes the library, with `data` for Undo) |
+| Add a kind of visual | a fenced block in `papers/static/js/chat/render.js` (or a widget in `widgets.js`), and a line in `TUTOR` |
 | Add a provider that speaks the OpenAI chat API | one line in `PROVIDERS`, `papers/ai/providers.py` |
 | Add a provider with its own API | a module in `papers/ai/` with `parse()` and `stream()`, and a branch in `ai/__init__.py` |
 | Add an API endpoint | the matching file in `papers/routes/` (a new area gets a new file, added to `routes/__init__.py`) |

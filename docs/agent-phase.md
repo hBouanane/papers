@@ -147,3 +147,28 @@ Each phase is its own PR, built on the one before, and each leaves the app worki
 | **3. Agent mode** | Deep mode: the tool loop (PydanticAI, plus Claude Code and Codex with the local MCP server), the read tools, live steps |
 | **4. Actions** | Saving notes and words, highlights and adding papers from the chat, with Undo and the AI mark |
 | **5. Interactive** | The built-in `widget` visuals; later, opt-in model-written pages in a locked-down frame |
+
+## What was built (and where it differs from the plan)
+
+All five phases are in, in this order, each tested before the next:
+
+- **0. Never stuck:** `papers/ai/streaming.py` tells reasoning from the answer (OpenRouter `reasoning`, DeepSeek and vLLM
+  `reasoning_content`, `<think>` tags, Claude Code thinking), gives up after 90 seconds of silence, and stops the
+  model when you press Stop. An empty answer is an error, never saved. The loading look is `static/js/chat/answer.js`.
+- **1. Conversations:** `papers/chat/` and `static/js/chat/conversation.js`. Earlier explanations were carried over
+  once (empty ones left out). Search, Recall and the library folder read answers from conversations.
+- **2. Deep answers:** the tutor's rules and the tasks in `papers/llm.py`; rendering in `static/js/chat/render.js`
+  (Markdown, KaTeX, citations, `chart`, `diagram`, `math`, `figure`), with lenient reading of the model's JSON.
+- **3. Agent mode:** instead of PydanticAI, a small tool loop over the providers the app already had
+  (`papers/agent/loop.py`): no new dependency, every provider handled the same way. Claude Code gets the tools from a
+  minimal MCP server (`papers/agent/mcp_server.py`, stdin/stdout only, no network). **Codex (ChatGPT subscription)
+  doesn't run tools yet:** Deep mode answers without them and says so, until it can be tested.
+- **4. Actions:** `save_note`, `highlight`, `save_word`, `add_paper`, each listed under the answer with Undo
+  (`POST /api/messages/{id}/undo`); at most 5 per answer; AI-made notes and words carry an AI mark.
+- **5. Interactive:** widgets (`plot`, `circles`, `heatmap`, `steps`) in `static/js/chat/widgets.js`, evaluated by
+  math.js with its dangerous functions removed; model-written `page`s only when switched on, in a sandboxed frame
+  with a Content-Security-Policy that blocks every connection.
+
+How good an answer is depends mostly on the model: the same prompt gives a full lesson with a correct derivation,
+labelled formulas and a clock widget with Claude, and a thinner one, sometimes with wrong numbers, with a small free
+model.
