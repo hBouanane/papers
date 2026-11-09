@@ -14,6 +14,20 @@ const sentenceAround = (range) => {
   return all.slice(start, end < 0 ? undefined : end + 1).slice(0, 400);
 };
 
+// Where a selection is in the paper, shown on its chip: "Page 4" in the PDF, the section's heading in the text.
+const whereFrom = (range) => {
+  const start = range.startContainer;
+  const el = start.nodeType === Node.ELEMENT_NODE ? (start.childNodes[range.startOffset] || start) : start.parentElement;
+  const page = el?.closest(".page[data-page-number]")?.dataset.pageNumber;
+  if (page) return `Page ${page}`;
+  const article = el?.closest("#article");
+  if (!article) return "";
+  // the last heading before the selection
+  const heading = [...article.querySelectorAll("h2, h3, h4")]
+    .filter((h) => h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
+  return heading ? heading.textContent.trim().replace(/\s+/g, " ").slice(0, 40) : "";
+};
+
 export function setupSelection(r, { highlighter, notesUi, panel, vocab }) {
   const { id, paper: p, language, $, scroller } = r;
   const pop = $("#pop");
@@ -77,9 +91,11 @@ export function setupSelection(r, { highlighter, notesUi, panel, vocab }) {
       } catch (err) { toast(err.message); }
       return;
     }
+    const label = whereFrom(range);
+    if (action === "attach") return panel.attach(text, label);
     if (action === "translate" && !language) return toast("Set your language in Settings first, then Translate works.");
     markExplained(range);
-    panel.explain(text, "", action);
+    panel.explain(text, "", action, label);
   });
 
   scroller.addEventListener("click", (e) => {

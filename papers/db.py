@@ -104,6 +104,8 @@ def init():
             conn.execute("insert into notes (paper_id, body) select id, trim(notes) from papers p"
                          " where trim(coalesce(notes, '')) != '' and not exists (select 1 from notes n where n.paper_id = p.id)")
             conn.execute("insert into settings (key, value) values ('notes_migrated', '1')")
+        from papers.chat import store as chat  # late import: chat builds on db
+        chat.init(conn)
 
 
 def row_to_dict(row: sqlite3.Row | None) -> dict | None:

@@ -195,6 +195,54 @@ def explain_stream(paper: dict, passage: str, question: str = "", mode: str = "e
     return ai.stream(system, content)
 
 
+# ---------- Conversations (papers/chat) ----------
+FOLLOWUPS = ("After your answer, add a fenced block ```followups with two or three short questions (one per line, "
+             "under 10 words each) the reader might want to ask next about this. Nothing after that block.")
+KEEP_TURNS = 16  # earlier messages given back to the model; older ones are left out
+LONG_ANSWER = 6000  # earlier answers longer than this are shortened when given back
+
+
+def _turn(m: dict, language: str, last: bool) -> str:
+    """One message of the conversation as the model reads it: attached passages, then what to do with them."""
+    parts = [f"<passage>\n{a['text']}\n</passage>" for a in m.get("attachments", []) if a.get("text")]
+    if m.get("content"):
+        parts.append(f"My question: {m['content']}" if parts else m["content"])
+    if MODES.get(m.get("kind")) and last:  # the instructions only for the message being answered now
+        parts.append(MODES[m["kind"]].format(language=language))
+    elif m.get("kind") in ("explain", "simplify", "translate") and not m.get("content"):
+        parts.append(f"({m['kind'].capitalize()} this.)")
+    return "\n\n".join(parts) or "(empty)"
+
+
+def conversation_stream(paper: dict, turns: list[dict], language: str = ""):
+    """The answer to the last message of a conversation, as it is written (str pieces; Thinking for reasoning).
+    `turns`: [{role, kind, content, attachments}] oldest first, ending with the reader's new message."""
+    turns = turns[-KEEP_TURNS:]
+    while turns and turns[0]["role"] != "user":
+        turns = turns[1:]
+    system = [
+        {"type": "text", "text": (
+            "You help a researcher understand a paper they are reading. You have the full paper. "
+            "When they paste a passage, reformulate it in simpler terms, define jargon, connect it "
+            "to the rest of the paper (earlier definitions, the method, the results), and give an "
+            "intuition or small example when it helps. When they ask about the paper as a whole, "
+            "answer from the paper and say where in it the answer comes from. This is a conversation: "
+            "build on what you already said, don't repeat it.")},
+        {"type": "text", "text": _paper_context(paper), "cache_control": {"type": "ephemeral"}},
+    ]
+    if turns[-1].get("kind") != "translate":
+        system.append({"type": "text", "text": FOLLOWUPS})
+    messages = []
+    for i, m in enumerate(turns):
+        last = i == len(turns) - 1
+        if m["role"] == "user":
+            messages.append({"role": "user", "content": _turn(m, language, last)})
+        else:
+            text = m.get("content") or "(no answer)"
+            messages.append({"role": "assistant", "content": text if len(text) <= LONG_ANSWER else text[:LONG_ANSWER] + " […]"})
+    return ai.stream(system, messages)
+
+
 class QuizItem(BaseModel):
     question: str
     answer: str

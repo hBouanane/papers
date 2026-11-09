@@ -1,89 +1,64 @@
-// The side panel: Ask (a conversation with the AI about the paper, answers streamed as they're written),
-// Words (the paper's vocabulary) and Notes, one tab at a time.
-import { answerView } from "../../chat/answer.js";
-import { streamEvents } from "../../chat/stream.js";
-import { api, esc, markdown, quote, renderVocab } from "../../core.js";
-import { canSpeak, speak, speaking, stopSpeaking } from "../../speech.js";
+// The side panel: Ask (conversations with the AI about the paper, chat/conversation.js), Words (the paper's
+// vocabulary) and Notes, one tab at a time. Drag its left edge to resize it, or use Wider; the width is remembered.
+import { conversationView } from "../../chat/conversation.js";
+import { markdown, renderVocab, toast } from "../../core.js";
 
-const ACTION = { explain: "Explain", simplify: "Simplify", translate: "Translate" };
+const WIDTH_KEY = "papers.panelWidth";
+const MIN = 340;
+const maxWidth = () => Math.max(MIN, innerWidth - 320); // the paper keeps at least this much
+const savedWidth = () => { try { return Number(localStorage.getItem(WIDTH_KEY)) || 420; } catch { return 420; } };
+const saveWidth = (w) => { try { localStorage.setItem(WIDTH_KEY, String(Math.round(w))); } catch { /* not remembered */ } };
 
-// One turn of the conversation: what you asked (or selected), then the answer.
-const turnHtml = (e) => `<div class="msg msg-you">
-      ${e.passage ? `<span class="msg-action">${ACTION[e.mode] || "Explain"}</span>${quote(e.passage)}` : ""}
-      ${e.question ? `<p>${esc(e.question)}</p>` : ""}</div>
-    <div class="msg msg-claude">${e.answer ? markdown(e.answer) : e.error ? `<p class="error">${esc(e.error)}</p>`
-      : e.streaming ? "" : `<p class="faint">No answer came back for this one.</p>`}
-      ${e.answer && canSpeak() ? `<button class="link-button msg-listen">Listen</button>` : ""}</div>`;
-
-export function setupPanel(r) {
+export function setupPanel(r, { notes } = {}) {
   const { id, $ } = r;
+  const panel = $("#notes");
   const isOpen = () => document.body.classList.contains("notes-open");
   const setOpen = (open, pane) => {
     document.body.classList.toggle("notes-open", open);
     if (!pane) return;
     r.$$(".panel-tabs [data-pane]").forEach((b) => b.setAttribute("aria-selected", b.dataset.pane === pane));
     r.$$(".pane").forEach((el) => (el.hidden = el.dataset.pane !== pane));
-    if (pane === "ask") setTimeout(() => $("#thread").scrollTo(0, $("#thread").scrollHeight));
   };
 
-  // ----- Ask -----
-  const thread = $("#thread");
-  const toBottom = () => (thread.scrollTop = thread.scrollHeight);
-  const addTurn = (e) => {
-    thread.querySelector(".thread-empty")?.remove();
-    const turn = document.createElement("div");
-    turn.className = "turn";
-    turn.innerHTML = turnHtml(e);
-    thread.append(turn);
-    toBottom();
-    return turn;
+  // ----- Width: drag the left edge, or Wider (narrow → wide → most of the screen) -----
+  const setWidth = (w, remember = true) => {
+    const width = Math.min(maxWidth(), Math.max(MIN, w));
+    document.body.style.setProperty("--panel-w", `${width}px`);
+    $("#panel-wider").textContent = width >= Math.min(maxWidth(), innerWidth * 0.6) - 4 ? "Narrower" : "Wider";
+    if (remember) saveWidth(width);
   };
-  // The answer appears as it's written (chat/answer.js): placeholder lines and a status line until the first
-  // word, the model's thinking folded away, Stop at any time, Retry when it fails. Nothing stays "Thinking".
-  const explain = async (passage, question = "", mode = "explain", turn = null) => {
-    setOpen(true, "ask");
-    if (turn) turn.innerHTML = turnHtml({ passage, question, mode, streaming: true });
-    else turn = addTurn({ passage, question, mode, streaming: true });
-    const stop = new AbortController();
-    const view = answerView(turn.querySelector(".msg-claude"), {
-      render: markdown,
-      onStop: () => stop.abort(),
-      onRetry: () => explain(passage, question, mode, turn),
-    });
-    const follow = () => thread.scrollHeight - thread.scrollTop - thread.clientHeight < 120; // not if you scrolled up
-    turn.addEventListener("answer-grew", () => { if (follow()) toBottom(); });
-    try {
-      await streamEvents(`/papers/${id}/explain/stream`, { passage, question, mode }, (type, msg) => {
-        if (type === "thinking") view.thinking(msg.thinking);
-        else if (type === "text") view.text(msg.text);
-        else if (type === "status") view.status(msg.status);
-      }, { signal: stop.signal });
-      view.done();
-      if (canSpeak()) turn.querySelector(".msg-claude").insertAdjacentHTML("beforeend", `<button class="link-button msg-listen">Listen</button>`);
-    } catch (err) {
-      if (stop.signal.aborted) view.stopped();
-      else view.error(err.message);
-    }
-    if (follow()) toBottom();
+  setWidth(savedWidth(), false);
+  $("#panel-wider").onclick = () => {
+    const now = panel.offsetWidth;
+    const steps = [420, Math.round(innerWidth * 0.45), Math.round(innerWidth * 0.62)];
+    setWidth(steps.find((s) => s > now + 10) ?? steps[0]);
   };
-  thread.addEventListener("click", (e) => {
-    const listen = e.target.closest(".msg-listen");
-    if (listen) speaking() ? stopSpeaking() : speak(listen.closest(".msg").innerText.replace(/Listen$/, ""));
-  });
-  // Earlier questions for this paper, oldest first, like a conversation.
-  api(`/papers/${id}/explanations`).then((items) => {
-    items.reverse().forEach((e) => addTurn(e));
-  }).catch(() => {});
-
-  $("#ask").onsubmit = (e) => {
+  const handle = $("#panel-resize");
+  handle.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    const question = $("#question").value.trim();
-    if (!question) return $("#question").focus();
-    explain("", question);
-    $("#question").value = "";
-  };
-  $("#question").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#ask").requestSubmit(); }
+    handle.setPointerCapture(e.pointerId);
+    document.body.classList.add("panel-resizing");
+    const move = (m) => setWidth(innerWidth - m.clientX, false);
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      document.body.classList.remove("panel-resizing");
+      saveWidth(panel.offsetWidth);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up, { once: true });
+  });
+  const onResize = () => setWidth(panel.offsetWidth, false);
+  addEventListener("resize", onResize);
+
+  // ----- Ask: conversations -----
+  const chat = conversationView($("#chat"), {
+    paperId: id,
+    render: markdown,
+    toast,
+    onSaveNote: async (body, quote) => {
+      await notes.add({ kind: "note", body: body.slice(0, 6000), quote: quote.slice(0, 2000), position: r.positionNow?.() || 0 });
+      toast("Saved to your notes.");
+    },
   });
 
   // ----- Opening, closing and the tabs -----
@@ -101,7 +76,16 @@ export function setupPanel(r) {
   return {
     setOpen,
     toggle,
-    explain,
+    // Explain, Simplify or Translate a selected passage: a new conversation (label: where it's from).
+    explain(passage, _question = "", mode = "explain", label = "") {
+      setOpen(true, "ask");
+      chat.start(mode, passage, label);
+    },
+    // Attach a selected passage to the next message.
+    attach(passage, label = "") {
+      setOpen(true, "ask");
+      chat.attach(passage, label);
+    },
     renderWords,
     // A newly made vocabulary, or a word marked as known (or shown again), changes the marks in the page.
     onWordsChanged(refresh) {
@@ -109,6 +93,10 @@ export function setupPanel(r) {
       vocab.addEventListener("click", () => setTimeout(refresh, 0));
       vocab.addEventListener("known-changed", refresh);
     },
-    cleanup() { document.body.classList.remove("notes-open"); },
+    cleanup() {
+      document.body.classList.remove("notes-open");
+      document.body.style.removeProperty("--panel-w");
+      removeEventListener("resize", onResize);
+    },
   };
 }

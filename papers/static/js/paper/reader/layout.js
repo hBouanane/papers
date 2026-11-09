@@ -35,26 +35,17 @@ export const readerHtml = (p, id, language) => `
     <div class="reader-scroll" id="scroller"></div>
     <nav class="reader-route" id="route" aria-label="Where you are"></nav>
     <aside class="notes" id="notes" aria-label="Ask, words and notes">
+      <div class="panel-resize" id="panel-resize" title="Drag to resize" aria-hidden="true"></div>
       <div class="panel-head">
         <div class="panel-tabs" role="tablist">
           <button role="tab" data-pane="ask" aria-selected="true">Ask</button>
           <button role="tab" data-pane="words" aria-selected="false">Words</button>
           <button role="tab" data-pane="notes" aria-selected="false">Notes</button>
         </div>
-        <button class="button quiet small" id="close-notes" title="Close (n)">Close</button>
+        <span class="panel-head-tools"><button class="button quiet small" id="panel-wider" title="Make the panel wider or narrower">Wider</button>
+          <button class="button quiet small" id="close-notes" title="Close (n)">Close</button></span>
       </div>
-      <div class="pane pane-ask" data-pane="ask">
-        <div class="thread" id="thread">
-          <div class="thread-empty">
-            <p><strong>Select any text in the paper</strong> to explain, simplify, translate or hear it.</p>
-            <p>Or ask anything below. The AI answers with the whole paper in mind.</p>
-          </div>
-        </div>
-        <form id="ask" class="composer">
-          <textarea id="question" rows="2" placeholder="Ask anything about this paper…"></textarea>
-          <button class="button small">Ask</button>
-        </form>
-      </div>
+      <div class="pane pane-ask" data-pane="ask" id="chat"></div>
       <div class="pane" data-pane="words" hidden><div id="reader-vocab" class="reader-vocab"></div></div>
       <div class="pane" data-pane="notes" hidden><div id="notes-list"></div></div>
     </aside>
@@ -72,6 +63,7 @@ export const readerHtml = (p, id, language) => `
       <button data-sel="explain" title="Explain it with the whole paper in mind (e)">Explain</button>
       <button data-sel="simplify" title="Rewrite it in simple English">Simplify</button>
       <button data-sel="translate" title="${language ? `Translate into ${esc(language)}` : "Set your language in Settings to translate"}">Translate</button>
+      <button data-sel="attach" title="Add it to the conversation, then ask about it">Add to chat</button>
       ${canSpeak() ? `<button data-sel="listen" title="Hear it read aloud (l)">Listen</button>` : ""}
       <button data-sel="word" title="Add this word to the paper's vocabulary">Save word</button>
     </div>`;

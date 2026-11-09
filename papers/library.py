@@ -7,6 +7,7 @@ from pathlib import Path
 
 from papers import db, index
 from papers import notes as notes_db
+from papers.chat import store as chat
 
 INBOX = "Inbox"
 UNSORTED = "Unsorted"
@@ -159,8 +160,7 @@ def sync_paper(paper_id: int, follow_parent: bool = True) -> None:
         if not p:
             return
         goal = conn.execute("select goal from topics where id = ?", (p["topic_id"],)).fetchone()
-        explanations = [dict(r) for r in conn.execute(
-            "select * from explanations where paper_id = ? order by id", (paper_id,))]
+        explanations = chat.answers_for(paper_id)
         parent = db.row_to_dict(conn.execute("select * from papers where id = ?", (p["source_paper_id"],)).fetchone())
         children = [db.row_to_dict(r) for r in conn.execute("select * from papers where source_paper_id = ?", (paper_id,))]
         taken = {r["mirror_path"] for r in conn.execute(

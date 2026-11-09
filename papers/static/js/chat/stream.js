@@ -27,7 +27,7 @@ export async function streamEvents(path, json, onEvent, { signal } = {}) {
       if (!line.trim()) continue;
       const msg = JSON.parse(line);
       const type = msg.type || ["text", "thinking", "status", "tool", "visual", "action", "done", "error"].find((k) => k in msg);
-      if (type === "error") throw new Error(msg.error || msg.message || "Something went wrong.");
+      if (type === "error") throw Object.assign(new Error(msg.error || "Something went wrong."), { data: msg });
       if (type === "done") finished = msg;
       onEvent(type, msg);
     }

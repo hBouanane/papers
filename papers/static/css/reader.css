@@ -206,11 +206,20 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
 @media (max-width: 760px) { .reader-route { bottom: 12px; max-width: calc(100% - 96px); padding: 5px 12px; } }
 
 /* ---------- The side panel: Ask, Words and Notes (reader/panel.js) ---------- */
-.notes { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; z-index: 40; background: var(--sheet); border-left: 1px solid var(--line);
+.notes { position: fixed; top: 0; right: 0; bottom: 0; width: var(--panel-w, 420px); max-width: 100%; z-index: 40; background: var(--sheet); border-left: 1px solid var(--line);
   display: flex; flex-direction: column; padding: 0; overflow-y: auto; transform: translateX(100%); transition: transform .2s ease; visibility: hidden; }
 body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(--shadow-panel); }
 /* On wide screens the paper and the route make room for it. */
-@media (min-width: 1300px) { body.notes-open .reader-scroll { right: 420px; } body.notes-open .reader-route { left: calc((100% - 420px) / 2); } }
+@media (min-width: 1100px) { body.notes-open .reader-scroll { right: var(--panel-w, 420px); }
+  body.notes-open .reader-route { left: calc((100% - var(--panel-w, 420px)) / 2); } }
+/* Drag the panel's left edge to resize it (reader/panel.js). */
+.panel-resize { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; }
+.panel-resize::after { content: ""; position: absolute; left: 3px; top: 50%; width: 2px; height: 40px; margin-top: -20px; border-radius: 2px;
+  background: var(--line); opacity: 0; transition: opacity .2s; }
+.panel-resize:hover::after, body.panel-resizing .panel-resize::after { opacity: 1; background: var(--ink); }
+body.panel-resizing { cursor: col-resize; user-select: none; }
+body.panel-resizing .notes, body.panel-resizing .reader-scroll { transition: none; }
+.panel-head-tools { display: flex; gap: 4px; padding-bottom: 6px; }
 .notes-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .notes .hint { font-size: 14px; margin-bottom: 14px; }
 .notes .notes-box { padding-bottom: 6px; }
@@ -223,9 +232,6 @@ body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(-
 .pane { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px; }
 .reader-vocab .vocab .term-name { font-size: 16px; }
 .reader-vocab .section-bar { margin-bottom: 0; }
-/* An older Ask form. */
-.ask { display: grid; gap: 8px; justify-items: end; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
-.ask textarea, .ask input { font-size: 15px; }
 
 /* Ask: a conversation, what you asked on the right, the answer on the left, the box to ask at the bottom. */
 .pane-ask { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
@@ -247,5 +253,4 @@ body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(-
   background: var(--ink); animation: caret 1s steps(2, start) infinite; }
 @keyframes caret { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .caret { animation: none; opacity: .6; } }
-.composer { display: flex; gap: 8px; align-items: flex-end; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--sheet); }
-.composer textarea { resize: none; font-size: 15px; }
+

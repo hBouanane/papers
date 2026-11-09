@@ -47,7 +47,7 @@ export async function readerPage(id, stale) {
   await views.show(r.view);
   if (stale()) { r.pdf?.close(); bar.cleanup(); vocab.cleanup(); return; }
   const jumpTo = views.restore();
-  const panel = setupPanel(r);
+  const panel = setupPanel(r, { notes });
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
     here: () => ({ position: r.positionNow(), page: r.pdf ? r.pdf.page : null }),
     jump: (note) => views.jumpToNote(note),

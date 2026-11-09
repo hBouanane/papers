@@ -39,3 +39,57 @@
 @media (prefers-reduced-motion: reduce) {
   .answer-skeleton span, .status-dot, .answer.is-waiting .thinking-label { animation: none; }
 }
+
+/* ---------- A conversation (chat/conversation.js) ---------- */
+.chat { display: flex; flex-direction: column; min-height: 0; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 14px; border-bottom: 1px solid var(--line-soft, var(--line)); }
+.chat-title-btn { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1; border: 0; background: none; padding: 6px 8px;
+  margin-left: -8px; border-radius: 8px; font: 700 14px var(--ui); color: var(--heading); cursor: pointer; text-align: left; }
+.chat-title-btn:hover, .chat-title-btn[aria-expanded="true"] { background: var(--raised); }
+.chat-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-caret { flex-shrink: 0; width: 7px; height: 7px; border: solid var(--pencil); border-width: 0 1.5px 1.5px 0; transform: translateY(-2px) rotate(45deg); }
+.chat-rename { flex: 1; font: 700 14px var(--ui); padding: 5px 8px; }
+/* History: every conversation about the paper */
+.chat-history { border-bottom: 1px solid var(--line); background: var(--sheet); max-height: 46%; overflow-y: auto; padding: 6px 8px 10px; }
+.chat-history-head { margin: 4px 8px 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--pencil); }
+.chat-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.chat-history-list li { display: flex; align-items: stretch; border-radius: 8px; }
+.chat-history-list li:hover, .chat-history-list li.current { background: var(--raised); }
+.history-open { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; text-align: left; border: 0;
+  background: none; padding: 8px 10px; cursor: pointer; color: inherit; font: inherit; }
+.history-title { font-weight: 700; color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.history-time { font-size: 12px; color: var(--pencil); white-space: nowrap; }
+.history-preview { grid-column: 1 / -1; font-size: 13px; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-delete { border: 0; background: none; color: var(--pencil); padding: 0 10px; cursor: pointer; font: 700 15px var(--ui); opacity: 0; }
+.chat-history-list li:hover .history-delete, .history-delete.confirm, .history-delete:focus { opacity: 1; }
+.history-delete.confirm { color: var(--miss, #b42318); font-size: 12px; }
+.history-none { padding: 10px; color: var(--pencil); }
+
+/* Messages */
+.chat .thread { flex: 1; min-height: 0; }
+.msg-attachment { margin-top: 4px; }
+.msg-attachment .answer-quote { max-height: 7.5em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent); }
+.attachment-label { display: inline-block; font-size: 11px; font-weight: 800; color: var(--pencil); text-transform: uppercase; letter-spacing: .04em; }
+.msg-you p { margin: 6px 0 0; }
+.msg-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 4px; opacity: .55; transition: opacity .2s; }
+.turn:hover .msg-actions, .turn:last-child .msg-actions, .msg-actions:focus-within { opacity: 1; }
+.msg-actions .link-button { font-size: 12.5px; color: var(--pencil); }
+.msg-actions .link-button:hover { color: var(--ink); }
+.followups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.followup { border: 1px solid var(--line); background: var(--sheet); color: var(--graphite); border-radius: 999px; padding: 6px 12px;
+  font: 13.5px/1.3 var(--ui); cursor: pointer; text-align: left; transition: border-color .2s, color .2s; }
+.followup:hover { border-color: var(--ink); color: var(--ink); }
+
+/* The box to write in: attached passages as chips above it, Send (Stop while answering) below */
+.composer { display: grid; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--line); background: var(--sheet); }
+.composer textarea { resize: none; font-size: 15px; line-height: 1.45; min-height: 44px; max-height: 200px; }
+.composer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.composer-chips[hidden] { display: none; }
+.chip-attachment { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 6px 4px 10px; border-radius: 8px;
+  background: var(--ink-tint); color: var(--graphite); font-size: 13px; }
+.chip-attachment-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-attachment button { border: 0; background: none; color: var(--pencil); cursor: pointer; font: 700 15px var(--ui); padding: 0 4px; }
+.composer-foot { display: flex; align-items: center; gap: 10px; }
+.composer-hint { flex: 1; font-size: 12px; color: var(--pencil); }
+.chat.is-answering .composer-send { background: var(--raised); color: var(--graphite); }

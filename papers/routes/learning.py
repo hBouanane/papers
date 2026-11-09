@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from papers import db, index, library, llm
 from papers.ai.streaming import Thinking, guarded
+from papers.chat import store as chat
 from papers.store import get_paper, goal_of, update_paper
 
 router = APIRouter(prefix="/api", tags=["learning"])
@@ -71,9 +72,11 @@ def explain_request(paper_id: int, body: ExplainIn) -> tuple[dict, str, str, str
 
 
 def save_explanation(paper_id: int, passage: str, question: str, answer: str, mode: str) -> None:
-    with db.connect() as conn:
-        conn.execute("insert into explanations (paper_id, passage, question, answer, mode) values (?, ?, ?, ?, ?)",
-                     (paper_id, passage, question, answer, mode))
+    """A one-off explanation is kept as a conversation of two messages (see papers/chat), so it shows in History."""
+    c = chat.create(paper_id)
+    chat.add_message(c["id"], "user", kind=mode, content=question,
+                     meta={"attachments": [{"kind": "passage", "text": passage}] if passage else []})
+    chat.add_message(c["id"], "assistant", kind=mode, content=answer)
     index.index_paper(get_paper(paper_id))
     library.sync_paper(paper_id)
 
@@ -116,10 +119,8 @@ def explain_passage_stream(paper_id: int, body: ExplainIn):
 
 @router.get("/papers/{paper_id}/explanations")
 def list_explanations(paper_id: int):
-    with db.connect() as conn:
-        return [dict(r) for r in conn.execute(
-            "select id, passage, question, answer, mode, created_at from explanations where paper_id = ? order by id desc",
-            (paper_id,))]
+    """Every answer about the paper, newest first (they live in conversations now)."""
+    return list(reversed(chat.answers_for(paper_id)))
 
 
 # ---------- Quiz and spaced review ----------
