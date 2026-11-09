@@ -84,6 +84,12 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
       else if (state === "waiting") this.status("Thinking");
       el.dispatchEvent(new CustomEvent("answer-grew", { bubbles: true }));
     },
+    // Something it did to the library while answering (Undo appears once the answer is finished).
+    action(a) {
+      let list = el.querySelector(".answer-actions");
+      if (!list) { list = document.createElement("ul"); list.className = "answer-actions"; el.append(list); }
+      list.insertAdjacentHTML("beforeend", `<li><span class="action-label">${esc(a.label || a.kind)}</span></li>`);
+    },
     thinking(piece) {
       thinking += piece;
       think.hidden = false;

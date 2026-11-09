@@ -153,6 +153,17 @@ def add_message(conversation_id: int, role: str, kind: str = "ask", content: str
         return _message(conn.execute("select * from messages where id = ?", (mid,)).fetchone())
 
 
+def get_message(message_id: int) -> dict | None:
+    with db.connect() as conn:
+        row = conn.execute("select * from messages where id = ?", (message_id,)).fetchone()
+    return _message(row) if row else None
+
+
+def set_meta(message_id: int, meta: dict) -> None:
+    with db.connect() as conn:
+        conn.execute("update messages set meta = ? where id = ?", (json.dumps(meta), message_id))
+
+
 def delete_message(message_id: int) -> None:
     with db.connect() as conn:
         conn.execute("delete from messages where id = ?", (message_id,))

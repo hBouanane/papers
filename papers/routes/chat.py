@@ -120,3 +120,41 @@ def delete(conversation_id: int):
     index.index_paper(paper)
     library.sync_paper(paper["id"])
     return Response(status_code=204)
+
+
+class UndoIn(BaseModel):
+    index: int = Field(ge=0)
+
+
+@router.post("/messages/{message_id}/undo")
+def undo(message_id: int, body: UndoIn):
+    """Undo something the AI did in Deep mode (a note, a highlight, a word, a paper it added)."""
+    import json
+
+    from papers import notes as notes_db
+    from papers.routes import notes as notes_routes
+    from papers.routes.papers import delete_paper
+    from papers.store import update_paper
+    m = store.get_message(message_id)
+    actions = (m or {}).get("meta", {}).get("actions") or []
+    if not m or body.index >= len(actions):
+        raise HTTPException(404, "Nothing to undo there")
+    action = actions[body.index]
+    if action.get("undone"):
+        return m
+    kind, paper_id = action.get("kind"), action.get("paper_id")
+    if kind in ("note", "highlight") and notes_db.get(action["id"]):
+        notes_db.delete(action["id"])
+        notes_routes.notes_changed(paper_id)
+    elif kind == "word":
+        paper = get_paper(paper_id)
+        words = [w for w in paper["glossary"] or [] if w["term"].lower() != action["term"].lower()]
+        update_paper(paper_id, glossary=json.dumps(words))
+    elif kind == "paper":
+        try:
+            delete_paper(action["id"])
+        except HTTPException:
+            pass  # already deleted
+    action["undone"] = True
+    store.set_meta(message_id, m["meta"])
+    return store.get_message(message_id)

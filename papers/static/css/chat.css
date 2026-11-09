@@ -187,3 +187,15 @@ body:not(.notes-open) .chat-canvas { right: 16px; }
 .chat .thread { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
 .chat .turn, .chat .msg, .chat .answer-body { min-width: 0; max-width: 100%; }
 .chat .msg-you { max-width: 88%; }
+
+/* What the AI did (Deep mode), with Undo; and the AI's mark on its notes and words */
+.answer-actions { list-style: none; margin: 10px 0 0; padding: 8px 10px; display: grid; gap: 4px; border-radius: 8px;
+  background: color-mix(in srgb, var(--done, #1d7a4e) 9%, transparent); font-size: 13px; }
+.answer-actions li { display: flex; align-items: baseline; gap: 10px; }
+.answer-actions li::before { content: "✓"; color: var(--done, #1d7a4e); font-weight: 800; }
+.answer-actions li.is-undone { color: var(--pencil); }
+.answer-actions li.is-undone::before { content: "↺"; color: var(--pencil); }
+.answer-actions li.is-undone .action-label { text-decoration: line-through; }
+.action-label { flex: 1; }
+.ai-mark { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; font: 800 10px/16px var(--ui); letter-spacing: .04em;
+  color: var(--ink); background: var(--ink-tint); vertical-align: middle; }

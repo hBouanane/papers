@@ -174,6 +174,77 @@ def get_vocabulary(paper: dict) -> Result:
     return Result("\n".join(f"- {w['term']}: {w['meaning']}" for w in words), f"Read the word list ({len(words)})")
 
 
+# ---------- Act tools: they change the reader's library, so each says what it did and can be undone ----------
+def _notes_changed(paper_id: int) -> None:
+    from papers import library  # late import: library pulls in a lot
+    library.refresh_notes_text(paper_id)
+    library.sync_paper(paper_id, follow_parent=False)
+
+
+def save_note(paper: dict, text: str, quote: str = "") -> Result:
+    text = text.strip()
+    if not text:
+        return Result("A note needs some text.", "Didn't save an empty note")
+    note = notes_db.add(paper["id"], kind="note", body=text[:6000], quote=quote.strip()[:2000], source="ai",
+                        position=_position(paper, quote))
+    _notes_changed(paper["id"])
+    short = text if len(text) <= 60 else text[:60].rsplit(" ", 1)[0] + "…"
+    return Result("Saved the note.", f"Saved a note: “{short}”", data={"kind": "note", "id": note["id"], "label": f"Saved a note: “{short}”"})
+
+
+def highlight(paper: dict, quote: str, color: str = "yellow") -> Result:
+    quote = re.sub(r"\s+", " ", quote).strip()
+    text = re.sub(r"\s+", " ", paper.get("text") or "")
+    if len(quote) < 3 or quote.lower() not in text.lower():
+        return Result("That exact text isn't in the paper; quote it exactly, as it appears.", "Couldn't find the passage to highlight")
+    color = color if color in notes_db.COLORS else "yellow"
+    note = notes_db.add(paper["id"], kind="highlight", quote=quote[:2000], color=color, source="ai", position=_position(paper, quote))
+    _notes_changed(paper["id"])
+    short = quote if len(quote) <= 50 else quote[:50].rsplit(" ", 1)[0] + "…"
+    return Result("Highlighted it.", f"Highlighted “{short}”", data={"kind": "highlight", "id": note["id"], "label": f"Highlighted “{short}”"})
+
+
+def save_word(paper: dict, term: str, meaning: str, kind: str = "technical", example: str = "", translation: str = "") -> Result:
+    import json
+
+    from papers.store import update_paper
+    term = term.strip()
+    words = paper.get("glossary") or []
+    if not term or any(w["term"].lower() == term.lower() for w in words):
+        return Result(f"“{term}” is already in the word list.", f"“{term}” was already in the word list")
+    word = {"term": term, "kind": "english" if kind == "english" else "technical", "meaning": meaning.strip(),
+            "example": example.strip(), "translation": translation.strip(), "source": "ai"}
+    update_paper(paper["id"], glossary=json.dumps([*words, word]))
+    return Result(f"Added “{term}” to the word list.", f"Added “{term}” to the word list",
+                  data={"kind": "word", "term": term, "label": f"Added “{term}” to the word list"})
+
+
+def add_paper(paper: dict, title: str) -> Result:
+    import asyncio
+    import threading
+
+    from fastapi import BackgroundTasks
+
+    from papers.routes.papers import PaperIn, create_paper
+    from papers.store import find_existing
+    title = title.strip()
+    if existing := find_existing({"title": title}):
+        return Result(f"“{title}” is already in the library (paper {existing}).", f"“{title}” was already in your library")
+    tasks = BackgroundTasks()
+    added = create_paper(PaperIn(title=title, source_paper_id=paper["id"]), tasks)
+    threading.Thread(target=lambda: asyncio.run(tasks()), daemon=True).start()  # the AI reads it ahead, in the background
+    return Result(f"Added “{added['title']}” to the library, linked from this paper on the Map.",
+                  f"Added “{added['title']}” to your library",
+                  data={"kind": "paper", "id": added["id"], "label": f"Added “{added['title']}” to your library"})
+
+
+def _position(paper: dict, quote: str) -> float:
+    """Where a quote is in the paper (0 to 1), so a note made by the AI sits in the right place in the list."""
+    text = paper.get("text") or ""
+    at = text.lower().find(quote.strip().lower()[:60]) if quote.strip() else -1
+    return round(at / len(text), 4) if at >= 0 and text else 0
+
+
 # ---------- The registry ----------
 def _schema(props: dict, required: list[str]) -> dict:
     return {"type": "object", "properties": props, "required": required, "additionalProperties": False}
@@ -207,6 +278,32 @@ TOOLS = {
     "get_vocabulary": {
         "fn": get_vocabulary, "label": "Reading the word list",
         "description": "The paper's hard words with their meanings (what the reader is learning).", "schema": _schema({}, []),
+    },
+    # Act tools: only when the reader asks for it (or clearly wants it); each can be undone.
+    "save_note": {
+        "fn": save_note, "label": "Saving a note", "act": True,
+        "description": "Save a note on this paper for the reader (only when they ask, e.g. 'note that', 'save this'). "
+                       "Optionally the passage it's about, quoted exactly.",
+        "schema": _schema({"text": {"type": "string"}, "quote": {"type": "string"}}, ["text", "quote"]),
+    },
+    "highlight": {
+        "fn": highlight, "label": "Highlighting", "act": True,
+        "description": "Highlight a passage of the paper for the reader (only when they ask). Quote it exactly as it appears.",
+        "schema": _schema({"quote": {"type": "string"}, "color": {"type": "string", "enum": list(notes_db.COLORS)}}, ["quote", "color"]),
+    },
+    "save_word": {
+        "fn": save_word, "label": "Adding a word", "act": True,
+        "description": "Add a word or phrase to the paper's word list, with its meaning here in simple English (when the "
+                       "reader asks, or wants to learn it). kind: 'technical' or 'english' (a general English word).",
+        "schema": _schema({"term": {"type": "string"}, "meaning": {"type": "string"},
+                           "kind": {"type": "string", "enum": ["technical", "english"]}, "example": {"type": "string"},
+                           "translation": {"type": "string"}}, ["term", "meaning", "kind", "example", "translation"]),
+    },
+    "add_paper": {
+        "fn": add_paper, "label": "Adding a paper", "act": True,
+        "description": "Add a paper this one cites (or that the reader names) to their library, linked from this paper on "
+                       "their Map. Only when the reader asks to read or add it. Give its exact title.",
+        "schema": _schema({"title": {"type": "string"}}, ["title"]),
     },
 }
 

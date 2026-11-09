@@ -9,6 +9,7 @@ import json
 import sys
 
 PROTOCOL = "2024-11-05"
+MAX_ACTIONS = 5  # changes per answer, as in loop.py
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -22,6 +23,7 @@ def main(argv: list[str] | None = None) -> None:
         sys.stdout.write(json.dumps(msg) + "\n")
         sys.stdout.flush()
 
+    acted = 0  # changes made in this answer (one server runs for one answer)
     for line in sys.stdin:
         if not line.strip():
             continue
@@ -39,8 +41,17 @@ def main(argv: list[str] | None = None) -> None:
             reply(rid, {"tools": [{"name": t["name"], "description": t["description"], "inputSchema": t["schema"]}
                                   for t in tools.specs()]})
         elif method == "tools/call":
-            result = tools.run(params.get("name", ""), paper_id, params.get("arguments") or {})
-            content = [{"type": "text", "text": f"[{result.summary}]\n{result.text}" if result.summary else result.text}]
+            name = params.get("name", "")
+            if tools.TOOLS.get(name, {}).get("act") and acted >= MAX_ACTIONS:
+                result = tools.Result(f"That's {MAX_ACTIONS} changes in one answer already; ask the reader before doing more.",
+                                      "Stopped: too many changes")
+            else:
+                result = tools.run(name, paper_id, params.get("arguments") or {})
+            text = f"[{result.summary}]\n{result.text}" if result.summary else result.text
+            if result.data:  # what was changed, for the app's Undo (read back from Claude Code's output)
+                acted += 1
+                text += f"\n<!--action {json.dumps(result.data)}-->"
+            content = [{"type": "text", "text": text}]
             if result.image:
                 content.append({"type": "image", "data": result.image_b64(), "mimeType": "image/png"})
             reply(rid, {"content": content, "isError": False})

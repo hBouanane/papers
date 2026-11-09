@@ -256,6 +256,7 @@ export function renderVocab(box, paper, { compact = false } = {}) {
         </div></div>
       <dl class="vocab">${visible.map((w) => `<div class="word${known.has(w.term.toLowerCase()) ? " known" : ""}">
           <dt><span class="term-name">${esc(w.term)}</span><span class="chip">${w.kind === "english" ? "English" : "Technical"}</span>
+            ${w.source === "ai" ? `<span class="ai-mark" title="Added by the AI (Deep mode)">AI</span>` : ""}
             <span class="word-actions"><button class="link-button" data-vocab-listen="${esc(w.term)}" title="Hear how it's pronounced">Listen</button>
             <button class="link-button" data-vocab-known="${esc(w.term)}">${known.has(w.term.toLowerCase()) ? "Show again" : "I know this"}</button></span></dt>
           <dd>${w.translation ? `<span class="translation">${esc(w.translation)}</span>` : ""}${esc(w.meaning)}${w.example ? `<q>${esc(w.example)}</q>` : ""}</dd></div>`).join("")

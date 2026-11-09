@@ -21,7 +21,7 @@ const ago = (iso) => {
     : s < 7 * 86400 ? `${Math.round(s / 86400)} d ago` : new Date(`${iso.replace(" ", "T")}Z`).toLocaleDateString();
 };
 
-export function conversationView(root, { paperId, onSaveNote, toast = () => {}, visuals = {} }) {
+export function conversationView(root, { paperId, onSaveNote, onLibraryChanged = () => {}, toast = () => {}, visuals = {} }) {
   const render = renderAnswer;
   // what visuals and citations need: the paper's figures, where a citation goes, and the canvas to open them large
   const ctx = { ...visuals, onOpen: (kind, spec, title) => openCanvas(kind, spec, ctx, title) };
@@ -70,6 +70,10 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
       ${m.content ? `<p>${esc(m.content)}</p>` : ""}</div>`;
   const stepsHtml = (m) => (m.meta?.steps?.length ? `<details class="answer-steps"><summary><span class="steps-label">${checkedLabel(m.meta.steps.length)}</span></summary>
       <ol class="steps-list">${m.meta.steps.map((s) => `<li class="step">${esc(s.summary || s.name)}</li>`).join("")}</ol></details>` : "");
+  // What the AI did in Deep mode (notes, highlights, words, papers), each with Undo.
+  const actionsListHtml = (m) => (m.meta?.actions?.length ? `<ul class="answer-actions">${m.meta.actions.map((a, i) => `<li class="${a.undone ? "is-undone" : ""}">
+      <span class="action-label">${esc(a.label || a.kind)}</span>${a.undone ? `<span class="faint">Undone</span>`
+        : `<button type="button" class="link-button" data-undo="${i}">Undo</button>`}</li>`).join("")}</ul>` : "");
   const thinkingHtml = (m) => (m.thinking ? `<details class="answer-thinking"><summary><span class="thinking-label">Thought it through</span></summary>
       <div class="thinking-text">${esc(m.thinking)}</div></details>` : "");
   const actionsHtml = (m, last) => `<div class="msg-actions">
@@ -84,7 +88,7 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
   const assistantHtml = (m, last) => {
     if (m.status === "done") {
       return `<div class="msg msg-claude answer is-done" data-message="${m.id}">${thinkingHtml(m)}${stepsHtml(m)}
-        <div class="answer-body">${render(m.content)}</div></div>${actionsHtml(m, last)}`;
+        <div class="answer-body">${render(m.content)}</div>${actionsListHtml(m)}</div>${actionsHtml(m, last)}`;
     }
     const problem = m.status === "stopped" ? `<p class="faint">Stopped.</p>` : `<p class="error">${esc(m.meta?.error || "Something went wrong.")}</p>`;
     return `<div class="msg msg-claude answer is-${m.status}" data-message="${m.id}">${thinkingHtml(m)}${stepsHtml(m)}
@@ -153,6 +157,7 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
         else if (type === "user") { current.messages.push(msg.message); if (!current.title) refreshTitle(); }
         else if (type === "thinking") view.thinking(msg.thinking);
         else if (type === "tool") view.step(msg.tool);
+        else if (type === "action") { view.action(msg.action); onLibraryChanged(msg.action.kind); }
         else if (type === "text") view.text(msg.text);
         else if (type === "status") view.status(msg.status);
       });
@@ -255,9 +260,17 @@ export function conversationView(root, { paperId, onSaveNote, toast = () => {}, 
     const f = e.target.closest("[data-followup]");
     if (f) return send("ask", f.dataset.followup, []);
     const act = e.target.closest("[data-act]")?.dataset.act;
-    if (!act) return;
+    const undoAt = e.target.closest("[data-undo]")?.dataset.undo;
+    if (!act && undoAt == null) return;
     const msgEl = e.target.closest(".turn")?.querySelector("[data-message]");
     const m = current?.messages.find((x) => String(x.id) === msgEl?.dataset.message);
+    if (undoAt != null && m) {
+      const fresh = await api(`/messages/${m.id}/undo`, { method: "POST", json: { index: +undoAt } });
+      Object.assign(m, fresh);
+      e.target.closest(".answer-actions").outerHTML = actionsListHtml(m);
+      onLibraryChanged(m.meta.actions[+undoAt].kind);
+      return toast("Undone.");
+    }
     if (act === "retry") return retry();
     if (act === "simpler") return send("ask", SIMPLER, []);
     if (act === "deeper") return send("ask", DEEPER, [], "deep");

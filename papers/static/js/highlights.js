@@ -52,7 +52,7 @@ function lineBoxes(range) {
 
 // Draw the highlights that fall on one rendered page (called again whenever the page is redrawn).
 export function drawPdfPage(div, pageNumber, items) {
-  div.querySelector(".hl-layer")?.remove();
+  div.querySelector(".hl-layer:not(.hl-quotes)")?.remove();
   const marks = items.filter((n) => n.kind === "highlight" && n.anchor?.rects)
     .flatMap((n) => n.anchor.rects.filter((r) => r[0] === pageNumber).map((r) => ({ n, r })));
   if (!marks.length) return;
@@ -66,7 +66,39 @@ export function drawPdfPage(div, pageNumber, items) {
 export function drawPdf(container, items) {
   container.querySelectorAll(".page[data-page-number]").forEach((div) => {
     if (div.querySelector("canvas")) drawPdfPage(div, Number(div.dataset.pageNumber), items);
+    const text = div.querySelector(".textLayer");
+    if (text?.childElementCount) drawPdfQuotes(text, items);
   });
+}
+
+// Highlights kept only as their quoted text (the AI's, made in Deep mode): found in a page's text once it's drawn,
+// and marked the same way as yours.
+export function drawPdfQuotes(textLayer, items) {
+  const div = textLayer?.closest(".page");
+  if (!div) return;
+  div.querySelector(".hl-quotes")?.remove();
+  const quoted = items.filter((n) => n.kind === "highlight" && !n.anchor?.rects && squash(n.quote || "").length >= 3);
+  if (!quoted.length) return;
+  const { text, map } = textIndex(textLayer);
+  const box = div.getBoundingClientRect();
+  const marks = [];
+  for (const n of quoted) {
+    const at = text.indexOf(squash(n.quote));
+    if (at < 0) continue;
+    const range = document.createRange();
+    range.setStart(...map[at]);
+    const [endNode, endOffset] = map[at + squash(n.quote).length - 1];
+    range.setEnd(endNode, endOffset + 1);
+    for (const r of lineBoxes(range)) {
+      marks.push(`<span class="hl hl-${n.color}" data-note="${n.id}" style="left:${(r.left - box.left) / box.width * 100}%;`
+        + `top:${(r.top - box.top) / box.height * 100}%;width:${r.width / box.width * 100}%;height:${r.height / box.height * 100}%"></span>`);
+    }
+  }
+  if (!marks.length) return;
+  const layer = document.createElement("div");
+  layer.className = "hl-layer hl-quotes";
+  layer.innerHTML = marks.join("");
+  div.insertBefore(layer, textLayer);
 }
 
 // ---------- Text view ----------

@@ -10,6 +10,7 @@ starting and finishing). Each provider runs the loop its own way:
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -25,6 +26,7 @@ from papers.ai.errors import AIError
 from papers.ai.streaming import Thinking, ThinkTags, as_transcript
 
 MAX_STEPS = 8  # tool calls per answer; then it must answer with what it has
+MAX_ACTIONS = 5  # notes, highlights, words and papers added per answer
 
 AGENT = """You can use tools to work precisely, like a careful researcher, before you answer:
 - search_paper and read_section: read the exact text instead of relying on memory of it;
@@ -32,9 +34,18 @@ AGENT = """You can use tools to work precisely, like a careful researcher, befor
   accurate "look here" boxes on it in a ```figure visual;
 - search_library: connect this paper to the reader's other papers when that helps;
 - get_notes and get_vocabulary: what the reader noted and is learning, to fit the answer to them.
+- save_note, highlight, save_word, add_paper: these change the reader's library. Use them only when the reader asks
+  ("note that", "highlight the definition", "add this word", "I want to read that paper") or clearly wants it, and
+  say in your answer what you did (they can undo it).
 Use a tool when the answer depends on details you should check; don't use tools you don't need. At most
 """ + str(MAX_STEPS) + """ tool calls; then answer. Say briefly what you're checking before a tool call only if it helps the reader
 follow. Your final answer follows all the rules above."""
+
+
+@dataclass
+class Action:
+    """Something the agent did to the library (a note, a highlight, a word, a paper), with what Undo needs."""
+    data: dict
 
 
 @dataclass
@@ -161,10 +172,20 @@ def _call(paper: dict, call_id: str, name: str, arguments: str | dict):
         args = json.loads(arguments) if isinstance(arguments, str) and arguments.strip() else (arguments or {})
     except ValueError:
         args = {}
-    label = tools.TOOLS.get(name, {}).get("label", name)
+    tool = tools.TOOLS.get(name, {})
+    label = tool.get("label", name)
     yield Step(call_id, name, label, "start", args=args)
-    result = tools.run(name, paper["id"], args)
+    acted = paper.setdefault("_actions", [0])  # changes made in this answer
+    if tool.get("act") and acted[0] >= MAX_ACTIONS:
+        result = tools.Result(f"That's {MAX_ACTIONS} changes in one answer already; ask the reader before doing more.",
+                              "Stopped: too many changes")
+    else:
+        result = tools.run(name, paper["id"], args)
+        if result.data:
+            acted[0] += 1
     yield Step(call_id, name, label, "done", result.summary or label, args=args)
+    if result.data:
+        yield Action({**result.data, "paper_id": paper["id"]})
     return result
 
 
@@ -203,6 +224,7 @@ def _anthropic(paper: dict, system: list[dict], messages: list[dict]):
 
 # ---------- Claude subscription: Claude Code with the tools from mcp_server.py ----------
 PREFIX = "mcp__papers__"
+ACTION_MARK = re.compile(r"<!--action (\{.*?\})-->")
 
 
 def _claude_code(paper: dict, system: list[dict], messages: list[dict]):
@@ -258,6 +280,8 @@ def _claude_code(paper: dict, system: list[dict], messages: list[dict]):
                         text = text if isinstance(text, str) else " ".join(x.get("text", "") for x in text or [] if isinstance(x, dict))
                         summary = text.split("\n", 1)[0].strip("[] ") if text.startswith("[") else step.label
                         yield Step(step.id, step.name, step.label, "done", summary)
+                        if marker := ACTION_MARK.search(text):  # the MCP server reports what it changed
+                            yield Action({**json.loads(marker.group(1)), "paper_id": paper["id"]})
                         wrote = False  # text after a tool call starts a new paragraph
             elif kind == "result" and event.get("is_error"):
                 raise claude_code._error(event.get("result"))

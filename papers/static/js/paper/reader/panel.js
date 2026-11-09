@@ -9,7 +9,7 @@ const maxWidth = () => Math.max(MIN, innerWidth - 320); // the paper keeps at le
 const savedWidth = () => { try { return Number(localStorage.getItem(WIDTH_KEY)) || 420; } catch { return 420; } };
 const saveWidth = (w) => { try { localStorage.setItem(WIDTH_KEY, String(Math.round(w))); } catch { /* not remembered */ } };
 
-export function setupPanel(r, { notes, cite } = {}) {
+export function setupPanel(r, { notes, cite, onLibraryChanged } = {}) {
   const { id, $ } = r;
   const panel = $("#notes");
   const isOpen = () => document.body.classList.contains("notes-open");
@@ -55,6 +55,7 @@ export function setupPanel(r, { notes, cite } = {}) {
   const chat = conversationView($("#chat"), {
     paperId: id,
     toast,
+    onLibraryChanged,
     // the paper's figures (cut out of the PDF the first time) for visuals; citations go where they point
     visuals: { figures: () => (figures ??= api(`/papers/${id}/figures`).catch(() => [])), onCite: cite },
     onSaveNote: async (body, quote) => {

@@ -46,13 +46,17 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     known = figures.known(paper["id"])
     deep = asked["meta"].get("depth") == "deep"  # Deep mode: the agent uses tools while it answers
     steps: list[dict] = []
+    actions: list[dict] = []
     if deep:
         stream = guarded(lambda: agent.run(paper, turns(conversation), language=language, figures=known))
     else:
         stream = guarded(lambda: llm.conversation_stream(paper, turns(conversation), language=language, figures=known))
     try:
         for piece in stream:
-            if isinstance(piece, agent.Step):
+            if isinstance(piece, agent.Action):
+                actions.append(piece.data)
+                yield line(type="action", action=piece.data)
+            elif isinstance(piece, agent.Step):
                 if piece.state == "done":
                     steps.append({"name": piece.name, "summary": piece.summary})
                 yield line(type="tool", tool=piece.event())
@@ -75,6 +79,7 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
         message = store.add_message(conversation_id, "assistant", kind=asked["kind"], content=content,
                                     thinking="".join(thought), status=status,
                                     meta={"followups": followups, **({"steps": steps} if deep else {}),
+                                          **({"actions": actions} if actions else {}),
                                           **({"error": error} if error else {})})
         if status == "done":
             index.index_paper(paper)

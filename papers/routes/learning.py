@@ -53,6 +53,15 @@ def save_word(paper_id: int, body: WordIn):
     return words
 
 
+@router.delete("/papers/{paper_id}/words")
+def remove_word(paper_id: int, term: str):
+    """Take a word off the paper's list (Undo for a word the AI added)."""
+    paper = get_paper(paper_id)
+    words = [w for w in paper["glossary"] or [] if w["term"].lower() != term.strip().lower()]
+    update_paper(paper_id, glossary=json.dumps(words))
+    return words
+
+
 # ---------- Explain, simplify, translate, ask ----------
 class ExplainIn(BaseModel):
     passage: str = ""
