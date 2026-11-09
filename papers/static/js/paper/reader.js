@@ -10,6 +10,7 @@ import { setupFinish } from "./reader/finish.js";
 import { setupHighlighter } from "./reader/highlighter.js";
 import { bindKeys } from "./reader/keys.js";
 import { readerHtml } from "./reader/layout.js";
+import { citeHandler } from "./reader/cite.js";
 import { setupPanel } from "./reader/panel.js";
 import { setupProgress } from "./reader/progress.js";
 import { setupRoute } from "./reader/route.js";
@@ -47,7 +48,7 @@ export async function readerPage(id, stale) {
   await views.show(r.view);
   if (stale()) { r.pdf?.close(); bar.cleanup(); vocab.cleanup(); return; }
   const jumpTo = views.restore();
-  const panel = setupPanel(r, { notes });
+  const panel = setupPanel(r, { notes, cite: citeHandler(r, views) });
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
     here: () => ({ position: r.positionNow(), page: r.pdf ? r.pdf.page : null }),
     jump: (note) => views.jumpToNote(note),

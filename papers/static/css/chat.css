@@ -93,3 +93,73 @@
 .composer-foot { display: flex; align-items: center; gap: 10px; }
 .composer-hint { flex: 1; font-size: 12px; color: var(--pencil); }
 .chat.is-answering .composer-send { background: var(--raised); color: var(--graphite); }
+
+/* ---------- What an answer contains (chat/render.js) ---------- */
+.answer-body { overflow-wrap: anywhere; }
+.answer-body h1, .answer-body h2, .answer-body h3, .answer-body h4 { font: 800 15.5px/1.35 var(--ui); color: var(--heading); margin: 1.1em 0 .4em; }
+.answer-body h1:first-child, .answer-body h2:first-child, .answer-body h3:first-child { margin-top: 0; }
+.answer-body p { margin: 0 0 .7em; }
+.answer-body ul, .answer-body ol { margin: 0 0 .7em; padding-left: 22px; }
+.answer-body li { margin: .2em 0; }
+.answer-body blockquote { margin: .6em 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); color: var(--pencil); }
+.answer-body code { font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--sheet); padding: 1px 5px; border-radius: 4px; }
+.answer-body pre { margin: .6em 0; padding: 10px 12px; background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+.answer-body pre code { background: none; padding: 0; }
+.answer-body table { border-collapse: collapse; margin: .6em 0; font-size: 13.5px; display: block; overflow-x: auto; max-width: 100%; }
+.answer-body th, .answer-body td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; font-variant-numeric: tabular-nums; }
+.answer-body th { background: var(--sheet); font-weight: 700; }
+.answer-body hr { border: 0; border-top: 1px solid var(--line); margin: 1em 0; }
+.answer-body .katex-display { margin: .7em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.answer-body .katex { font-size: 1.05em; }
+
+/* Citations: [§3.4], [Fig. 1], [p. 5] take you there */
+.cite { display: inline; border: 0; padding: 0 3px; margin: 0 1px; border-radius: 4px; background: var(--ink-tint); color: var(--ink);
+  font: 700 .82em var(--ui); cursor: pointer; vertical-align: baseline; }
+.cite:hover { background: var(--ink); color: var(--on-selected, #fff); }
+
+/* Visuals: a card in the answer, "Open large" puts it in the canvas */
+.visual { margin: .8em 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--sheet); display: grid; gap: 8px; }
+.visual-pending { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.visual-kind { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); }
+.visual-stage { min-height: 40px; overflow-x: auto; }
+.visual-stage svg { max-width: 100%; height: auto; }
+.visual-open { justify-self: end; font-size: 12px; }
+.visual-loading { font-size: 13px; margin: 0; }
+.visual-failed summary { cursor: pointer; color: var(--pencil); font-size: 13px; }
+.visual-failed pre { max-height: 160px; overflow: auto; font-size: 12px; }
+.visual-chart .vega-embed { width: 100%; }
+.visual-diagram .visual-stage { display: grid; justify-items: center; }
+
+/* A formula with its parts coloured; the same colours in the list of what each part means */
+.math-formula { overflow-x: auto; }
+.math-terms { display: grid; gap: 6px; margin: 4px 0 0; }
+.math-term { display: grid; grid-template-columns: minmax(48px, auto) 1fr; gap: 10px; align-items: baseline; }
+.math-term dt { font-weight: 700; padding: 1px 6px; border-radius: 5px; justify-self: start; }
+.math-term dd { margin: 0; font-size: 14px; }
+.math-example { margin: 4px 0 0; font-size: 14px; color: var(--pencil); }
+.t1 { color: #1d3fbb; } .t2 { color: #b45309; } .t3 { color: #15803d; } .t4 { color: #b42318; } .t5 { color: #7c3aed; } .t6 { color: #0e7490; }
+dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { background: #15803d18; } dt.t4 { background: #b4231818; } dt.t5 { background: #7c3aed18; } dt.t6 { background: #0e749018; }
+:root[data-theme="dark"] :is(.t1, .t2, .t3, .t4, .t5, .t6), :root[data-theme="dim"] :is(.t1, .t2, .t3, .t4, .t5, .t6) { filter: brightness(1.7) saturate(.85); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) :is(.t1, .t2, .t3, .t4, .t5, .t6) { filter: brightness(1.7) saturate(.85); } }
+
+/* The paper's own figure, with numbered "look here" boxes */
+.figure-frame { position: relative; display: inline-block; max-width: 100%; }
+.figure-frame img { display: block; max-width: 100%; border-radius: 4px; background: #fff; }
+.figure-box { position: absolute; border: 2.5px solid var(--ink); border-radius: 6px; box-shadow: 0 0 0 9999px rgb(0 0 0 / .0); }
+.figure-box-label { position: absolute; top: -10px; left: -10px; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: #fff;
+  font: 800 12px/20px var(--ui); text-align: center; }
+.visual-figure figcaption, .chat-canvas figcaption { display: grid; gap: 4px; font-size: 13px; margin-top: 6px; }
+.figure-box-note b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; margin-right: 6px; }
+
+/* The canvas: a visual opened large over the paper, beside the chat */
+.chat-canvas { position: fixed; z-index: 45; top: 16px; bottom: 16px; left: 16px; right: calc(var(--panel-w, 420px) + 16px);
+  display: flex; flex-direction: column; border-radius: 14px; box-shadow: 0 30px 80px -30px rgb(0 0 0 / .45); overflow: hidden; }
+body:not(.notes-open) .chat-canvas { right: 16px; }
+.canvas-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.canvas-title { font: 800 15px var(--ui); color: var(--heading); }
+.canvas-stage { flex: 1; overflow: auto; padding: 22px; display: grid; align-content: start; justify-items: center; }
+.canvas-stage > * { max-width: 100%; }
+.canvas-stage .figure-frame img { max-height: 70vh; }
+.canvas-stage .math-formula { font-size: 1.35em; }
+.canvas-stage .vega-embed { min-width: min(820px, 100%); }
+@media (max-width: 900px) { .chat-canvas { left: 8px; right: 8px; top: 8px; bottom: 8px; } }

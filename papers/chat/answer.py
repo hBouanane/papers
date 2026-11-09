@@ -8,7 +8,7 @@ import json
 import re
 from collections.abc import Iterator
 
-from papers import db, index, library, llm
+from papers import db, figures, index, library, llm
 from papers.ai.streaming import Thinking, guarded
 from papers.chat import store
 
@@ -42,7 +42,8 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     parts: list[str] = []
     thought: list[str] = []
     status, error = "done", ""
-    stream = guarded(lambda: llm.conversation_stream(paper, turns(conversation), language=language))
+    known = figures.known(paper["id"])
+    stream = guarded(lambda: llm.conversation_stream(paper, turns(conversation), language=language, figures=known))
     try:
         for piece in stream:
             if isinstance(piece, Thinking):

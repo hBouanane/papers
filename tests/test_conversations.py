@@ -20,7 +20,7 @@ def fake_model(monkeypatch, *replies):
     seen = []
     queue = list(replies)
 
-    def stream(paper, turns, language=""):
+    def stream(paper, turns, language="", figures=None):
         seen.append(turns)
         reply = queue.pop(0)
         if isinstance(reply, Exception):
@@ -93,7 +93,7 @@ def test_stopping_keeps_what_was_written(client, monkeypatch):
     c = store.create(p["id"])
     store.add_message(c["id"], "user", content="Q?")
 
-    def endless(paper, turns, language=""):
+    def endless(paper, turns, language="", figures=None):
         while True:
             yield "word "
 

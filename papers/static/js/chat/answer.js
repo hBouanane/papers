@@ -39,7 +39,7 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
   const paint = () => {
     queued = false;
     if (state !== "writing") return;
-    body.innerHTML = render ? render(text) : esc(text);
+    body.innerHTML = render ? render(text, { streaming: true }) : esc(text);
     (body.lastElementChild || body).insertAdjacentHTML("beforeend", `<span class="caret" aria-hidden="true"></span>`);
     el.dispatchEvent(new CustomEvent("answer-grew", { bubbles: true }));
   };
@@ -83,6 +83,7 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
     done() {
       finish("done");
       body.innerHTML = render ? render(text) : esc(text);
+      el.dispatchEvent(new CustomEvent("answer-done", { bubbles: true })); // visuals get drawn now
     },
     error(message) {
       const had = text;

@@ -3,11 +3,13 @@
 // Deeper, Save as note, Listen) and suggested follow-ups. Each Explain, Simplify or Translate starts its own
 // conversation; you keep asking in it.
 //
-//   const chat = conversationView(root, { paperId, render, onSaveNote, toast });
+//   const chat = conversationView(root, { paperId, onSaveNote, toast, visuals: { figures(), onCite(kind, ref) } });
 //   chat.start("explain", passage, label)   chat.attach(passage, label)   chat.open(id)   chat.newChat()
 import { api, esc, quote } from "../core.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "../speech.js";
 import { answerView } from "./answer.js";
+import { openCanvas } from "./canvas.js";
+import { drawVisuals, renderAnswer } from "./render.js";
 import { streamEvents } from "./stream.js";
 
 const ACTION = { explain: "Explain", simplify: "Simplify", translate: "Translate" };
@@ -19,7 +21,11 @@ const ago = (iso) => {
     : s < 7 * 86400 ? `${Math.round(s / 86400)} d ago` : new Date(`${iso.replace(" ", "T")}Z`).toLocaleDateString();
 };
 
-export function conversationView(root, { paperId, render, onSaveNote, toast = () => {} }) {
+export function conversationView(root, { paperId, onSaveNote, toast = () => {}, visuals = {} }) {
+  const render = renderAnswer;
+  // what visuals and citations need: the paper's figures, where a citation goes, and the canvas to open them large
+  const ctx = { ...visuals, onOpen: (kind, spec, title) => openCanvas(kind, spec, ctx, title) };
+  const draw = (el) => drawVisuals(el, ctx);
   root.classList.add("chat");
   root.innerHTML = `
     <div class="chat-head">
@@ -88,6 +94,7 @@ export function conversationView(root, { paperId, render, onSaveNote, toast = ()
     const ms = current?.messages || [];
     if (!ms.length) { thread.innerHTML = emptyHtml; return; }
     ms.forEach((m, i) => turnEl(m.role === "user" ? userHtml(m) : assistantHtml(m, i === ms.length - 1)));
+    draw(thread);
     thread.scrollTop = thread.scrollHeight;
   };
   const setTitle = () => { $(".chat-title").textContent = current?.title || "New conversation"; };
@@ -141,6 +148,7 @@ export function conversationView(root, { paperId, render, onSaveNote, toast = ()
       });
       current.messages.push(done.message);
       turn.innerHTML = assistantHtml(done.message, true);
+      draw(turn);
     } catch (err) {
       if (err.data?.message) current.messages.push(err.data.message);
       if (stop.signal.aborted) view.stopped(); else view.error(err.message);

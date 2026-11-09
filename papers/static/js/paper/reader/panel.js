@@ -1,7 +1,7 @@
 // The side panel: Ask (conversations with the AI about the paper, chat/conversation.js), Words (the paper's
 // vocabulary) and Notes, one tab at a time. Drag its left edge to resize it, or use Wider; the width is remembered.
 import { conversationView } from "../../chat/conversation.js";
-import { markdown, renderVocab, toast } from "../../core.js";
+import { api, renderVocab, toast } from "../../core.js";
 
 const WIDTH_KEY = "papers.panelWidth";
 const MIN = 340;
@@ -9,7 +9,7 @@ const maxWidth = () => Math.max(MIN, innerWidth - 320); // the paper keeps at le
 const savedWidth = () => { try { return Number(localStorage.getItem(WIDTH_KEY)) || 420; } catch { return 420; } };
 const saveWidth = (w) => { try { localStorage.setItem(WIDTH_KEY, String(Math.round(w))); } catch { /* not remembered */ } };
 
-export function setupPanel(r, { notes } = {}) {
+export function setupPanel(r, { notes, cite } = {}) {
   const { id, $ } = r;
   const panel = $("#notes");
   const isOpen = () => document.body.classList.contains("notes-open");
@@ -51,10 +51,12 @@ export function setupPanel(r, { notes } = {}) {
   addEventListener("resize", onResize);
 
   // ----- Ask: conversations -----
+  let figures = null;
   const chat = conversationView($("#chat"), {
     paperId: id,
-    render: markdown,
     toast,
+    // the paper's figures (cut out of the PDF the first time) for visuals; citations go where they point
+    visuals: { figures: () => (figures ??= api(`/papers/${id}/figures`).catch(() => [])), onCite: cite },
     onSaveNote: async (body, quote) => {
       await notes.add({ kind: "note", body: body.slice(0, 6000), quote: quote.slice(0, 2000), position: r.positionNow?.() || 0 });
       toast("Saved to your notes.");
