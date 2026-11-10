@@ -1,0 +1,48 @@
+name: Something doesn't work
+description: A bug, an error message, or something that behaves differently than you expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open a paper
+        2. Select a formula and press Explain
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: Papers version
+      description: "`papers --version`, or the image tag for Docker"
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options: [uvx / pipx, Docker, From the source]
+  - type: input
+    id: system
+    attributes:
+      label: System and browser
+      placeholder: Windows 11, Chrome 140
+  - type: input
+    id: ai
+    attributes:
+      label: AI provider and model (if it's about the AI)
+      placeholder: OpenRouter, some/model:free
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errors
+      description: Anything printed in the terminal where Papers runs, or in the browser's console. Remove API keys.
+      render: text

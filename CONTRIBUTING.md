@@ -29,17 +29,20 @@ CI runs both on Python 3.11 to 3.13 and checks that the Docker image starts.
 ```
 papers/
   cli.py            the `papers` command: options, then starts the server and opens the browser
-  config.py         where data lives and every environment variable
+  config.py         where data lives (the data folder, and config.json which remembers the chosen one) and every
+                    environment variable
+  setup.py          the first-run setup in the terminal (banner, data folder, library folder, AI); `papers setup`
+  storage.py        what is kept where, with sizes, and moving the data folder (Settings › Where everything is kept)
   main.py           builds the app: the routers below, error handling, the web files, the Inbox watcher
 
   routes/           the HTTP API, one file per part of the app
     papers.py         add (search result, link, PDF), list, edit, delete, the PDF file, prepare
-    goals.py          goals (stored as "topics"), finding papers for them, BibTeX export
+    goals.py          goals (stored as "topics"), finding papers for them, the reading roadmap, BibTeX export
     reading.py        progress, finishing, figures and tables, references, the chain a paper is in
     learning.py       key points, vocabulary, explain/translate/ask (streamed), quiz and spaced review
     notes.py          notes and highlights
     recall.py         full-text search and "which paper had this idea?"
-    settings.py       name, language, AI provider, library folder and the folder picker
+    settings.py       name, language, AI provider, what the AI can do, storage (show and move), the folder picker
 
   store.py          reading and writing papers; every change also updates the search index and the folder
   ingest.py         turning a PDF into a paper, the Inbox, and preparing papers ahead of time with the AI
@@ -58,6 +61,8 @@ papers/
   scholar.py        Semantic Scholar and arXiv                 library.py the library folder (PDFs + Markdown notes)
   notes.py          notes and highlights storage               folders.py the folder picker
   bibtex.py         BibTeX entries
+  roadmap.py        a goal's reading roadmap: search widely, let the AI pick and order papers in stages, add the
+                    chosen ones to the goal and fetch their PDFs in the background
 
   static/           the web app (no build step; ES modules loaded by the browser)
     index.html        the page shell; links the stylesheets below in order

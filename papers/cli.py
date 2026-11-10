@@ -1,6 +1,8 @@
 """The `papers` command: start the app and open it in your browser.
 
-    papers                     start on http://localhost:8000 and open the browser
+    papers                     start on http://localhost:8000 and open the browser (the first time, a short setup)
+    papers setup               the setup again: where your library is kept, which AI to use
+    papers --no-setup          skip the setup (it's also skipped outside a terminal and with --data)
     papers --port 9000         another port
     papers --data D:\\Papers   keep the database and PDFs somewhere else
     papers --host 0.0.0.0      reachable from other devices on your network (no login: only on networks you trust)
@@ -26,19 +28,34 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--host", default=os.environ.get("PAPERS_HOST", "127.0.0.1"))
     parser.add_argument("--data", help="folder for the database, PDFs and figures")
     parser.add_argument("--no-browser", action="store_true", help="don't open the browser")
+    parser.add_argument("--no-setup", action="store_true", help="don't ask the first-run questions")
+    parser.add_argument("command", nargs="?", choices=["setup"], help="setup: ask where to keep things and which AI to use")
     parser.add_argument("--version", action="version", version=f"papers {__version__}")
     args = parser.parse_args(argv)
 
     if args.data:
         os.environ["PAPERS_DATA"] = os.path.abspath(os.path.expanduser(args.data))
-    from papers import config  # after PAPERS_DATA is set
+    from papers import config, setup  # after PAPERS_DATA is set
+
+    if args.command == "setup":
+        if not setup.interactive():
+            print("papers setup needs a terminal to ask its questions.")
+            raise SystemExit(1)
+        setup.run()
+        if input("\n  Start Papers now? [Y/n] ").strip().lower() in ("n", "no"):
+            return
+    elif not args.no_setup and setup.needed():
+        setup.run()
 
     url = f"http://localhost:{args.port}"
     if not port_free(args.host, args.port):
         print(f"Port {args.port} is in use. Is Papers already running? Open {url}, or start with --port 8001.")
         raise SystemExit(1)
-    print(f"Papers {__version__}: your library is in {config.data_dir()}")
-    print(f"Open {url} (Ctrl+C to stop)")
+    if setup.interactive():
+        setup.started(url, config.data_dir().resolve())
+    else:
+        print(f"Papers {__version__}: your library is in {config.data_dir()}")
+        print(f"Open {url} (Ctrl+C to stop)")
     if not args.no_browser:
         threading.Timer(1.2, webbrowser.open, (url,)).start()
 

@@ -28,6 +28,8 @@ dependencies = [
   "anthropic>=0.40",
   "python-multipart>=0.0.9",
   "keyring>=24",
+  "rich>=13",
+  "questionary>=2",
 ]
 
 [project.optional-dependencies]

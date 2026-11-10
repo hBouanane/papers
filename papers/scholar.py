@@ -8,7 +8,7 @@ import httpx
 from papers import config
 
 API = "https://api.semanticscholar.org/graph/v1"
-FIELDS = "title,authors,year,abstract,url,openAccessPdf,externalIds"
+FIELDS = "title,authors,year,abstract,url,openAccessPdf,externalIds,citationCount"
 
 
 def _get(path: str, **params) -> dict:
@@ -34,6 +34,7 @@ def normalize(raw: dict) -> dict:
         "abstract": raw.get("abstract") or "",
         "url": raw.get("url") or "",
         "pdf_url": pdf_url,
+        "citations": raw.get("citationCount"),  # for ranking suggestions; not stored
     }
 
 

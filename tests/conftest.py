@@ -9,6 +9,7 @@ def own_database(tmp_path, monkeypatch):
     monkeypatch.delenv("PAPERS_DATA", raising=False)
     monkeypatch.setenv("PAPERS_DB", str(tmp_path / "test.db"))
     monkeypatch.setenv("PAPERS_KEYRING", "off")  # tests never touch the real system keychain
+    monkeypatch.setenv("PAPERS_CONFIG", str(tmp_path / "config.json"))  # nor the real config.json
     from papers import db, keys
     monkeypatch.setattr(keys, "_backend", None)
     db.init()

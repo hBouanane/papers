@@ -83,3 +83,43 @@
 .loose-foot { text-decoration: none; color: var(--pencil); }
 @media (hover: none) { .glass-add { opacity: 1; background: color-mix(in srgb, var(--sheet) 25%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .glass-add, .glass-plus { transition: none; } }
+
+/* A goal's reading roadmap (pages/goals.js): numbered stages of papers in reading order, tick boxes to add them,
+   then each one's progress, with the first unfinished one marked "Next up". */
+.roadmap { padding: 20px 22px; display: grid; gap: 18px; }
+.rm-intro { margin: 0; font-family: var(--paper); font-size: 18px; line-height: 1.6; color: var(--reading); max-width: 72ch; }
+.rm-stages, .rm-items { list-style: none; margin: 0; padding: 0; }
+.rm-stages { display: grid; gap: 22px; }
+.rm-stage-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.rm-stage-title { flex: 1; display: grid; gap: 2px; }
+.rm-stage-title strong { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--heading); }
+.rm-stage-title .hint { font-size: 14px; }
+.rm-step { flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--ink-tint); color: var(--ink); font-weight: 700; font-size: 14px; }
+.rm-items { display: grid; }
+.rm-row { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0 12px 38px; font-weight: 400; cursor: default; }
+label.rm-row { cursor: pointer; }
+.rm-item + .rm-item .rm-row { border-top: 1px solid var(--line-soft); }
+.rm-row input { width: 18px; height: 18px; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--ink-fill); }
+.rm-body { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.rm-body .paper-name { font-size: 17px; line-height: 1.3; color: var(--heading); text-decoration: none; }
+.rm-body a.paper-name:hover { color: var(--ink); text-decoration: underline; }
+.rm-reason { font-family: var(--paper); font-size: 16px; line-height: 1.55; color: var(--graphite); }
+.rm-time { flex-shrink: 0; font-size: 13px; color: var(--pencil); white-space: nowrap; }
+.no-pdf { color: var(--pencil); }
+.rm-status { flex-shrink: 0; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 3px; border-radius: 50%;
+  border: 2px solid var(--line); font-size: 11px; font-weight: 700; color: var(--on-ink); }
+.rm-status.rm-reading { border-color: var(--ink); background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
+.rm-status.rm-read { border-color: var(--done); background: var(--done); }
+.rm-next { justify-self: start; margin-bottom: 2px; }
+.rm-others summary { cursor: pointer; color: var(--pencil); font-size: 15px; }
+.rm-others .rm-row { padding-left: 0; }
+.rm-foot { position: sticky; bottom: 12px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 14px;
+  margin: 0 -8px -8px; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-control); box-shadow: var(--shadow-soft); }
+.rm-foot .hint { flex: 1; min-width: 180px; margin: 0; font-size: 14px; }
+.rm-select { font-size: 14px; color: var(--pencil); }
+.roadmap-working { padding: 20px 0; display: grid; gap: 6px; }
+@media (max-width: 560px) { .rm-row { padding-left: 0; } .rm-time { display: none; } }
+/* Search results on a goal: the abstract reads like the paper. */
+.result details p { font-family: var(--paper); font-size: 16px; line-height: 1.6; color: var(--graphite); max-width: 72ch; margin-top: 6px; }
+.result details summary { font-size: 14px; color: var(--pencil); cursor: pointer; margin-top: 4px; }
