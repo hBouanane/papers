@@ -1,9 +1,9 @@
 """Goals (stored as "topics"): what you're working on, papers found for it, and BibTeX exports."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from papers import bibtex, db, library, llm, scholar
+from papers import bibtex, db, library, llm, roadmap, scholar
 from papers.store import get_paper
 
 router = APIRouter(prefix="/api", tags=["goals"])
@@ -44,6 +44,44 @@ def search_topic(topic_id: int):
                 seen.add(p["external_id"])
                 found.append(p)
     return found
+
+
+# ---------- A reading roadmap: the best papers for the goal, in order ----------
+class RoadmapAdd(BaseModel):
+    papers: list[str]  # the external_id (or title) of each chosen paper
+
+
+def topic_or_404(topic_id: int) -> dict:
+    with db.connect() as conn:
+        topic = conn.execute("select * from topics where id = ?", (topic_id,)).fetchone()
+    if not topic:
+        raise HTTPException(404, "Goal not found")
+    return dict(topic)
+
+
+@router.get("/topics/{topic_id}/roadmap")
+def read_roadmap(topic_id: int):
+    topic_or_404(topic_id)
+    return roadmap.saved(topic_id)
+
+
+@router.post("/topics/{topic_id}/roadmap")
+def make_roadmap(topic_id: int):
+    """Search for the goal and have the AI order the best papers into stages (takes a little while)."""
+    topic = topic_or_404(topic_id)
+    return roadmap.build(topic_id, topic["goal"])
+
+
+@router.post("/topics/{topic_id}/roadmap/add")
+def add_from_roadmap(topic_id: int, body: RoadmapAdd, background: BackgroundTasks):
+    """Add the chosen papers to the goal now; their PDFs download in the background."""
+    topic_or_404(topic_id)
+    try:
+        plan, to_fetch = roadmap.add(topic_id, body.papers)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    background.add_task(roadmap.fetch_pdfs, to_fetch)
+    return {**plan, "added": len(to_fetch)}
 
 
 @router.get("/papers/{paper_id}/bibtex", response_class=PlainTextResponse)

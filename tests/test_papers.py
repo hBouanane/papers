@@ -16,7 +16,7 @@ def test_normalize_s2_paper():
            "openAccessPdf": {"url": "http://x.pdf"}}
     assert scholar.normalize(raw) == {
         "external_id": "p1", "title": "T", "authors": "Ann, Bob", "year": 2021,
-        "abstract": "", "url": "http://s2/p1", "pdf_url": "http://x.pdf"}
+        "abstract": "", "url": "http://s2/p1", "pdf_url": "http://x.pdf", "citations": None}
 
 
 def test_normalize_uses_arxiv_pdf_when_no_open_access():

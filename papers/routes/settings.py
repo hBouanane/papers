@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from papers import ai, config, db, folders, keys, library, llm
+from papers import ai, config, db, folders, keys, library, llm, storage
 from papers.ai import providers
 
 router = APIRouter(prefix="/api", tags=["settings"])
@@ -83,6 +83,28 @@ def save_settings(body: SettingsIn):
         except OSError as e:
             raise HTTPException(400, f"Couldn't use that folder: {e}")
     return settings()
+
+
+# ---------- Storage: where everything is kept ----------
+class MoveIn(BaseModel):
+    path: str
+
+
+@router.get("/storage")
+def read_storage():
+    return storage.summary()
+
+
+@router.post("/storage/move")
+def move_storage(body: MoveIn):
+    """Copy the data folder somewhere else and use it from now on; the old one is left as it is."""
+    try:
+        storage.move(body.path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except OSError as e:
+        raise HTTPException(400, f"Couldn't copy there: {e}")
+    return storage.summary()
 
 
 # ---------- AI provider ----------
