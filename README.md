@@ -39,6 +39,12 @@ choose the AI: your Claude or ChatGPT subscription, an API key, or a model runni
 
 <table>
 <tr>
+<td width="50%"><img src="docs/screenshots/goal-papers.png" alt="A goal: its papers shown by their first pages, and one line from each"><br>
+<b>Goals.</b> Each goal keeps its papers together, shown by their first pages, with one line on what each says.</td>
+<td width="50%"><img src="docs/screenshots/recall.png" alt="Recall: search your papers by an idea in your own words"><br>
+<b>Recall.</b> "Where did I read that?" Searches every paper, your notes and the explanations you asked for.</td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/screenshots/goal.png" alt="A goal's reading roadmap: stages of papers with why and how long each"><br>
 <b>Reading roadmap.</b> For each goal, the best papers in reading order. Pick some or all; PDFs download for you,
 and your progress shows as you read (<i>Start here</i>, <i>Next up</i>).</td>
@@ -49,12 +55,10 @@ and your progress shows as you read (<i>Start here</i>, <i>Next up</i>).</td>
 <td><img src="docs/screenshots/paper.png" alt="A paper's page: abstract, key points, figures, words, notes, references"><br>
 <b>Each paper at a glance.</b> Key points, figures and tables, its vocabulary, your notes, and its references
 (follow one to grow a chain on the Map).</td>
-<td><img src="docs/screenshots/recall.png" alt="Recall: search your papers by an idea in your own words"><br>
-<b>Recall.</b> "Where did I read that?" Searches every paper, your notes and the explanations you asked for.</td>
-</tr>
-<tr>
 <td><img src="docs/screenshots/reader-dark.png" alt="The reader in the dark theme"><br>
 <b>Light, dim or dark</b>, with the PDF pages dimmed to match.</td>
+</tr>
+<tr>
 <td><img src="docs/screenshots/settings-features.png" alt="Settings: what the AI can do, Quick and Deep"><br>
 <b>Quick or Deep.</b> Quick answers at once from the paper; Deep lets the AI search it, read sections, look at
 figures and check your library first.</td>

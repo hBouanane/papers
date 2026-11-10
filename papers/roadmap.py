@@ -151,16 +151,24 @@ def add(topic_id: int, external_ids: list[str]) -> tuple[dict, list[int]]:
 
 
 def fetch_pdfs(paper_ids: list[int]) -> None:
-    """In the background, one after the other: the PDF, its text, then the AI's preparation."""
+    """In the background: every PDF first (so the papers can be opened, and show their first page, within seconds),
+    then the AI's preparation of each, which is the slow part."""
+    import time
+
     from papers.ingest import prepare_paper, read_pdf
     for paper_id in paper_ids:
         paper = get_paper(paper_id)
-        if paper.get("pdf_url"):
+        if not paper.get("pdf_url"):
+            continue
+        for attempt in range(2):  # arXiv sometimes refuses the first request
             try:
                 data = scholar.fetch_pdf(paper["pdf_url"])
                 if pdf.is_pdf(data):
                     save_pdf(paper_id, data)
                     update_paper(paper_id, text=read_pdf(data))
+                break
             except Exception:
-                pass  # the paper stays, with its abstract; a PDF can be uploaded later
+                if attempt == 0:
+                    time.sleep(3)  # then the paper stays with its abstract; a PDF can be uploaded later
+    for paper_id in paper_ids:
         prepare_paper(paper_id)

@@ -129,6 +129,26 @@ export async function goalPage(id, stale) {
     app.querySelector("#mine").innerHTML = mine(list);
     app.querySelector("#shelf").innerHTML = shelf(list);
     drawCovers(app.querySelector("#shelf"));
+    const lede = app.querySelector(".page-head .lede");
+    if (lede) lede.textContent = `${plural(list.length, "paper")}, ${list.filter((p) => p.status === "read").length} finished.`;
+    return list;
+  };
+  // After papers are added their PDFs arrive one by one: show each first page as it lands (for up to five minutes).
+  let watching = 0;
+  const watchPdfs = (list) => {
+    const run = ++watching;
+    let have = list.filter((p) => p.has_pdf).length, tries = 0;
+    const tick = async () => {
+      if (run !== watching || !roadmapBox.isConnected || ++tries > 60) return;
+      try {
+        const now = await api(`/papers?topic_id=${id}`);
+        const n = now.filter((p) => p.has_pdf).length;
+        if (n !== have) { have = n; await redrawPapers(); }
+        if (n === now.length) return;
+      } catch { /* try again */ }
+      setTimeout(tick, 5000);
+    };
+    setTimeout(tick, 5000);
   };
   const countChosen = () => {
     const n = roadmapBox.querySelectorAll("input[data-pick]:checked").length;
@@ -163,7 +183,8 @@ export async function goalPage(id, stale) {
       chosen.forEach((k) => known.add(k));
       toast(r.added ? `Added ${plural(r.added, "paper")}. Their PDFs are downloading; each is ready to read in a minute or two.`
         : "Added to this goal.");
-      await redrawPapers();
+      const list = await redrawPapers();
+      if (r.added) watchPdfs(list);
       countChosen();
     });
   });
