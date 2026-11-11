@@ -24,7 +24,17 @@
 .desk-item:hover .desk-item-title { color: var(--ink); }
 .desk-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desk-link { margin-top: 8px; padding: 0; }
-.desk-empty { border: 1px dashed var(--line); border-radius: var(--r-panel); padding: 28px; color: var(--pencil); text-align: center; }
+/* Nothing in progress: the next paper, ready to start, or "all finished". */
+.start-card, .desk-done { animation: rise-in .6s cubic-bezier(.2, .8, .2, 1) both; }
+.start-card .card-quote { font-style: normal; }
+.start-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: auto; padding-top: 16px; }
+.start-foot .continue-go { margin-top: 0; }
+.start-more { font-size: 14px; color: var(--pencil); margin-top: 12px; }
+.start-more a { color: var(--heading); font-weight: 400; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.start-more a:hover { color: var(--ink); }
+.desk-done { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: center; padding: 24px; }
+.desk-done h3 { font-size: 22px; margin-bottom: 4px; }
+@media (max-width: 600px) { .desk-done { grid-template-columns: 1fr; } }
 .card-goal { font-size: 12px; font-weight: 700; color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-cite { font-size: 14px; color: var(--pencil); }
 .card-quote { font-family: var(--paper); font-style: italic; color: var(--pencil); font-size: 15px; line-height: 1.55; margin-top: 8px;

@@ -4,6 +4,9 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **The Library always has something on the desk**: with nothing in progress it shows the next paper to start
+  (*Up next*, with **Start reading** and **Overview first**) instead of an empty box, and when every paper is
+  finished it says so and offers to find more or recall what you read.
 - **A cleaner setup in the terminal**: a welcome box, each step as a bullet with its notes and results hanging
   under it, a pointer on the current choice, one blue accent, and a closing box with where everything went.
 - **Setup asks two things, not three**: it no longer asks where to keep the app's data (it goes to the usual place,
