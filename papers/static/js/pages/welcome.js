@@ -43,7 +43,7 @@ export const firstPaper = (title, text) => `<div class="sheet first-paper">
     <a class="button" href="#/">Add your first paper</a></div>`;
 
 const STEPS = [
-  ["Add a paper", "Paste an arXiv link or a DOI, or drop a PDF anywhere in the app."],
+  ["Add a paper or set a goal", "Paste an arXiv link or a DOI, or drop a PDF. Or say what you want to understand, and Papers finds the papers for you."],
   ["Read it with help", "Select a sentence or point at a figure and ask. Your highlights and notes stay with the paper."],
   ["Keep what you read", "Answer questions written from the paper. Reviews come back over days, so it stays."],
 ];
@@ -57,7 +57,7 @@ export function welcome(settings) {
       <div class="welcome-text">
         <p class="welcome-kicker">Welcome to Papers</p>
         <h1 class="page-title">Read papers.<br>Understand them.<br><em>Remember them.</em></h1>
-        <p class="lede">Read with an AI that knows the whole paper: ask about any sentence or figure, then check what stayed with you.</p>
+        <p class="lede">Say what you want to understand and Papers finds the papers for you. Read them with an AI that knows the whole paper, then check what stayed with you.</p>
         <div class="welcome-actions">${addPaperControl()}<a class="button secondary" href="#/goals">Find papers for a goal</a></div>
         <p class="hint welcome-try">No paper at hand? <button type="button" class="link-button" id="try-sample">Try it with "Attention Is All You Need"</button></p>
         <p class="hint" id="welcome-status" role="status"></p>
