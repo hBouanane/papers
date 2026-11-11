@@ -2,6 +2,12 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **A clear message instead of a crash on an unsupported Python**: on a pre-release Python the setup stopped
+  halfway with a long traceback. Now it says so before asking anything, with the command to run it on a
+  released one. The README says how to install `uv` when `uvx` isn't there, and tests also run on Python 3.14.
+
 ## 0.3.0
 
 - **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each

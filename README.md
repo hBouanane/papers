@@ -75,17 +75,32 @@ figures and check your library first.</td>
 
 ## Install
 
-With Python 3.11 or newer, one command (like `npx` for Node):
+One command, with [uv](https://docs.astral.sh/uv/) (like `npx` for Node; it brings its own Python):
 
 ```bash
 uvx papers-app
 ```
 
-or install it to keep it around, then start it with `papers`:
+No `uvx` on your computer? Install uv first, then open a new terminal:
+
+```bash
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+```bash
+# macOS and Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Or, with Python 3.11 or newer already installed, install it with pip's `pipx` and start it with `papers`:
 
 ```bash
 pipx install papers-app
 ```
+
+If it stops with "Papers can't start on this Python", your Python is a pre-release or newer than the libraries
+support. Pick a released one: `uvx --python 3.13 papers-app`.
 
 The first time, a short setup in the terminal asks three things, so it's clear from the start where everything goes:
 
