@@ -2,6 +2,7 @@
 import { api, app, empty, esc, loading } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { paperCard, plural, shorten } from "./shared.js";
+import { firstPaper, sampleCover, sampleTitle } from "./welcome.js";
 
 // ---------- Map ----------
 // Behind the Map: two of your papers, big, half out of the corners (bottom right and top right, tilted
@@ -32,10 +33,32 @@ function mapBackdrop(papers, children, trees) {
     ${high ? `<span class="map-corner-paper map-corner-high">${cover(high, "large")}</span>` : ""}</div>`;
 }
 
+// With no papers yet: the same corner and lines with stand-in papers, and an example of a chain.
+function emptyMap() {
+  const card = (i) => `<span class="shelf-card sample-card"><span class="shelf-stage" aria-hidden="true">${sampleCover(i)}</span>
+    <span class="shelf-info"><span class="shelf-title paper-name">${sampleTitle(i)}</span></span></span>`;
+  return `<div class="map-corner" aria-hidden="true">
+    <svg class="map-rays" viewBox="0 0 100 100" preserveAspectRatio="none">${RAYS.map(curve).join("")}</svg>
+    <span class="map-corner-paper">${sampleCover(0, "large")}</span>
+    <span class="map-corner-paper map-corner-high">${sampleCover(1, "large")}</span></div>
+  <div class="container page map-page">
+    <div class="page-head">
+      <h1 class="page-title">Map</h1>
+      <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
+    </div>
+    ${firstPaper("Your map starts with one paper", "Add a paper, open its References and pick one from them. The two get joined here, and the chain grows as you follow more.")}
+    <section class="chain chain-example" aria-label="An example chain">
+      <p class="chain-head"><span class="chain-label">Example</span> One paper leads to two more, and one of those to another.</p>
+      <div class="chain-scroll"><ol class="chain-tree"><li>${card(0)}<ol><li>${card(1)}<ol><li>${card(2)}</li></ol></li><li>${card(2)}</li></ol></li></ol></div>
+    </section>
+  </div>`;
+}
+
 export async function mapPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const papers = await api("/papers");
   if (stale()) return;
+  if (!papers.length) { app.innerHTML = emptyMap(); return; }
   const byId = Object.fromEntries(papers.map((p) => [p.id, p]));
   const children = {};
   papers.forEach((p) => { if (byId[p.source_paper_id]) (children[p.source_paper_id] ||= []).push(p); });

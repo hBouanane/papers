@@ -1,0 +1,117 @@
+/* Before there are any papers (pages/welcome.js): the Library's welcome, and the stand-in papers that fill the
+   other pages' backdrops. Everything loops quietly; with reduced motion it all simply sits in its final place. */
+
+/* ---------- A stand-in paper: sized by its own width, so it works as a small cover or a huge one ---------- */
+.sample-cover { container-type: inline-size; border-top: 0; }
+.sp { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 11cqw 10cqw 8cqw; gap: 3.2cqw;
+  border-top: max(2px, 1.2cqw) solid var(--ink); background: var(--cover-paper); }
+.sp-title { font-family: var(--paper); font-weight: 600; font-size: 7.4cqw; line-height: 1.16; color: var(--heading); text-align: center; text-wrap: balance; }
+.sp-by { font-family: var(--paper); font-style: italic; font-size: 4.2cqw; color: var(--pencil); text-align: center; margin-top: -1cqw; }
+.sp i { display: block; height: 1.5cqw; border-radius: 1cqw; background: color-mix(in srgb, var(--pencil) 34%, transparent); position: relative; }
+.sp-abs { display: grid; gap: 2cqw; padding: 0 7cqw; margin: 1.5cqw 0; }
+.sp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 5cqw; flex: 1; min-height: 0; overflow: hidden; }
+.sp-cols > span { display: grid; gap: 2cqw; align-content: start; }
+.sp-figbox { position: relative; display: block; margin-bottom: 1.5cqw; }
+.sp-fig { display: block; width: 100%; aspect-ratio: 100 / 62; overflow: visible; }
+.sp-fig rect { fill: color-mix(in srgb, var(--pencil) 30%, transparent); }
+.sp-fig .sp-bar-top { fill: color-mix(in srgb, var(--ink) 70%, transparent); }
+.sp-fig path { fill: none; stroke: var(--pencil); stroke-width: 1.4; vector-effect: non-scaling-stroke; opacity: .6; }
+.sp-fig .sp-curve { stroke: var(--ink); opacity: .9; stroke-linecap: round; }
+/* Highlighted sentences: the yellow is drawn across, like a marker. */
+.sp i.sp-hl::after { content: ""; position: absolute; inset: -1.3cqw -1cqw; border-radius: .8cqw; background: var(--hl-yellow);
+  transform-origin: 0 50%; animation: ws-mark 12s ease-in-out infinite; }
+.sp i.sp-hl + i.sp-hl::after { animation-name: ws-mark-2; }
+/* The part of the figure being pointed at. */
+.sp-ring { position: absolute; left: 44%; top: 4%; width: 26%; aspect-ratio: 1; border-radius: 50%; border: max(1.5px, .9cqw) solid var(--ink);
+  box-shadow: 0 0 0 1.6cqw color-mix(in srgb, var(--ink) 18%, transparent); animation: ws-ring 12s ease-in-out infinite; }
+
+/* ---------- The Library's welcome ---------- */
+.welcome { padding-top: 28px; }
+.welcome-hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: center; min-height: min(560px, 72vh); }
+.welcome-text > * { animation: rise-in .7s cubic-bezier(.2, .8, .2, 1) both; }
+.welcome-text > :nth-child(2) { animation-delay: .06s; }
+.welcome-text > :nth-child(3) { animation-delay: .12s; }
+.welcome-text > :nth-child(4) { animation-delay: .18s; position: relative; z-index: 5; }
+.welcome-text > :nth-child(5) { animation-delay: .24s; }
+.welcome-kicker { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); margin-bottom: 14px; }
+.welcome .page-title { font-size: clamp(38px, 5.2vw, 62px); line-height: 1.04; letter-spacing: -0.015em; }
+.welcome .page-title em { font-style: italic; color: var(--ink); }
+.welcome .lede { font-size: 19px; max-width: 44ch; margin-top: 20px; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.welcome-actions .button { height: 46px; padding: 0 22px; font-size: 16px; }
+.welcome-actions .add-panel { left: 0; right: auto; }
+.welcome-actions .add-panel .button { height: 38px; padding: 0 16px; font-size: inherit; }
+.welcome-try { margin-top: 16px; }
+.welcome-try .link-button { font-size: inherit; }
+#welcome-status:empty { display: none; }
+#welcome-status { margin-top: 8px; }
+
+/* The paper being read: one page in front, two behind, and what the app adds around it. */
+.welcome-stage { position: relative; height: clamp(380px, 44vw, 520px); animation: glide-in-right 1.1s cubic-bezier(.2, .8, .2, 1) backwards; }
+.ws-paper { position: absolute; left: 50%; top: 50%; width: clamp(210px, 26vw, 316px); }
+.ws-paper .cover-sheet { display: none; }
+.ws-front { transform: translate(-50%, -50%) rotate(-2.5deg); z-index: 2; animation: ws-float 9s ease-in-out infinite alternate; }
+.ws-front .cover { box-shadow: 0 2px 4px rgb(0 0 0 / .12), 0 34px 60px -22px rgb(0 0 0 / .5); }
+.ws-back { z-index: 1; }
+.ws-back .cover { box-shadow: 0 18px 40px -18px rgb(0 0 0 / .4); }
+.ws-back .cover::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--desk) 45%, transparent); }
+.ws-back-1 { transform: translate(-50%, -50%) translate(27%, -5%) rotate(9deg); animation: ws-float-b 11s ease-in-out infinite alternate; }
+.ws-back-2 { transform: translate(-50%, -50%) translate(-25%, 3%) rotate(-12deg); animation: ws-float-c 13s ease-in-out infinite alternate; }
+.ws-bubble { position: absolute; z-index: 3; max-width: 230px; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.35;
+  box-shadow: var(--shadow-pop); animation: ws-pop-1 12s ease-in-out infinite; }
+.ws-ask { left: 0; top: 30%; background: var(--ink-fill); color: var(--on-ink); border-bottom-right-radius: 4px; font-weight: 700; }
+.ws-answer { right: 0; top: 49%; background: var(--sheet); color: var(--graphite); border: 1px solid var(--line); border-bottom-left-radius: 4px;
+  animation-name: ws-pop-2; }
+.ws-answer strong { display: block; color: var(--heading); margin-bottom: 2px; }
+.ws-score { left: 5%; bottom: 7%; display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 2px 10px; background: var(--sheet);
+  color: var(--pencil); border: 1px solid var(--line); animation-name: ws-pop-3; }
+.ws-score strong { font-size: 20px; color: var(--heading); }
+.ws-score .bar { grid-column: 1 / -1; width: 100%; }
+.ws-score .bar span { width: 82%; animation: ws-fill 12s ease-in-out infinite; }
+
+/* One 12 second loop: mark two sentences, ask, get the answer with the figure pointed at, then the score. */
+@keyframes ws-mark { 0%, 6% { scale: 0 1; opacity: 1; } 13%, 93% { scale: 1 1; opacity: 1; } 100% { scale: 1 1; opacity: 0; } }
+@keyframes ws-mark-2 { 0%, 13% { scale: 0 1; opacity: 1; } 20%, 93% { scale: 1 1; opacity: 1; } 100% { scale: 1 1; opacity: 0; } }
+@keyframes ws-pop-1 { 0%, 22% { opacity: 0; translate: 0 10px; scale: .92; } 26%, 93% { opacity: 1; translate: 0 0; scale: 1; } 100% { opacity: 0; translate: 0 0; scale: 1; } }
+@keyframes ws-pop-2 { 0%, 38% { opacity: 0; translate: 0 10px; scale: .92; } 42%, 93% { opacity: 1; translate: 0 0; scale: 1; } 100% { opacity: 0; translate: 0 0; scale: 1; } }
+@keyframes ws-ring { 0%, 44% { opacity: 0; scale: 1.5; } 49%, 93% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1; } }
+@keyframes ws-pop-3 { 0%, 58% { opacity: 0; translate: 0 10px; scale: .92; } 62%, 93% { opacity: 1; translate: 0 0; scale: 1; } 100% { opacity: 0; translate: 0 0; scale: 1; } }
+@keyframes ws-fill { 0%, 62% { width: 0; } 74%, 100% { width: 82%; } }
+@keyframes ws-float { from { translate: 0 0; } to { translate: 0 -10px; } }
+@keyframes ws-float-b { from { translate: 0 0; rotate: 0deg; } to { translate: 6px -6px; rotate: 1.5deg; } }
+@keyframes ws-float-c { from { translate: 0 0; rotate: 0deg; } to { translate: -6px -8px; rotate: -1.5deg; } }
+@keyframes rise-in { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+
+/* The three steps, and "connect an AI" when none is set up. */
+.welcome-steps { list-style: none; padding: 0; margin: 44px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.welcome-steps li { padding: 20px 22px 22px; display: grid; gap: 6px; align-content: start; border-radius: 12px;
+  animation: rise-in .7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.35s + var(--i) * .08s); }
+.welcome-steps h2 { font-size: 18px; }
+.step-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ink-tint); color: var(--ink);
+  font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+.first-paper { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; padding: 20px 22px; border-radius: 12px; }
+.first-paper > div { flex: 1; min-width: min(280px, 100%); display: grid; gap: 4px; }
+.first-paper h2 { font-size: 18px; }
+.first-paper .button { flex-shrink: 0; }
+.welcome-ai { margin-top: 16px; }
+
+@media (max-width: 860px) {
+  .welcome-hero { grid-template-columns: 1fr; gap: 12px; min-height: 0; }
+  .welcome-stage { height: 400px; order: 2; }
+  .ws-paper { width: 220px; }
+  .ws-bubble { font-size: 13px; max-width: 190px; }
+  .welcome-steps { grid-template-columns: 1fr; margin-top: 24px; }
+}
+
+/* ---------- The other pages with nothing in them yet ---------- */
+/* Goals: examples to start from. */
+.goal-examples { margin-top: 22px; }
+.goal-examples h2 { font-size: 16px; color: var(--pencil); font-weight: 700; }
+/* The fan behind Goals and Recall when it shows stand-ins. */
+.sample-backdrop .recall-hero .cover-wrap .cover { box-shadow: 0 30px 60px -20px rgb(0 0 0 / .45); }
+.with-backdrop { position: relative; z-index: 1; }
+/* The Map's example chain: stand-in cards joined like a real one. */
+.sample-card { cursor: default; }
+.sample-card .shelf-title { -webkit-line-clamp: 3; }
+.chain-example { opacity: .92; }
+.first-paper + .chain, .chain + .first-paper { margin-top: 28px; }

@@ -1,7 +1,8 @@
 // The Library (home): greeting, what you're reading, recent papers as a shelf, and the list of all papers.
-import { addPaperControl, api, app, bindAddPaper, bindRows, cite, empty, esc, loading, moreButton, PAGE, paperRow, pct, progressBar, STATUS, tableHead } from "../core.js";
+import { addPaperControl, api, app, bindAddPaper, bindRows, cite, esc, loading, moreButton, PAGE, paperRow, pct, progressBar, STATUS, tableHead } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { goalNames, greeting, paperCard, plural, shorten } from "./shared.js";
+import { bindWelcome, welcome } from "./welcome.js";
 
 // ---------- Library ----------
 export async function libraryPage(stale) {
@@ -15,11 +16,9 @@ export async function libraryPage(stale) {
   const count = (s) => papers.filter((p) => p.status === s).length;
 
   if (!papers.length) {
-    app.innerHTML = `<div class="container page">
-      <h1>Library</h1>
-      ${empty("Nothing here yet. Tell us what you're working on and we'll find papers for it, or add one you already have from a link or PDF.",
-        `<div class="empty-actions"><a class="button" href="#/goals">Set a goal</a>${addPaperControl()}</div>`)}</div>`;
+    app.innerHTML = welcome(settings);
     bindAddPaper();
+    bindWelcome();
     return;
   }
 
