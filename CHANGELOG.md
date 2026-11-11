@@ -2,7 +2,7 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.3.0
 
 - **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each
   paper's cover, and it arrives with a short animation. While papers are being searched for you see them being

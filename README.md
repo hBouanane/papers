@@ -114,7 +114,7 @@ Then open http://localhost:8000 and choose the AI in Settings. What each part me
 | `-d --name papers` | run in the background, named `papers` (`docker stop papers` / `docker start papers`) |
 | `-p 8000:8000` | the app inside listens on port 8000; this makes it http://localhost:8000 on your computer |
 | `-v papers-data:/data` | your library (database, PDFs, figures) lives in `/data` inside the container; this keeps it in a Docker volume called `papers-data`, so it survives updates and restarts. Use a folder instead with `-v ~/Papers-data:/data` |
-| `ghcr.io/hbouanane/papers:latest` | the image: on GitHub's registry (`ghcr.io`), from this repository, the newest release (or a version, e.g. `:0.2.0`) |
+| `ghcr.io/hbouanane/papers:latest` | the image: on GitHub's registry (`ghcr.io`), from this repository, the newest release (or a version, e.g. `:0.3.0`) |
 
 To update: `docker pull ghcr.io/hbouanane/papers:latest`, then `docker rm -f papers` and the same `docker run` again
 (the volume keeps your library). From a clone you can also build it yourself with `docker compose up -d`; see
