@@ -64,32 +64,27 @@ def candidates(goal: str) -> list[dict]:
         queries = llm.search_queries(goal)
     except Exception:
         queries = [goal]
-    queries = [*queries, f"{queries[0]} survey"]
-    seen, found = set(), []
-    for query in queries:
-        try:
-            results = scholar.search(query, limit=12)
-        except Exception:
-            continue
-        for p in results:
-            key = p["external_id"] or scholar.norm_title(p["title"])
-            if p["title"] and key not in seen:
-                seen.add(key)
-                found.append(p)
-    return found[:40]
+    try:
+        titles = llm.landmark_titles(goal)  # the classics, which keyword searches tend to miss
+    except Exception:
+        titles = []
+    return scholar.gather([*queries, f"{queries[0]} survey"], titles, per_query=12, quiet=True)
 
 
 def plan_with_ai(goal: str, found: list[dict]) -> Plan:
     listing = "\n\n".join(
         f"[{n}] {p['title']} ({p.get('year') or 'n.d.'}; {p.get('citations') or 'unknown'} citations;"
-        f" {'full text available' if p.get('pdf_url') else 'no free PDF'})\n{(p.get('abstract') or '')[:500]}"
+        f" {'full text available' if p.get('pdf_url') else 'no free PDF'}"
+        f"{'; a classic of this topic' if p.get('landmark') else ''})\n{(p.get('abstract') or '')[:500]}"
         for n, p in enumerate(found, 1))
     prompt = (
         "A researcher wants to reach this goal and needs a reading roadmap.\n\n"
         f"<goal>{goal}</goal>\n\n<candidates>\n{listing}\n</candidates>\n\n"
         "Pick the 5 to 10 candidates that best serve the goal and order them into 2 to 4 stages: the foundations a "
         "newcomer needs first (a survey or the classic paper that started it), then the core methods, then the newest "
-        "or most advanced work. Prefer well-cited and recent papers, and ones with full text. Leave out papers that "
+        "or most advanced work. Candidates marked \"a classic of this topic\" are the papers the field starts from: "
+        "put the ones that fit the goal in the first stage. Otherwise prefer well-cited and recent papers, and ones "
+        "with full text. Leave out papers that "
         "are off-topic or repeat another pick. For each pick give its number, one plain sentence on why to read it "
         "at that point (what it gives you), and about how many minutes a careful first read takes. Write a two-"
         "sentence intro describing the path. Use plain words."
@@ -113,7 +108,7 @@ def build(topic_id: int, goal: str) -> dict:
                 stages.append({"title": st.title, "why": st.why, "items": items})
         intro, by_ai = plan.intro, True
     except Exception:  # no AI (or it failed): the most cited results, as one stage
-        ranked = sorted(found, key=lambda p: -(p.get("citations") or 0))[:8]
+        ranked = sorted(found, key=lambda p: (not p.get("landmark"), -(p.get("citations") or 0)))[:8]
         used = {found.index(p) + 1 for p in ranked}
         stages = [{"title": "Most cited", "why": "Set up an AI model in Settings for a roadmap in reading order.",
                    "items": [{**p, "reason": "", "minutes": 0} for p in ranked]}] if ranked else []

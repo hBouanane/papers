@@ -75,25 +75,42 @@ figures and check your library first.</td>
 
 ## Install
 
-With Python 3.11 or newer, one command (like `npx` for Node):
+One command, with [uv](https://docs.astral.sh/uv/) (like `npx` for Node; it brings its own Python):
 
 ```bash
 uvx papers-app
 ```
 
-or install it to keep it around, then start it with `papers`:
+No `uvx` on your computer? Install uv first, then open a new terminal:
+
+```bash
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+```bash
+# macOS and Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Or, with Python 3.11 or newer already installed, install it with pip's `pipx` and start it with `papers`:
 
 ```bash
 pipx install papers-app
 ```
 
-The first time, a short setup in the terminal asks three things, so it's clear from the start where everything goes:
+If the Python it lands on is one the libraries don't support yet (a pre-release, for example), Papers starts
+itself again on Python 3.13 through uv. Without uv it tells you so; pick a released Python and try again.
+
+The first time, a short setup in the terminal asks two things:
 
 ```
-1/3  Your library        where the database, PDFs and figures are kept (one folder)
-2/3  A folder to browse  optional: each paper's PDF and Markdown notes, for your file manager or Obsidian
-3/3  The AI model        provider, key (kept in your system's keychain) and model, then a quick check
+1/2  Your papers as normal files   a folder with each paper's PDF and Markdown notes, for your file manager or Obsidian
+2/2  The AI model                  provider, key (kept in your system's keychain) and model, then a quick check
 ```
+
+The app's own data (database, PDFs, figures) goes to the usual place for app data; setup shows where, and Settings
+can move it.
 
 Then `papers` opens http://localhost:8000 in your browser. Everything can be changed later in Settings, or with
 `papers setup`. Options: `--port 9000`, `--data D:\Papers` (use this data folder), `--no-browser`, `--no-setup`,

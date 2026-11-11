@@ -7,6 +7,30 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 - **Covers appear by themselves**: a paper whose PDF was still downloading kept its plain title cover until you
   opened the paper. Now every page swaps in the first page as soon as the PDF arrives, a cover that failed to
   draw is tried again, and a PDF is only visible to the app once it's completely saved.
+- **Searches find the papers a topic starts from**: a keyword search for "attention mechanism" doesn't return
+  *Attention Is All You Need*. The AI now also names the classics and a survey for your goal; each is looked up
+  by its exact title (a title that doesn't exist is dropped) and put first, in roadmaps and in **Just search**.
+- **Better results when Semantic Scholar is busy**: the arXiv search it falls back to now needs every word to
+  match (it used to return papers matching any word), and a busy Semantic Scholar is skipped for a minute
+  instead of being waited on before every query.
+- **Goals has a road behind it**: once you have goals, your papers lie on a tilted floor along a dashed road with
+  the three stages marked, on the right of the page. The papers hover and the road moves; both speed up while a
+  search runs. The goal box is now as wide as Recall's.
+- **Go to roadmap**: a goal with a roadmap has a button at the top that scrolls straight to it.
+- **The Library always has something on the desk**: with nothing in progress it shows the next paper to start
+  (*Up next*, with **Start reading** and **Overview first**) instead of an empty box, and when every paper is
+  finished it says so and offers to find more or recall what you read.
+- **A cleaner setup in the terminal**: a welcome box, each step as a bullet with its notes and results hanging
+  under it, a pointer on the current choice, one blue accent, and a closing box with where everything went.
+- **Setup asks two things, not three**: it no longer asks where to keep the app's data (it goes to the usual place,
+  shown at the end, and Settings can move it). The question that stays is the folder you actually open: *Your
+  papers as normal files*, with PDFs under their real titles and a notes file each. It's suggested first, an
+  unusable folder is asked for again instead of being dropped silently, and it can't be the app's data folder.
+- **No more crash on an unsupported Python**: on a pre-release Python the setup stopped halfway with a long
+  traceback. Papers now notices before asking anything and starts itself again on Python 3.13 (through uv), or
+  says what to do when uv isn't there. The README says how to install `uv`, and tests also run on Python 3.14.
+- **A quiet terminal while reading PDFs**: the "fontTools is required…" lines and other notes from the PDF reader
+  no longer fill the terminal. fontTools is now installed with the app, so those fonts are read properly.
 
 ## 0.3.0
 

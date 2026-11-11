@@ -31,7 +31,7 @@ papers/
   cli.py            the `papers` command: options, then starts the server and opens the browser
   config.py         where data lives (the data folder, and config.json which remembers the chosen one) and every
                     environment variable
-  setup.py          the first-run setup in the terminal (banner, data folder, library folder, AI); `papers setup`
+  setup.py          the first-run setup in the terminal (banner, library folder, AI); `papers setup`
   storage.py        what is kept where, with sizes, and moving the data folder (Settings › Where everything is kept)
   main.py           builds the app: the routers below, error handling, the web files, the Inbox watcher
 

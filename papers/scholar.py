@@ -11,13 +11,22 @@ API = "https://api.semanticscholar.org/graph/v1"
 FIELDS = "title,authors,year,abstract,url,openAccessPdf,externalIds,citationCount"
 
 
+_busy_until = 0.0  # Semantic Scholar said "too many requests" until then: go straight to arXiv meanwhile
+
+
 def _get(path: str, **params) -> dict:
+    global _busy_until
     headers = {"x-api-key": key} if (key := config.semantic_scholar_key()) else {}
-    for attempt in range(4):
+    if time.monotonic() < _busy_until:
+        raise httpx.HTTPError("Semantic Scholar is rate limited right now")
+    for attempt in range(3):
         r = httpx.get(f"{API}{path}", params=params, headers=headers, timeout=30)
         if r.status_code != 429:
             break
-        time.sleep(2 ** attempt)  # the keyless API is rate limited; back off and retry
+        if attempt < 2:
+            time.sleep(2 ** attempt)  # the keyless API is rate limited; back off and retry
+    if r.status_code == 429:  # still: don't make every following search wait for the same answer
+        _busy_until = time.monotonic() + 60
     r.raise_for_status()
     return r.json()
 
@@ -65,10 +74,17 @@ def parse_arxiv(xml: str) -> list[dict]:
     return papers
 
 
-def search_arxiv(query: str, limit: int = 10) -> list[dict]:
+def search_arxiv(query: str, limit: int = 10, title: bool = False) -> list[dict]:
+    """arXiv's own search. Every word must match (its default is any word, which returns papers about anything);
+    with `title`, the words are looked for as a phrase in the title."""
+    words = re.findall(r"[\w-]+", query)
+    if title:
+        terms = 'ti:"' + " ".join(words) + '"'
+    else:
+        terms = " AND ".join(f"all:{w}" for w in words[:8]) or f"all:{query}"
     r = httpx.get(
         "https://export.arxiv.org/api/query",
-        params={"search_query": f"all:{query}", "max_results": limit},
+        params={"search_query": terms, "max_results": limit, "sortBy": "relevance"},
         timeout=30,
     )
     r.raise_for_status()
@@ -111,11 +127,39 @@ def norm_title(title: str) -> str:
 
 def resolve(title: str) -> dict | None:
     """Find the search result that is this exact paper (by title), if any."""
+    exact = lambda results: next((r for r in results if norm_title(r["title"]) == norm_title(title)), None)
     try:
-        results = search(title, limit=5)
-    except httpx.HTTPError:
+        if match := exact(search(title, limit=5)):
+            return match
+        return exact(search_arxiv(title, 5, title=True))  # the keyword search missed it: ask arXiv for the title
+    except (httpx.HTTPError, ET.ParseError):
         return None
-    return next((r for r in results if norm_title(r["title"]) == norm_title(title)), None)
+
+
+def gather(queries: list[str], titles: list[str] = (), per_query: int = 10, most: int = 40,
+           quiet: bool = False) -> list[dict]:
+    """Candidates for a goal: the named papers first (each found by its exact title, marked `landmark`), then
+    what the keyword searches return, without repeats."""
+    seen, found = set(), []
+
+    def keep(p: dict) -> None:
+        key = norm_title(p["title"])  # the same paper comes back under different ids from the two sources
+        if p["title"] and key not in seen:
+            seen.add(key)
+            found.append(p)
+    for title in titles:
+        if match := resolve(title):
+            keep({**match, "landmark": True})
+    for query in queries:
+        try:
+            results = search(query, limit=per_query)
+        except (httpx.HTTPError, ET.ParseError):
+            if quiet:  # one failed search shouldn't lose the others
+                continue
+            raise
+        for p in results:
+            keep(p)
+    return found[:most]
 
 
 def references(external_id: str) -> list[dict]:
