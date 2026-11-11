@@ -7,7 +7,7 @@ body.reading #toast { bottom: 64px; }
 /* ---------- The bar ---------- */
 /* One row: a back arrow, the tools, and a ⋯ menu for those that don't fit (reader/bar.js). Every control keeps
    its natural size (the Original/Text switch stays on one line). */
-.reader-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 15; background: var(--header); border-bottom: 1px solid var(--line); }
+.reader-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 15; background: var(--header); border-bottom: 1px solid var(--line); transition: right .2s ease; }
 .reader-bar-inner { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px 10px; height: 56px; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .reader-bar-inner > * { flex-shrink: 0; }
 /* The back arrow (base.css) as a pill that names where it goes. */
@@ -87,11 +87,12 @@ body.skimming .strip { opacity: .35; }
 .hl-tool-btn .hl-dot { width: 10px; height: 10px; }
 .hl-tool.on .hl-tool-btn { background: var(--selected); color: var(--on-selected); }
 .hl-tool-colors { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 30;
-  display: inline-flex; gap: 8px; max-width: none; padding: 8px 10px; overflow: hidden;
+  display: inline-flex; gap: 8px; max-width: none; padding: 8px 10px;
   background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-pop);
-  opacity: 0; pointer-events: none; transition: opacity .2s ease; }
-.hl-tool:hover .hl-tool-colors, .hl-tool:focus-within .hl-tool-colors { opacity: 1; pointer-events: auto; }
-.hl-tool-colors::before { content: ""; position: absolute; inset: -10px 0 auto; height: 10px; } /* keeps the hover while moving down to it */
+  opacity: 0; visibility: hidden; transition: opacity .2s ease .35s, visibility 0s linear .55s; } /* stays a moment after the pointer leaves */
+/* Shown while the pointer is on the tool or its colours (or the keyboard is in it); a click doesn't pin it open. */
+.hl-tool:hover .hl-tool-colors, .hl-tool:has(:focus-visible) .hl-tool-colors { opacity: 1; visibility: visible; transition-delay: 0s; }
+.hl-tool-colors::before { content: ""; position: absolute; inset: -14px -12px -10px; z-index: -1; } /* no gap to cross on the way down to it */
 .hl-tool-colors .hl-dot { width: 14px; height: 14px; border: 0; padding: 0; cursor: pointer; flex-shrink: 0; }
 .hl-tool-colors .hl-dot.active { box-shadow: 0 0 0 2px var(--header), 0 0 0 3.5px var(--dot); }
 
@@ -210,7 +211,7 @@ body.pages-dark .hl-layer .hl { mix-blend-mode: screen; }
   display: flex; flex-direction: column; padding: 0; overflow-y: auto; transform: translateX(100%); transition: transform .2s ease; visibility: hidden; }
 body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(--shadow-panel); }
 /* On wide screens the paper and the route make room for it. */
-@media (min-width: 1100px) { body.notes-open .reader-scroll { right: var(--panel-w, 420px); }
+@media (min-width: 1100px) { body.notes-open .reader-scroll, body.notes-open .reader-bar { right: var(--panel-w, 420px); }
   body.notes-open .reader-route { left: calc((100% - var(--panel-w, 420px)) / 2); } }
 /* Drag the panel's left edge to resize it (reader/panel.js). */
 .panel-resize { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; }
@@ -218,8 +219,8 @@ body.notes-open .notes { transform: none; visibility: visible; box-shadow: var(-
   background: var(--line); opacity: 0; transition: opacity .2s; }
 .panel-resize:hover::after, body.panel-resizing .panel-resize::after { opacity: 1; background: var(--ink); }
 body.panel-resizing { cursor: col-resize; user-select: none; }
-body.panel-resizing .notes, body.panel-resizing .reader-scroll { transition: none; }
-.panel-head-tools { display: flex; gap: 4px; padding-bottom: 6px; }
+body.panel-resizing .notes, body.panel-resizing .reader-scroll, body.panel-resizing .reader-bar { transition: none; }
+.panel-head-tools { display: flex; gap: 2px; padding-bottom: 6px; }
 .notes-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .notes .hint { font-size: 14px; margin-bottom: 14px; }
 .notes .notes-box { padding-bottom: 6px; }

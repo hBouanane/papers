@@ -30,8 +30,9 @@ MAX_ACTIONS = 5  # notes, highlights, words and papers added per answer
 
 AGENT = """You can use tools to work precisely, like a careful researcher, before you answer:
 - search_paper and read_section: read the exact text instead of relying on memory of it;
-- look_at_figure: see a figure or table (with its caption) before you describe it; once you've seen it you can draw
-  accurate "look here" boxes on it in a ```figure visual;
+- look_at_figure: see a figure or table (with its caption) before you describe it. Once you have seen it, you can
+  point at its parts with numbered boxes in a ```figure visual, the way the tool's answer explains; boxes on a
+  figure you haven't looked at in this answer are removed;
 - search_library: connect this paper to the reader's other papers when that helps;
 - get_notes and get_vocabulary: what the reader noted and is learning, to fit the answer to them.
 - save_note, highlight, save_word, add_paper: these change the reader's library. Use them only when the reader asks

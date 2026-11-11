@@ -283,3 +283,10 @@ a:hover .cover-wrap .cover-sheet { transform: rotate(9deg) translate(12px, 0); }
 
 /* "Show 50 more" at the end of a long list */
 .show-more { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px; }
+
+/* A button that is only an icon (icons.js); its name is the tooltip. */
+.icon-button { display: inline-grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--pencil); cursor: pointer; transition: background .15s, color .15s; }
+.icon-button:hover { background: var(--raised); color: var(--graphite); }
+.icon-button:disabled { opacity: .4; cursor: default; }
+.icon { display: block; flex-shrink: 0; }

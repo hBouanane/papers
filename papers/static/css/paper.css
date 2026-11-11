@@ -136,3 +136,6 @@
 .due-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; text-decoration: none; color: inherit; border-top: 1px solid var(--line-soft); }
 .due-item:hover .paper-name { color: var(--ink); }
 @media (max-width: 560px) { .flashcard { padding: 24px 20px; } .card-question { font-size: 20px; } }
+
+.lightbox-inner { position: relative; }
+.lightbox-close { position: absolute; top: 8px; right: 8px; background: var(--sheet); }

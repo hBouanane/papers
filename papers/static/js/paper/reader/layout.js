@@ -1,5 +1,6 @@
 // The reader's markup: the bar on top, the scrolling paper, the route pill, the side panel and the popovers.
 import { esc } from "../../core.js";
+import { iconButton } from "../../icons.js";
 import { COLORS } from "../../notes.js";
 import { pageToneControl, readingPrefsMenu } from "../../readprefs.js";
 import { canSpeak } from "../../speech.js";
@@ -42,8 +43,8 @@ export const readerHtml = (p, id, language) => `
           <button role="tab" data-pane="words" aria-selected="false">Words</button>
           <button role="tab" data-pane="notes" aria-selected="false">Notes</button>
         </div>
-        <span class="panel-head-tools"><button class="button quiet small" id="panel-wider" title="Make the panel wider or narrower">Wider</button>
-          <button class="button quiet small" id="close-notes" title="Close (n)">Close</button></span>
+        <span class="panel-head-tools">${iconButton("wider", "Make the panel wider", { attrs: 'id="panel-wider"' })}
+          ${iconButton("close", "Close (n)", { attrs: 'id="close-notes"' })}</span>
       </div>
       <div class="pane pane-ask" data-pane="ask" id="chat"></div>
       <div class="pane" data-pane="words" hidden><div id="reader-vocab" class="reader-vocab"></div></div>

@@ -229,6 +229,51 @@ def image_name(kind: str, number: int) -> str:
     return f"{kind}-{number}.png"
 
 
+# ---------- A grid for the model to point with ----------
+
+GRID = 10  # columns A–J, rows 1–10
+COLUMNS = "ABCDEFGHIJ"
+
+
+def with_grid(png: bytes) -> bytes | None:
+    """The figure with a lettered grid drawn over it, for the model only: it names cells ("C4") to point at a part,
+    which it does far better than guessing coordinates. None if the image can't be drawn on."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        picture = Image.open(io.BytesIO(png)).convert("RGB")
+        if picture.width < 700:  # small cut-outs: enlarge so the cell names stay readable
+            scale = 700 / picture.width
+            picture = picture.resize((700, max(1, round(picture.height * scale))))
+        w, h = picture.size
+        left, top = 34, 28
+        sheet = Image.new("RGB", (w + left, h + top), "white")
+        sheet.paste(picture, (left, top))
+        ink = ImageDraw.Draw(sheet, "RGBA")
+        try:
+            big, small = ImageFont.load_default(size=18), ImageFont.load_default(size=12)
+        except TypeError:  # an older Pillow: one fixed size
+            big = small = ImageFont.load_default()
+        line, name = (220, 0, 120, 110), (200, 0, 110, 255)
+        for i in range(GRID + 1):
+            x, y = left + round(w * i / GRID), top + round(h * i / GRID)
+            ink.line([(x, top), (x, top + h)], fill=line, width=1)
+            ink.line([(left, y), (left + w, y)], fill=line, width=1)
+        for i in range(GRID):
+            ink.text((left + w * (i + .5) / GRID - 5, 4), COLUMNS[i], fill=name, font=big)
+            ink.text((6 if i < 9 else 2, top + h * (i + .5) / GRID - 10), str(i + 1), fill=name, font=big)
+        for r in range(GRID):
+            for c in range(GRID):
+                x, y = left + w * c / GRID + 3, top + h * r / GRID + 2
+                label = f"{COLUMNS[c]}{r + 1}"
+                ink.rectangle([x - 1, y, x + 7 * len(label) + 1, y + 13], fill=(255, 255, 255, 170))
+                ink.text((x, y), label, fill=(200, 0, 110, 200), font=small)
+        out = io.BytesIO()
+        sheet.save(out, "PNG")
+        return out.getvalue()
+    except Exception:
+        return None
+
+
 def forget(paper_id: int) -> None:
     """A new PDF (or a deleted paper): cut them out again next time."""
     shutil.rmtree(folder(paper_id), ignore_errors=True)

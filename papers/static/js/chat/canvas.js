@@ -1,6 +1,7 @@
 // The canvas: a visual from an answer (or a figure the answer cites), opened large over the paper, beside the chat.
 // Like Claude's artifacts panel. Escape or the close button puts it away.
 import { esc } from "../core.js";
+import { iconButton } from "../icons.js";
 import { drawOne } from "./render.js";
 
 const TITLE = { chart: "Chart", diagram: "Diagram", math: "Formula", figure: "Figure", widget: "Interactive" };
@@ -12,7 +13,7 @@ export function openCanvas(kind, spec, ctx = {}, title = "") {
   canvas.setAttribute("role", "dialog");
   canvas.setAttribute("aria-label", title || TITLE[kind] || "Visual");
   canvas.innerHTML = `<header class="canvas-head"><span class="canvas-title">${esc(title || TITLE[kind] || "Visual")}</span>
-      <button type="button" class="button quiet small canvas-close" title="Close (Esc)">Close</button></header>
+      ${iconButton("close", "Close (Esc)", { cls: "canvas-close", size: 18 })}</header>
     <div class="canvas-stage"></div>`;
   document.body.append(canvas);
   const close = () => { canvas.remove(); removeEventListener("keydown", onKey, true); };

@@ -2,6 +2,7 @@
 // vocabulary) and Notes, one tab at a time. Drag its left edge to resize it, or use Wider; the width is remembered.
 import { conversationView } from "../../chat/conversation.js";
 import { api, renderVocab, toast } from "../../core.js";
+import { icon } from "../../icons.js";
 
 const WIDTH_KEY = "papers.panelWidth";
 const MIN = 340;
@@ -24,7 +25,11 @@ export function setupPanel(r, { notes, cite, allowPages = false, onLibraryChange
   const setWidth = (w, remember = true) => {
     const width = Math.min(maxWidth(), Math.max(MIN, w));
     document.body.style.setProperty("--panel-w", `${width}px`);
-    $("#panel-wider").textContent = width >= Math.min(maxWidth(), innerWidth * 0.6) - 4 ? "Narrower" : "Wider";
+    const widest = width >= Math.min(maxWidth(), innerWidth * 0.6) - 4;
+    const wider = $("#panel-wider");
+    wider.innerHTML = icon(widest ? "narrower" : "wider");
+    wider.title = widest ? "Make the panel narrower" : "Make the panel wider";
+    wider.setAttribute("aria-label", wider.title);
     if (remember) saveWidth(width);
   };
   setWidth(savedWidth(), false);

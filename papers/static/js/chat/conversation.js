@@ -6,6 +6,7 @@
 //   const chat = conversationView(root, { paperId, onSaveNote, toast, visuals: { figures(), onCite(kind, ref) } });
 //   chat.start("explain", passage, label)   chat.attach(passage, label)   chat.open(id)   chat.newChat()
 import { api, esc, quote } from "../core.js";
+import { icon, iconButton } from "../icons.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "../speech.js";
 import { answerView, checkedLabel } from "./answer.js";
 import { openCanvas } from "./canvas.js";
@@ -32,19 +33,21 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     <div class="chat-head">
       <button type="button" class="chat-title-btn" aria-expanded="false" title="All conversations about this paper">
         <span class="chat-title">New conversation</span><span class="chat-caret" aria-hidden="true"></span></button>
-      <button type="button" class="chat-new button quiet small" title="Start a new conversation">+ New</button>
+      ${iconButton("plus", "New conversation", { cls: "chat-new", size: 18 })}
     </div>
     <div class="chat-history" hidden><p class="chat-history-head">Conversations about this paper</p><ul class="chat-history-list"></ul></div>
     <div class="thread" aria-live="polite"></div>
     <form class="composer">
-      <div class="composer-chips"></div>
-      <textarea rows="1" placeholder="Ask about this paper…" aria-label="Your message"></textarea>
-      <div class="composer-foot">
-        <div class="segmented small depth" role="group" aria-label="How to answer">
-          <button type="button" data-depth="quick" title="Answer straight from the paper (fast)">Quick</button>
-          <button type="button" data-depth="deep" title="Deep: the AI reads sections, looks at figures and checks your notes before it answers (slower, more thorough)">Deep</button></div>
-        <span class="composer-hint">Enter to send</span>
-        <button class="button small composer-send">Send</button></div>
+      <div class="composer-box">
+        <div class="composer-chips"></div>
+        <textarea rows="1" placeholder="Ask about this paper…" aria-label="Your message"></textarea>
+        <div class="composer-foot">
+          <div class="segmented small depth" role="group" aria-label="How to answer">
+            <button type="button" data-depth="quick" title="Answer straight from the paper (fast)">Quick</button>
+            <button type="button" data-depth="deep" title="Deep: the AI reads sections, looks at figures and checks your notes before it answers (slower, more thorough)">Deep</button></div>
+          <span class="composer-hint">Enter to send</span>
+          <button class="composer-send" title="Send (Enter)" aria-label="Send">${icon("send", 18)}</button></div>
+      </div>
     </form>`;
   const $ = (s) => root.querySelector(s);
   const thread = $(".thread");
@@ -60,9 +63,11 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   const drawDepth = () => root.querySelectorAll("[data-depth]").forEach((b) => b.classList.toggle("active", b.dataset.depth === depth));
 
   // ---------- Drawing ----------
+  const STARTERS = ["What is this paper's main idea?", "Explain the method step by step", "What do the results show?", "What are its limits?"];
   const emptyHtml = `<div class="thread-empty">
       <p><strong>Select text in the paper</strong> to explain, simplify or translate it. Each one starts a conversation you can keep going.</p>
-      <p>Or ask anything below; the AI has the whole paper in mind. <strong>Add to chat</strong> on a selection attaches it here.</p></div>`;
+      <p>Or ask anything below; the AI has the whole paper in mind. <strong>Add to chat</strong> on a selection attaches it here.</p>
+      <div class="followups">${STARTERS.map((q) => `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div></div>`;
   const attachmentsHtml = (list) => list.map((a) => `<div class="msg-attachment">${a.label ? `<span class="attachment-label">${esc(a.label)}</span>` : ""}
       ${quote(a.text)}</div>`).join("");
   const userHtml = (m) => `<div class="msg msg-you">
@@ -78,12 +83,12 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   const thinkingHtml = (m) => (m.thinking ? `<details class="answer-thinking"><summary><span class="thinking-label">Thought it through</span></summary>
       <div class="thinking-text">${esc(m.thinking)}</div></details>` : "");
   const actionsHtml = (m, last) => `<div class="msg-actions">
-      <button type="button" class="link-button" data-act="copy">Copy</button>
-      ${last ? `<button type="button" class="link-button" data-act="retry">Retry</button>` : ""}
-      <button type="button" class="link-button" data-act="simpler">Simpler</button>
-      <button type="button" class="link-button" data-act="deeper">Deeper</button>
-      <button type="button" class="link-button" data-act="note">Save as note</button>
-      ${canSpeak() ? `<button type="button" class="link-button" data-act="listen">Listen</button>` : ""}
+      ${iconButton("copy", "Copy", { attrs: 'data-act="copy"' })}
+      ${last ? iconButton("retry", "Try again", { attrs: 'data-act="retry"' }) : ""}
+      ${iconButton("note", "Save as a note", { attrs: 'data-act="note"' })}
+      ${canSpeak() ? iconButton("listen", "Listen", { attrs: 'data-act="listen"' }) : ""}
+      <button type="button" class="msg-chip" data-act="simpler" title="Say it again more simply">Simpler</button>
+      <button type="button" class="msg-chip" data-act="deeper" title="Go deeper, with the details (uses Deep mode)">Deeper</button>
       ${m.meta?.model ? `<span class="msg-model" title="The model that wrote this answer">${esc(m.meta.model.model)} · ${esc(m.meta.model.provider)}</span>` : ""}</div>
     ${last && m.meta?.followups?.length ? `<div class="followups">${m.meta.followups.map((q) =>
       `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}`;
@@ -120,7 +125,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   const drawChips = () => {
     chipsEl.innerHTML = pending.map((a, i) => `<span class="chip-attachment" title="${esc(a.text.slice(0, 400))}">
       <span class="chip-attachment-text">${a.label ? `<b>${esc(a.label)}</b> ` : ""}${esc(a.text.slice(0, 70))}${a.text.length > 70 ? "…" : ""}</span>
-      <button type="button" data-unchip="${i}" aria-label="Remove">×</button></span>`).join("");
+      <button type="button" data-unchip="${i}" aria-label="Remove" title="Remove">${icon("close", 13)}</button></span>`).join("");
     chipsEl.hidden = !pending.length;
   };
   const grow = () => { box.style.height = "auto"; box.style.height = `${Math.min(box.scrollHeight, 200)}px`; };
@@ -136,7 +141,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     $(".chat-history-list").innerHTML = (list.length ? list.slice(0, historyShown).map((c) => `<li class="${c.id === current?.id ? "current" : ""}">
         <button type="button" class="history-open" data-open="${c.id}"><span class="history-title">${esc(c.title || "New conversation")}</span>
           <span class="history-preview">${esc(c.preview || "")}</span><span class="history-time">${ago(c.updated_at)}</span></button>
-        <button type="button" class="history-delete" data-delete="${c.id}" title="Delete this conversation" aria-label="Delete">×</button></li>`).join("")
+        <button type="button" class="history-delete" data-delete="${c.id}" title="Delete this conversation" aria-label="Delete">${icon("trash", 15)}</button></li>`).join("")
       : `<li class="history-none">No conversations yet.</li>`)
       + (more ? `<li class="history-more"><button type="button" class="link-button" data-older>Show older</button></li>` : "");
   };
@@ -144,7 +149,10 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   // ---------- Sending ----------
   const busy = (on) => {
     root.classList.toggle("is-answering", on);
-    $(".composer-send").textContent = on ? "Stop" : "Send";
+    const b = $(".composer-send");
+    b.innerHTML = icon(on ? "stop" : "send", 18);
+    b.title = on ? "Stop" : "Send (Enter)";
+    b.setAttribute("aria-label", on ? "Stop" : "Send");
   };
   // Stream one answer into a new turn; `request` starts it. Resolves when it's done (or failed or stopped).
   const stream = async (request) => {
