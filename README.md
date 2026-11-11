@@ -99,8 +99,8 @@ Or, with Python 3.11 or newer already installed, install it with pip's `pipx` an
 pipx install papers-app
 ```
 
-If it stops with "Papers can't start on this Python", your Python is a pre-release or newer than the libraries
-support. Pick a released one: `uvx --python 3.13 papers-app`.
+If the Python it lands on is one the libraries don't support yet (a pre-release, for example), Papers starts
+itself again on Python 3.13 through uv. Without uv it tells you so; pick a released Python and try again.
 
 The first time, a short setup in the terminal asks three things, so it's clear from the start where everything goes:
 

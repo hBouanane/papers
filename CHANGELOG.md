@@ -4,9 +4,11 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
-- **A clear message instead of a crash on an unsupported Python**: on a pre-release Python the setup stopped
-  halfway with a long traceback. Now it says so before asking anything, with the command to run it on a
-  released one. The README says how to install `uv` when `uvx` isn't there, and tests also run on Python 3.14.
+- **No more crash on an unsupported Python**: on a pre-release Python the setup stopped halfway with a long
+  traceback. Papers now notices before asking anything and starts itself again on Python 3.13 (through uv), or
+  says what to do when uv isn't there. The README says how to install `uv`, and tests also run on Python 3.14.
+- **A quiet terminal while reading PDFs**: the "fontTools is required…" lines and other notes from the PDF reader
+  no longer fill the terminal. fontTools is now installed with the app, so those fonts are read properly.
 
 ## 0.3.0
 

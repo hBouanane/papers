@@ -10,7 +10,9 @@
 """
 import argparse
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import webbrowser
@@ -23,18 +25,31 @@ def port_free(host: str, port: int) -> bool:
         return s.connect_ex(("127.0.0.1" if host in ("0.0.0.0", "::") else host, port)) != 0
 
 
-def check_python() -> None:
-    """Load the app's libraries before asking anything, so a Python they can't run on (a pre-release, or one
-    newer than they support) gives one clear line and a way out instead of a traceback halfway through setup."""
+GOOD_PYTHON = "3.13"  # a released Python every library here supports
+
+
+def check_python(argv: list[str] | None = None) -> None:
+    """Load the app's libraries before asking anything. On a Python they can't run on (a pre-release, or one newer
+    than they support) the app would crash halfway through setup; instead it starts itself again on a Python that
+    works, when uv is there to fetch one, or says in one line what to do."""
     try:
         import papers.ai  # noqa: F401  (pulls in pydantic and the AI clients, the parts tied to the Python version)
+        return
     except Exception as e:  # anything: these are other packages' import errors
-        version = sys.version.split()[0]
-        print(f"Papers can't start on this Python ({version}): one of its libraries doesn't support it yet.")
-        print(f"  {type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}")
-        print("Run it on a released Python instead, for example:")
-        print("  uvx --python 3.13 papers-app")
-        raise SystemExit(1) from None
+        why = f"{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}"
+    version = sys.version.split()[0]
+    uvx = shutil.which("uvx")
+    if uvx and not os.environ.get("PAPERS_PYTHON_RETRY"):  # once: never loop
+        print(f"This Python ({version}) is not supported by one of Papers' libraries. "
+              f"Starting again on Python {GOOD_PYTHON}…\n")
+        args = sys.argv[1:] if argv is None else argv
+        again = [uvx, "--python", GOOD_PYTHON, f"papers-app=={__version__}", *args]
+        raise SystemExit(subprocess.call(again, env={**os.environ, "PAPERS_PYTHON_RETRY": "1"}))
+    print(f"Papers can't start on this Python ({version}): one of its libraries doesn't support it yet.")
+    print(f"  {why}")
+    print("Run it on a released Python instead, for example:")
+    print(f"  uvx --python {GOOD_PYTHON} papers-app")
+    raise SystemExit(1)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -50,7 +65,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.data:
         os.environ["PAPERS_DATA"] = os.path.abspath(os.path.expanduser(args.data))
-    check_python()
+    check_python(argv)
     from papers import config, setup  # after PAPERS_DATA is set
 
     if args.command == "setup":

@@ -1,7 +1,12 @@
 import io
+import logging
 import re
 
 from pypdf import PdfReader
+
+# pypdf reports every oddity in a PDF's fonts and structure as a warning, straight into the terminal the app was
+# started from. They aren't something to act on: the text is still read. Real failures still show.
+logging.getLogger("pypdf").setLevel(logging.ERROR)
 
 
 def reflow(text: str) -> str:
