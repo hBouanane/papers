@@ -4,6 +4,12 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Searches find the papers a topic starts from**: a keyword search for "attention mechanism" doesn't return
+  *Attention Is All You Need*. The AI now also names the classics and a survey for your goal; each is looked up
+  by its exact title (a title that doesn't exist is dropped) and put first, in roadmaps and in **Just search**.
+- **Better results when Semantic Scholar is busy**: the arXiv search it falls back to now needs every word to
+  match (it used to return papers matching any word), and a busy Semantic Scholar is skipped for a minute
+  instead of being waited on before every query.
 - **Goals has a road behind it**: once you have goals, your papers lie on a tilted floor along a dashed road with
   the three stages marked, on the right of the page. The papers hover and the road moves; both speed up while a
   search runs. The goal box is now as wide as Recall's.

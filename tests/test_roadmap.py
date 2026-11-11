@@ -65,3 +65,15 @@ def test_a_goal_can_be_renamed_and_removed_keeping_its_papers(client):
     assert client.get(f"/api/papers/{p['id']}").json()["topic_id"] is None
     assert client.get("/api/topics").json() == []
     assert client.delete(f"/api/topics/{g['id']}").status_code == 404
+
+
+def test_the_classics_are_looked_up_by_title_and_come_first(monkeypatch):
+    classic = {"external_id": "arXiv:1706.03762", "title": "Attention Is All You Need", "authors": "", "year": 2017,
+               "abstract": "", "url": "", "pdf_url": ""}
+    monkeypatch.setattr(llm, "search_queries", lambda goal: ["attention mechanism"])
+    monkeypatch.setattr(llm, "landmark_titles", lambda goal: ["Attention Is All You Need", "A Paper Nobody Wrote"])
+    monkeypatch.setattr(scholar, "search", lambda q, limit=10: found(3))  # the keyword search misses the classic
+    monkeypatch.setattr(scholar, "search_arxiv", lambda q, limit=10, title=False: [classic] if "All You Need" in q else [])
+    got = roadmap.candidates("attention micanism")
+    assert got[0]["title"] == "Attention Is All You Need" and got[0]["landmark"] is True
+    assert [p["title"] for p in got[1:]] == ["Paper 1", "Paper 2", "Paper 3"]  # the made-up title is dropped
