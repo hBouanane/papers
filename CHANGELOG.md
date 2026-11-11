@@ -2,6 +2,12 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **Covers appear by themselves**: a paper whose PDF was still downloading kept its plain title cover until you
+  opened the paper. Now every page swaps in the first page as soon as the PDF arrives, a cover that failed to
+  draw is tried again, and a PDF is only visible to the app once it's completely saved.
+
 ## 0.3.0
 
 - **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each
