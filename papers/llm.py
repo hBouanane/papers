@@ -25,6 +25,23 @@ def search_queries(goal: str) -> list[str]:
     return ai.parse(prompt, Queries, effort="low").queries
 
 
+class Landmarks(BaseModel):
+    titles: list[str]
+
+
+def landmark_titles(goal: str) -> list[str]:
+    """The papers anyone starting on this goal reads first, by exact title. A keyword search often misses them
+    ("attention mechanism" doesn't find "Attention Is All You Need"), so they're looked up by name. Each title is
+    checked against the paper databases afterwards, so one that doesn't exist is simply dropped."""
+    prompt = (
+        "A researcher describes what they want to understand. Name the papers a newcomer must read first: the "
+        "classic paper or papers that started the topic, and one good survey or tutorial if you know one. Give "
+        "each paper's exact published title and nothing else. At most 6, fewer is fine, and only papers you are "
+        f"sure exist. The goal may contain spelling mistakes; read past them.\n\n<goal>{goal}</goal>"
+    )
+    return [t.strip() for t in ai.parse(prompt, Landmarks, effort="low").titles if t.strip()][:6]
+
+
 # Small (often local) models can't take a whole paper; Settings can cap how much of it is sent.
 CONTEXT_CHARS = {"32k": 100_000, "8k": 24_000}
 

@@ -62,13 +62,11 @@ def search_topic(topic_id: int):
         queries = llm.search_queries(topic["goal"])
     except Exception:
         queries = [topic["goal"]]
-    seen, found = set(), []
-    for query in queries:
-        for p in scholar.search(query, limit=10):
-            if p["external_id"] not in seen:
-                seen.add(p["external_id"])
-                found.append(p)
-    return found
+    try:
+        titles = llm.landmark_titles(topic["goal"])  # the classics first: keyword searches tend to miss them
+    except Exception:
+        titles = []
+    return scholar.gather(queries, titles)
 
 
 # ---------- A reading roadmap: the best papers for the goal, in order ----------

@@ -2,6 +2,15 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **Searches find the papers a topic starts from**: a keyword search for "attention mechanism" doesn't return
+  *Attention Is All You Need*. The AI now also names the classics and a survey for your goal; each is looked up
+  by its exact title (a title that doesn't exist is dropped) and put first, in roadmaps and in **Just search**.
+- **Better results when Semantic Scholar is busy**: the arXiv search it falls back to now needs every word to
+  match (it used to return papers matching any word), and a busy Semantic Scholar is skipped for a minute
+  instead of being waited on before every query.
+
 ## 0.3.0
 
 - **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each
