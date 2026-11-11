@@ -2,7 +2,7 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.3.1
 
 - **Covers appear by themselves**: a paper whose PDF was still downloading kept its plain title cover until you
   opened the paper. Now every page swaps in the first page as soon as the PDF arrives, a cover that failed to
