@@ -1,7 +1,7 @@
 // The Library (home): greeting, what you're reading, recent papers as a shelf, and the list of all papers.
 import { addPaperControl, api, app, bindAddPaper, bindRows, cite, esc, loading, moreButton, PAGE, paperRow, pct, progressBar, STATUS, tableHead } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
-import { goalNames, greeting, paperCard, plural, shorten } from "./shared.js";
+import { coverFan, goalNames, greeting, paperCard, plural, shorten } from "./shared.js";
 import { bindWelcome, welcome } from "./welcome.js";
 
 // ---------- Library ----------
@@ -38,6 +38,32 @@ export async function libraryPage(stale) {
         <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
       </div>
     </div>`;
+  // Nothing in progress: put the next paper on the desk, ready to start (a goal's paper first, then the newest).
+  // With every paper finished, say so and offer what comes after.
+  const waiting = papers.filter((p) => p.status === "new" || p.status === "skimmed");
+  const next = waiting.find((p) => names[p.topic_id]) || waiting[0];
+  const startCard = (p) => `<div class="continue sheet start-card">
+      <a class="cover-link" href="#/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
+      <div class="continue-text">
+        ${goalOf(p)}
+        <a class="continue-title paper-name" href="#/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
+        <span class="card-cite">${cite(p)}</span>
+        ${p.abstract ? `<span class="card-quote">${esc(shorten(p.abstract, 260))}</span>` : ""}
+        <span class="start-foot">
+          <a class="button continue-go" href="#/papers/${p.id}/read">Start reading <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="button quiet" href="#/papers/${p.id}">Overview first</a>
+        </span>
+        ${waiting.length > 1 ? `<span class="start-more">Or start with
+          ${waiting.filter((o) => o !== p).slice(0, 2).map((o) => `<a class="paper-name" href="#/papers/${o.id}">${esc(shorten(o.title, 60))}</a>`).join(" or ")}</span>` : ""}
+      </div>
+    </div>`;
+  const doneCard = () => `<div class="sheet desk-done">
+      ${coverFan(papers.filter((p) => p.status === "read"))}
+      <div><h3>You've finished everything here</h3>
+        <p class="hint">${plural(count("read"), "paper")} read. Find the next ones, or check what stayed with you.</p>
+        <span class="start-foot"><a class="button" href="#/goals">Find papers for a goal</a>
+          <a class="button quiet" href="#/recall">Recall what you read</a></span></div>
+    </div>`;
   const shelfItem = (p) => paperCard(p);
   const goalLine = (g) => {
     const mine = papers.filter((p) => p.topic_id === g.id);
@@ -56,9 +82,9 @@ export async function libraryPage(stale) {
       ${addPaperControl("", goals)}
     </div>
     <div class="desk">
-      <h2 class="desk-heading">${current ? "Continue reading" : "Reading now"}</h2>
+      <h2 class="desk-heading">${current ? "Continue reading" : next ? "Up next" : "Reading now"}</h2>
       <section class="desk-main">
-        ${current ? continueCard(current) : `<div class="desk-empty">Nothing in progress. Pick a paper from the list below, or add one.</div>`}
+        ${current ? continueCard(current) : next ? startCard(next) : doneCard()}
         ${others.length ? `<h2 class="shelf-heading">Also reading</h2>
           <div class="shelf">${others.slice(0, 4).map(shelfItem).join("")}</div>
           ${others.length > 4 ? `<button class="button quiet small" id="all-reading">All ${reading.length} in progress</button>` : ""}` : ""}
