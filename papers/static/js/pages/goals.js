@@ -3,7 +3,7 @@ import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, e
 import { cover, drawCovers } from "../covers.js";
 import { iconButton } from "../icons.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
-import { sampleBackdrop, sampleCover } from "./welcome.js";
+import { sampleCover } from "./welcome.js";
 
 // ---------- Goals ----------
 // Goals to start from, for a first goal.
@@ -21,11 +21,19 @@ const stagesPicture = () => `<ol class="gf-stages">${STAGES.map(([name, note, co
   <span class="gf-stage-text"><strong>${name}</strong><span>${note}</span></span>
   <span class="gf-covers">${covers.map((c) => sampleCover(c)).join("")}</span></li>`).join("")}</ol>`;
 
-// Your papers, big, behind the Goals page once you have goals (Recall's fan); stand-ins until there are papers.
+// Behind the Goals page once you have goals: your papers laid flat on a tilted floor, along a road with the
+// three stages marked on it (the roadmap, drawn). Stand-in papers until there are real ones.
+const ROAD = "M52 100 C 66 92, 38 86, 48 75 S 62 60, 47 49 S 36 34, 50 25 S 62 10, 46 0";
+const ROAD_SPOTS = [[24, 82, -7], [72, 66, 6], [22, 50, 5], [74, 36, -6], [26, 19, 7], [70, 5, -5]]; // x%, y%, turn
+const ROAD_PINS = [[48, 75], [47, 49], [50, 25]];
 function goalsBackdrop(papers) {
   const order = [...papers].sort((a, b) => (b.status === "reading") - (a.status === "reading") || b.has_pdf - a.has_pdf);
-  return order.length ? `<div class="recall-backdrop" id="backdrop" aria-hidden="true"><span class="recall-hero">${coverFan(order)}</span></div>`
-    : sampleBackdrop().replace('class="recall-backdrop', 'id="backdrop" class="recall-backdrop');
+  const tiles = ROAD_SPOTS.map(([x, y, r], i) => // your papers first; stand-ins for the ones still to come
+    `<span class="road-paper${order[i] ? "" : " road-ghost"}" style="--x:${x}%;--y:${y}%;--r:${r}deg;--i:${i}">${order[i] ? cover(order[i], "small") : sampleCover(i)}</span>`);
+  return `<div class="recall-backdrop road-backdrop" id="backdrop" aria-hidden="true"><div class="road-plane">
+    <svg class="road-line" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="road-bed" d="${ROAD}"/><path class="road-dash" d="${ROAD}"/></svg>
+    ${ROAD_PINS.map(([x, y], i) => `<span class="road-pin num" style="--x:${x}%;--y:${y}%">${i + 1}</span>`).join("")}
+    ${tiles.join("")}</div></div>`;
 }
 
 export async function goalsPage(stale) {
@@ -141,7 +149,7 @@ export async function goalPage(id, stale) {
       <div class="goal-head"><h1 class="page-title goal-title">${esc(goal.goal)}</h1>
       <div class="goal-sub"><p class="lede">${plural(papers.length, "paper")}, ${read} finished.</p>
       <span class="goal-manage">${iconButton("edit", "Rename this goal", { attrs: 'id="goal-rename"' })}${iconButton("trash", "Delete this goal", { attrs: 'id="goal-delete"' })}</span></div></div>
-      <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span>
+      <span class="bar-actions">${plan ? `<button type="button" class="button quiet" id="to-roadmap">Go to roadmap <span aria-hidden="true">↓</span></button>` : ""}<a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span>
     </div>
     <section>
       <div id="shelf">${shelf(papers)}</div>
@@ -247,6 +255,7 @@ export async function goalPage(id, stale) {
     if (add) { add.disabled = !n; add.textContent = n ? `Add ${plural(n, "paper")} to this goal` : "Tick the papers you want"; }
   };
   const section = app.querySelector("#rm-section");
+  app.querySelector("#to-roadmap")?.addEventListener("click", () => section.scrollIntoView({ behavior: "smooth", block: "start" }));
   const makeButton = app.querySelector("#make-roadmap");
   const makeRoadmap = () => busy(makeButton, "Working…", async () => {
     app.querySelector("#suggestions").innerHTML = "";
