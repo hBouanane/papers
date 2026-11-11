@@ -6,7 +6,7 @@
 # or simply `docker compose up` (see docker-compose.yml). Then open http://localhost:8000.
 # The database, PDFs and figures live in /data; mount a volume or a folder there to keep them.
 
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
