@@ -63,7 +63,7 @@ label { font-weight: 700; }
 .result-body { min-width: 0; }
 .result h3 { font-size: 18px; line-height: 1.3; }
 .result-cite { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: var(--pencil); margin-top: 3px; }
-.has-pdf, .in-library { color: var(--done); font-weight: 700; }
+.has-pdf, .in-library { color: var(--ink); font-weight: 700; }
 .in-library { font-size: 14px; white-space: nowrap; padding-top: 8px; }
 .ref { align-items: center; padding: 14px 20px; }
 .ref-title { display: block; font-family: var(--paper); font-size: 17px; }

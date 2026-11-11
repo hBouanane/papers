@@ -4,6 +4,11 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each
+  paper's cover, and it arrives with a short animation. While papers are being searched for you see them being
+  looked through, step by step. A new goal can be made with **Create without searching**, and a goal with no
+  roadmap asks whether you want one instead of starting a search. Once you have goals, the Goals page shows your
+  papers fanned out behind it, like Recall. The green marks are gone (the blue is used instead).
 - **Goals says what it does**: the Goals page opens on *What do you want to understand?* with a **Find papers**
   button and a picture of what comes back (a reading roadmap in three stages), whether or not you have papers.
   The welcome page says the same: add a paper, or set a goal and the papers get found for you.

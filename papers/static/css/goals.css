@@ -112,42 +112,137 @@
 @media (hover: none) { .glass-add { opacity: 1; background: color-mix(in srgb, var(--sheet) 25%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .glass-add, .glass-plus { transition: none; } }
 
-/* A goal's reading roadmap (pages/goals.js): numbered stages of papers in reading order, tick boxes to add them,
-   then each one's progress, with the first unfinished one marked "Next up". */
-.roadmap { padding: 20px 22px; display: grid; gap: 18px; }
-.rm-intro { margin: 0; font-family: var(--paper); font-size: 18px; line-height: 1.6; color: var(--reading); max-width: 72ch; }
+/* A goal's reading roadmap (pages/goals.js): a road of numbered stages, each a card of papers in reading order with
+   their first pages. Tick boxes add them; then each shows its progress, the first unfinished one marked "Next up". */
+.roadmap { display: grid; gap: 18px; }
+.rm-top { display: grid; gap: 10px; }
+.rm-intro { margin: 0; font-family: var(--paper); font-size: 19px; line-height: 1.6; color: var(--reading); max-width: 72ch; }
+.rm-sum { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; font-size: 14px; color: var(--pencil); }
+.rm-sum > span { padding: 5px 12px; border-radius: 999px; background: var(--sheet); border: 1px solid var(--line); }
+.rm-sum strong { color: var(--heading); }
 .rm-stages, .rm-items { list-style: none; margin: 0; padding: 0; }
-.rm-stages { display: grid; gap: 22px; }
-.rm-stage-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.rm-stages { display: grid; gap: 18px; }
+.rm-stage { position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 14px; align-items: start; }
+/* The road: a line from each stage's number down to the next one. */
+.rm-stage:not(:last-child)::before { content: ""; position: absolute; left: 18px; top: 46px; bottom: -14px; width: 2px; border-radius: 1px;
+  background: linear-gradient(var(--ink) 0 40%, var(--line)); opacity: .55; transform-origin: 50% 0; }
+.rm-step { display: grid; place-items: center; width: 38px; height: 38px; margin-top: 8px; border-radius: 50%;
+  background: var(--ink-fill); color: var(--on-ink); font-weight: 800; font-size: 16px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--ink) 16%, transparent); }
+.rm-card { border-radius: 14px; padding: 6px 8px 8px; min-width: 0; }
+.rm-stage-head { display: flex; align-items: baseline; gap: 12px; padding: 12px 12px 10px; }
 .rm-stage-title { flex: 1; display: grid; gap: 2px; }
-.rm-stage-title strong { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--heading); }
+.rm-stage-title strong { font-family: var(--paper); font-size: 21px; font-weight: 600; color: var(--heading); }
 .rm-stage-title .hint { font-size: 14px; }
-.rm-step { flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--ink-tint); color: var(--ink); font-weight: 700; font-size: 14px; }
-.rm-items { display: grid; }
-.rm-row { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0 12px 38px; font-weight: 400; cursor: default; }
+.rm-items { display: grid; gap: 2px; }
+.rm-row { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border-radius: 10px; font-weight: 400; cursor: default;
+  transition: background .2s; }
 label.rm-row { cursor: pointer; }
-.rm-item + .rm-item .rm-row { border-top: 1px solid var(--line-soft); }
-.rm-row input { width: 18px; height: 18px; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--ink-fill); }
-.rm-body { flex: 1; min-width: 0; display: grid; gap: 3px; }
-.rm-body .paper-name { font-size: 17px; line-height: 1.3; color: var(--heading); text-decoration: none; }
+.rm-row:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.rm-item.is-next .rm-row { background: var(--ink-tint); }
+.rm-row input { width: 18px; height: 18px; margin: 4px 0 0; flex-shrink: 0; accent-color: var(--ink-fill); }
+/* A paper's first page, small (its title set in type until the PDF is there). */
+.rm-cover { flex-shrink: 0; width: 50px; }
+.rm-cover .cover-sheet { display: none; }
+.rm-cover .cover { box-shadow: 0 1px 2px rgb(0 0 0 / .14), 0 8px 16px -8px rgb(0 0 0 / .4); transition: transform .3s cubic-bezier(.3, .8, .25, 1); }
+.rm-cover .cover-type { padding: 14% 10% 8%; border-top-width: 2px; }
+.rm-cover .cover-title { font-size: 6px; line-height: 1.25; -webkit-line-clamp: 7; }
+.rm-row:hover .rm-cover .cover, .result:hover .rm-cover .cover { transform: translateY(-3px) rotate(-2deg); }
+.rm-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.rm-body .paper-name { font-size: 18px; line-height: 1.3; color: var(--heading); text-decoration: none; }
 .rm-body a.paper-name:hover { color: var(--ink); text-decoration: underline; }
+.rm-body .result-cite { align-items: center; margin-top: 0; }
 .rm-reason { font-family: var(--paper); font-size: 16px; line-height: 1.55; color: var(--graphite); }
 .rm-time { flex-shrink: 0; font-size: 13px; color: var(--pencil); white-space: nowrap; }
-.no-pdf { color: var(--pencil); }
-.rm-status { flex-shrink: 0; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 3px; border-radius: 50%;
+.rm-tag { padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--ink); background: var(--ink-tint); white-space: nowrap; }
+.rm-tag-none { color: var(--pencil); background: none; border: 1px dashed var(--line); font-weight: 400; }
+.rm-tag-have { color: var(--pencil); background: none; border: 1px solid var(--line); }
+.rm-status { flex-shrink: 0; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 4px; border-radius: 50%;
   border: 2px solid var(--line); font-size: 11px; font-weight: 700; color: var(--on-ink); }
 .rm-status.rm-reading { border-color: var(--ink); background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
-.rm-status.rm-read { border-color: var(--done); background: var(--done); }
+.rm-status.rm-read { border-color: var(--ink-fill); background: var(--ink-fill); }
 .rm-next { justify-self: start; margin-bottom: 2px; }
+.rm-others { padding: 12px 16px; border-radius: 14px; margin-top: 0; }
 .rm-others summary { cursor: pointer; color: var(--pencil); font-size: 15px; }
-.rm-others .rm-row { padding-left: 0; }
-.rm-foot { position: sticky; bottom: 12px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 14px;
-  margin: 0 -8px -8px; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-control); box-shadow: var(--shadow-soft); }
+.rm-others .rm-items { margin-top: 8px; }
+.rm-foot { position: sticky; bottom: 12px; z-index: 3; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 14px;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-pop); }
 .rm-foot .hint { flex: 1; min-width: 180px; margin: 0; font-size: 14px; }
 .rm-select { font-size: 14px; color: var(--pencil); }
-.roadmap-working { padding: 20px 0; display: grid; gap: 6px; }
-@media (max-width: 560px) { .rm-row { padding-left: 0; } .rm-time { display: none; } }
+/* A roadmap that has just been made arrives: stage by stage, the road drawn down, each paper sliding in. */
+.rm-enter .rm-top, .rm-enter .rm-foot { animation: rise-in .6s cubic-bezier(.2, .8, .2, 1) both; }
+.rm-enter .rm-foot { animation-delay: .9s; }
+.rm-enter .rm-card { animation: rise-in .7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.15s + var(--s) * .25s); }
+.rm-enter .rm-step { animation: rm-pop .55s cubic-bezier(.3, 1.5, .5, 1) both; animation-delay: calc(.1s + var(--s) * .25s); }
+.rm-enter .rm-stage::before { animation: rm-road .7s ease-out both; animation-delay: calc(.4s + var(--s) * .25s); }
+.rm-enter .rm-item, .found .result { animation: rm-slide .6s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.3s + var(--n) * .09s); }
+@keyframes rm-pop { from { opacity: 0; scale: .4; } to { opacity: 1; scale: 1; } }
+@keyframes rm-road { from { scale: 1 0; } to { scale: 1 1; } }
+@keyframes rm-slide { from { opacity: 0; translate: 24px 0; } to { opacity: 1; translate: 0 0; } }
+@media (max-width: 560px) {
+  .rm-stage { grid-template-columns: 1fr; gap: 6px; }
+  .rm-stage::before { display: none; }
+  .rm-step { width: 30px; height: 30px; font-size: 14px; margin: 0; }
+  .rm-row { gap: 10px; padding: 10px 6px; }
+  .rm-cover { width: 40px; }
+  .rm-time { display: none; }
+}
+
+/* Before a goal has a roadmap: what it would be, and the two ways to find papers. */
+.rm-section.no-plan .section-bar .bar-actions { display: none; }
+.rm-start { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); border-radius: 14px; overflow: hidden; }
+.rm-start-text { display: grid; gap: 10px; padding: 24px; align-content: start; justify-items: start; }
+.rm-start-text h3 { font-family: var(--paper); font-weight: 600; font-size: 24px; color: var(--heading); }
+.rm-start-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 2px; }
+.rm-start-show { padding: 20px 24px 24px; background: var(--ink-tint); border-left: 1px solid var(--line); }
+.rm-start-show .gf-stages { margin-top: 0; }
+@media (max-width: 860px) { .rm-start { grid-template-columns: 1fr; } .rm-start-show { border-left: 0; border-top: 1px solid var(--line); } }
+
+/* While papers are being found: stand-in papers dealt out one after another under a magnifying glass that sweeps
+   across them, and the steps of the search ticking by. At rest (reduced motion) it is a row of papers. */
+.finding { display: grid; justify-items: center; gap: 14px; padding: 30px 24px 24px; border-radius: 14px; overflow: hidden; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, var(--ink-tint), transparent 70%), var(--sheet); animation: rise-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+.fd-stage { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 12px; height: 104px; width: min(100%, 520px); }
+.fd-paper { width: 58px; flex-shrink: 0; animation: fd-deal 4.2s cubic-bezier(.3, .8, .25, 1) infinite backwards; animation-delay: calc(var(--i) * .32s); }
+.fd-paper .cover-sheet { display: none; }
+.fd-paper .cover { box-shadow: 0 1px 2px rgb(0 0 0 / .14), 0 12px 22px -10px rgb(0 0 0 / .45); }
+.fd-lens { position: absolute; left: 6%; top: 18px; width: 58px; height: 58px; border-radius: 50%; border: 3px solid var(--ink);
+  background: color-mix(in srgb, var(--ink) 14%, transparent); box-shadow: 0 0 26px color-mix(in srgb, var(--ink) 45%, transparent);
+  -webkit-backdrop-filter: brightness(1.15) saturate(1.3); backdrop-filter: brightness(1.15) saturate(1.3);
+  animation: fd-scan 3.4s ease-in-out infinite alternate; }
+.fd-lens::after { content: ""; position: absolute; right: -15px; bottom: -11px; width: 22px; height: 4px; border-radius: 2px; background: var(--ink);
+  transform: rotate(45deg); }
+@keyframes fd-deal {
+  0% { opacity: 0; translate: 70px 26px; rotate: 14deg; }
+  16%, 72% { opacity: 1; translate: 0 0; rotate: 0deg; }
+  44% { translate: 0 -7px; }
+  88%, 100% { opacity: 0; translate: -50px -18px; rotate: -10deg; }
+}
+@keyframes fd-scan { from { left: 4%; top: 22px; } 50% { top: 10px; } to { left: calc(96% - 58px); top: 24px; } }
+.fd-steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 7px; justify-items: start; text-align: left; font-size: 15px; color: var(--pencil); }
+.fd-steps li { display: flex; align-items: center; gap: 10px; transition: color .3s, opacity .3s; opacity: .6; }
+.fd-steps li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); flex-shrink: 0; }
+.fd-steps .is-done { opacity: 1; }
+.fd-steps .is-done::before { border-color: var(--ink-fill); background: var(--ink-fill); }
+.fd-steps .is-now { opacity: 1; color: var(--heading); font-weight: 700; }
+.fd-steps .is-now::before { border-color: var(--ink); animation: fd-pulse 1.1s ease-in-out infinite; }
+@keyframes fd-pulse { from, to { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ink) 55%, transparent); } 50% { box-shadow: 0 0 0 7px transparent; } }
+@media (max-width: 560px) { .fd-paper:nth-child(n + 5) { display: none; } }
+
+/* What a search found, with each paper's cover. */
+.found-title { font-size: 15px; color: var(--pencil); font-weight: 700; margin: 18px 0 8px; }
+.found .result { justify-content: flex-start; gap: 16px; }
+.found .result-body { flex: 1; }
+.found .result-cite { align-items: center; }
+@media (max-width: 560px) { .found .rm-cover { display: none; } }
+
+/* The Goals page once you have goals: the box sits to the left, your papers fanned out behind on the right. */
+.gf-solo { grid-template-columns: 1fr; max-width: min(100%, 600px); }
+.gf-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.gf-foot .gf-buttons .button { margin-left: 0; }
+.goals-page .page-head .lede { max-width: 46ch; }
+.goals-page .page-section { position: relative; }
+@media (max-width: 900px) { .gf-solo { max-width: none; } }
 /* Search results on a goal: the abstract reads like the paper. */
 .result details p { font-family: var(--paper); font-size: 16px; line-height: 1.6; color: var(--graphite); max-width: 72ch; margin-top: 6px; }
 .result details summary { font-size: 14px; color: var(--pencil); cursor: pointer; margin-top: 4px; }
