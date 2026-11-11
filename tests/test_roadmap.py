@@ -54,3 +54,14 @@ def test_adding_puts_papers_in_the_goal_and_fetches_their_pdfs(client, goal, mon
     assert all(i["paper_id"] for i in r["stages"][0]["items"])
     # Adding again doesn't make copies.
     assert client.post(f"/api/topics/{goal}/roadmap/add", json={"papers": ["s2-1"]}).json()["added"] == 0
+
+
+def test_a_goal_can_be_renamed_and_removed_keeping_its_papers(client):
+    g = client.post("/api/topics", json={"goal": "Old words"}).json()
+    p = client.post("/api/papers", json={"title": "P", "topic_id": g["id"]}).json()
+    assert client.patch(f"/api/topics/{g['id']}", json={"goal": " New words "}).json()["goal"] == "New words"
+    assert client.patch(f"/api/topics/{g['id']}", json={"goal": "  "}).status_code == 400
+    assert client.delete(f"/api/topics/{g['id']}").json() == {"papers_kept": 1}
+    assert client.get(f"/api/papers/{p['id']}").json()["topic_id"] is None
+    assert client.get("/api/topics").json() == []
+    assert client.delete(f"/api/topics/{g['id']}").status_code == 404

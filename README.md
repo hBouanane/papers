@@ -16,7 +16,7 @@ and remember what you read.</p>
   <code>uvx papers-app</code>
 </p>
 
-![Reading "Attention Is All You Need" with an explanation of the positional encoding formula beside it](docs/screenshots/reader.png)
+![The Library: the paper you're reading, the others on your desk, what's due for review, and your goals](docs/screenshots/library.png)
 
 ## About
 
@@ -39,6 +39,12 @@ choose the AI: your Claude or ChatGPT subscription, an API key, or a model runni
 
 <table>
 <tr>
+<td width="50%"><img src="docs/screenshots/chat-figure.png" alt="A Deep answer that points at the encoder, the decoder and where they connect in the paper's Figure 1"><br>
+<b>Ask about a figure.</b> The AI looks at the figure and points at the parts it is talking about.</td>
+<td width="50%"><img src="docs/screenshots/chat-widget.png" alt="An answer with a plot of the learning-rate schedule and sliders to change it"><br>
+<b>Play with a formula.</b> Answers can draw plots and small widgets with sliders, for any field.</td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/screenshots/goal-papers.png" alt="A goal: its papers shown by their first pages, and one line from each"><br>
 <b>Goals.</b> Each goal keeps its papers together, shown by their first pages, with one line on what each says.</td>
 <td width="50%"><img src="docs/screenshots/recall.png" alt="Recall: search your papers by an idea in your own words"><br>
@@ -48,8 +54,8 @@ choose the AI: your Claude or ChatGPT subscription, an API key, or a model runni
 <td width="50%"><img src="docs/screenshots/goal.png" alt="A goal's reading roadmap: stages of papers with why and how long each"><br>
 <b>Reading roadmap.</b> For each goal, the best papers in reading order. Pick some or all; PDFs download for you,
 and your progress shows as you read (<i>Start here</i>, <i>Next up</i>).</td>
-<td width="50%"><img src="docs/screenshots/library.png" alt="The Library: continue reading, due for review, goals"><br>
-<b>Library.</b> Pick up where you stopped, with the sentence you were on, and see what's due for review.</td>
+<td width="50%"><img src="docs/screenshots/reader.png" alt="Reading a paper with an explanation of a formula beside it"><br>
+<b>Reader.</b> Select a passage to have it explained, simplified or translated, beside the page.</td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/paper.png" alt="A paper's page: abstract, key points, figures, words, notes, references"><br>

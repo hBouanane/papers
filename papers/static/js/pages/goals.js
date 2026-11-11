@@ -1,6 +1,7 @@
 // Goals: what you're working on, each with its papers; and one goal's page.
 import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, moreButton, PAGE, paperRow, setBar, tableHead, toast } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
+import { iconButton } from "../icons.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
 
 // ---------- Goals ----------
@@ -90,8 +91,9 @@ export async function goalPage(id, stale) {
 
   app.innerHTML = `<div class="container page">
     <div class="page-head page-head-split">
-      <div><h1 class="page-title goal-title">${esc(goal.goal)}</h1>
-      <p class="lede">${plural(papers.length, "paper")}, ${read} finished.</p></div>
+      <div class="goal-head"><h1 class="page-title goal-title">${esc(goal.goal)}</h1>
+      <div class="goal-sub"><p class="lede">${plural(papers.length, "paper")}, ${read} finished.</p>
+      <span class="goal-manage">${iconButton("edit", "Rename this goal", { attrs: 'id="goal-rename"' })}${iconButton("trash", "Delete this goal", { attrs: 'id="goal-delete"' })}</span></div></div>
       <span class="bar-actions"><a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span>
     </div>
     <section>
@@ -113,6 +115,41 @@ export async function goalPage(id, stale) {
 
   bindAddPaper();
   drawCovers(app);
+  // ----- Rename or delete the goal -----
+  app.querySelector("#goal-rename").onclick = () => {
+    const title = app.querySelector(".goal-title");
+    if (app.querySelector("#goal-name")) return app.querySelector("#goal-name").focus();
+    title.hidden = true;
+    title.insertAdjacentHTML("afterend", `<form class="goal-rename" id="goal-rename-form">
+      <textarea id="goal-name" rows="3" required aria-label="The goal, in a few words">${esc(goal.goal)}</textarea>
+      <div class="goal-rename-foot"><button class="button">Save</button>
+        <button type="button" class="button quiet" id="goal-rename-cancel">Cancel</button></div></form>`);
+    const form = app.querySelector("#goal-rename-form");
+    const close = () => { form.remove(); title.hidden = false; };
+    form.querySelector("textarea").select();
+    form.querySelector("#goal-rename-cancel").onclick = close;
+    form.onkeydown = (e) => { if (e.key === "Escape") close(); };
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      busy(e.submitter, "Saving…", async () => {
+        const saved = await api(`/topics/${id}`, { method: "PATCH", json: { goal: form.querySelector("textarea").value.trim() } });
+        goal.goal = saved.goal;
+        title.textContent = saved.goal;
+        setBar({ back: { href: "#/goals", label: "Goals" }, title: saved.goal });
+        close();
+        toast("Goal renamed. The roadmap was made for the old words; make a new one if the goal changed.");
+      });
+    };
+  };
+  app.querySelector("#goal-delete").onclick = async (e) => {
+    const n = (await api(`/papers?topic_id=${id}`)).length;
+    if (!confirm(`Delete the goal "${shorten(goal.goal, 80)}"?\n\n${n ? `Its ${plural(n, "paper")} stay in your library, in no goal.` : "It has no papers."} Its roadmap is removed.`)) return;
+    busy(e.target.closest("button"), "", async () => {
+      await api(`/topics/${id}`, { method: "DELETE" });
+      toast("Goal deleted. Its papers are still in your library.");
+      location.hash = "#/goals";
+    });
+  };
   bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   app.querySelector(".as-list")?.addEventListener("toggle", () => drawCovers(app.querySelector("#mine")));
   app.querySelector("#mine").addEventListener("click", (e) => {

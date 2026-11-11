@@ -12,6 +12,7 @@ const PATHS = {
   listen: `<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/>`,
   send: `<path d="M12 19V5M6 11l6-6 6 6"/>`,
   stop: `<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>`,
+  edit: `<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>`,
   trash: `<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>`,
   play: `<path d="M8 5v14l11-7z" fill="currentColor"/>`,
   pause: `<path d="M8 5v14M16 5v14"/>`,

@@ -26,6 +26,31 @@ def list_topics():
         return [dict(r) for r in conn.execute("select * from topics order by id desc")]
 
 
+@router.patch("/topics/{topic_id}")
+def rename_topic(topic_id: int, body: TopicIn):
+    goal = body.goal.strip()
+    if not goal:
+        raise HTTPException(400, "A goal needs a few words.")
+    with db.connect() as conn:
+        conn.execute("update topics set goal = ? where id = ?", (goal, topic_id))
+        row = conn.execute("select * from topics where id = ?", (topic_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "This goal doesn't exist.")
+    return dict(row)
+
+
+@router.delete("/topics/{topic_id}")
+def delete_topic(topic_id: int):
+    """Remove a goal. Its papers stay in the library, in no goal; its roadmap goes with it."""
+    with db.connect() as conn:
+        if not conn.execute("select 1 from topics where id = ?", (topic_id,)).fetchone():
+            raise HTTPException(404, "This goal doesn't exist.")
+        kept = conn.execute("update papers set topic_id = null where topic_id = ?", (topic_id,)).rowcount
+        conn.execute("delete from settings where key = ?", (f"roadmap:{topic_id}",))
+        conn.execute("delete from topics where id = ?", (topic_id,))
+    return {"papers_kept": kept}
+
+
 @router.get("/topics/{topic_id}/search")
 def search_topic(topic_id: int):
     """Papers for a goal: the AI turns it into a few search queries (or the goal itself is the query)."""

@@ -139,3 +139,23 @@
 
 .lightbox-inner { position: relative; }
 .lightbox-close { position: absolute; top: 8px; right: 8px; background: var(--sheet); }
+
+/* The two ways to test yourself, and one written question at a time */
+.review-ways { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.review-way { display: grid; gap: 10px; align-content: start; padding: 26px 24px; min-height: 210px; text-align: left; font: inherit; color: inherit;
+  cursor: pointer; transition: border-color .2s, transform .25s; }
+.review-way:hover, .review-way:focus-visible { border-color: var(--ink); transform: translateY(-2px); }
+.way-name { font-family: var(--paper); font-size: 24px; font-weight: 600; color: var(--heading); }
+.way-text { color: var(--graphite); line-height: 1.55; }
+.way-go { margin-top: auto; padding-top: 10px; color: var(--ink); font-weight: 700; }
+.card-count { display: flex; align-items: center; gap: 12px; }
+.card-count .bar { flex: 1; width: auto; max-width: 220px; }
+.flashcard { min-height: min(46vh, 420px); align-content: center; }
+.flashcard.done { min-height: 220px; }
+.quiz-result { padding: 20px; margin-bottom: 16px; display: grid; gap: 6px; }
+.quiz-foot .link-button { margin-left: auto; }
+.question[hidden] { display: none; }
+.fact-understood { flex-wrap: wrap; }
+.fact-note { flex-basis: 100%; margin: 0; font-size: 13px; line-height: 1.45; color: var(--pencil); }
+@media (max-width: 640px) { .review-ways { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .review-way { transition: none; } }

@@ -67,7 +67,10 @@ export async function paperPage(id, stale, tab = "overview") {
         <div class="sheet facts">
           <div><span>Status</span>${statusTag(p)}</div>
           <div><span>Read</span><span class="fact-bar">${progressBar(p)}<span class="num">${pct(p.progress)}</span></span></div>
-          <div><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span></div>
+          <div class="fact-understood"><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span>
+            <p class="fact-note">${p.understanding == null ? "Your score on this paper's questions, once you test yourself."
+    : "Your score the last time you answered this paper's questions."}
+              ${p.quiz?.length || p.text ? `<a href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Test again"}</a>` : ""}</p></div>
           ${p.text ? `<div><span>Length</span><span>${minutes(p.text)} min</span></div>` : ""}
         </div>
         ${ancestors.length ? `<div class="sheet trail"><h3>Found through</h3>

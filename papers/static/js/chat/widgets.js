@@ -126,6 +126,13 @@ function live(stage, spec, paint) {
   run(sliders(stage.querySelector(".widget-sliders"), spec.params || (spec.param ? [spec.param] : []), run));
 }
 
+// The next round number at or above v (1, 1.5, 2, 3, 4, 5, 7.5 or 10 times a power of ten).
+function roundUp(v) {
+  if (!(v > 0)) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  return [1, 1.5, 2, 3, 4, 5, 7.5, 10].find((m) => m * p >= v * (1 - 1e-9)) * p;
+}
+
 // ---------- plot ----------
 function plot(stage, spec) {
   const W = widthOf(stage), H = Math.round(clamp(W * .5, 200, 300)), pad = { l: 46, r: 14, t: 12, b: 34 };
@@ -149,6 +156,18 @@ function plot(stage, spec) {
     const dots = points.map((p) => [val(p.x, scope), val(p.y, scope)]);
     const ys = [...pts.flat(), ...dots.filter((d) => ok(...d))].map(([, y]) => y);
     let y0 = +(spec.y?.from ?? Math.min(...ys, 0)), y1 = +(spec.y?.to ?? Math.max(...ys, 0));
+    // A range given by the model that is far taller than the curves (or misses them) draws a flat line. Fit it then,
+    // to round numbers so the axis moves in steps, not continuously, while a slider is dragged.
+    const seen = ys.filter((y) => ok(y));
+    if (seen.length && ok(y0, y1) && y1 > y0 && (spec.y?.from != null || spec.y?.to != null)) {
+      const lo = Math.min(...seen), hi = Math.max(...seen), span = hi - lo;
+      const inside = Math.min(hi, y1) - Math.max(lo, y0);
+      if (span > 0 && (span < .35 * (y1 - y0) || inside < .25 * span)) {
+        const base = lo >= y0 && lo - y0 < span ? y0 : lo - roundUp(span * .08); // keep a floor (often 0) the curve sits on
+        y0 = base;
+        y1 = base + roundUp((hi - base) * 1.05);
+      }
+    }
     if (!ok(y0, y1) || y0 === y1) { y0 = (y0 || 0) - 1; y1 = (y1 || 0) + 1; }
     const sx = (x) => pad.l + (x - x0) / (x1 - x0) * (W - pad.l - pad.r);
     const sy = (y) => H - pad.b - (clamp(y, y0 - (y1 - y0), y1 + (y1 - y0)) - y0) / (y1 - y0) * (H - pad.t - pad.b);
@@ -181,7 +200,7 @@ function plot(stage, spec) {
       : `<text x="${W - pad.r - 4}" y="${sy(at) - 5}" text-anchor="end" fill="${muted}" font-size="11">${esc(fill(m.label, scope))}</text>`;
   }).join("")}
       ${dots.map(([x, y], i) => (!ok(x, y) || x < x0 || x > x1 ? "" : `<circle cx="${sx(x).toFixed(1)}" cy="${sy(y).toFixed(1)}" r="5" fill="${colorOf(points[i].color, i + lines.length)}" stroke="${css("--sheet")}" stroke-width="1.5"/>
-        ${points[i].label ? `<text x="${sx(x) > W - 130 ? sx(x) - 9 : sx(x) + 9}" y="${sy(y) - 8}" text-anchor="${sx(x) > W - 130 ? "end" : "start"}" fill="${text}" font-size="11.5" font-weight="700">${esc(fill(points[i].label, scope))}</text>` : ""}`)).join("")}`;
+        ${points[i].label ? `<text x="${sx(x) > W - 130 ? sx(x) - 9 : sx(x) + 9}" y="${Math.max(sy(y) - 8, pad.t + 25)}" text-anchor="${sx(x) > W - 130 ? "end" : "start"}" fill="${text}" font-size="11.5" font-weight="700">${esc(fill(points[i].label, scope))}</text>` : ""}`)).join("")}`;
   });
 }
 

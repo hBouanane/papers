@@ -77,3 +77,6 @@ label.check input { width: auto; margin: 0; }
 .ai-can li.no .ai-can-mark { background: transparent; box-shadow: inset 0 0 0 1.5px var(--pencil); color: var(--pencil); }
 .switch-row.is-fixed .toggle-switch { opacity: .55; }
 .switch-row.is-fixed { cursor: default; }
+
+/* The API key: a plain text field shown as dots, so password managers don't fill it with a saved password */
+input.secret:not(:placeholder-shown) { -webkit-text-security: disc; font-family: var(--mono, monospace); letter-spacing: 1px; }
