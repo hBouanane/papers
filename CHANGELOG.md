@@ -4,6 +4,9 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Covers appear by themselves**: a paper whose PDF was still downloading kept its plain title cover until you
+  opened the paper. Now every page swaps in the first page as soon as the PDF arrives, a cover that failed to
+  draw is tried again, and a PDF is only visible to the app once it's completely saved.
 - **Searches find the papers a topic starts from**: a keyword search for "attention mechanism" doesn't return
   *Attention Is All You Need*. The AI now also names the classics and a survey for your goal; each is looked up
   by its exact title (a title that doesn't exist is dropped) and put first, in roadmaps and in **Just search**.

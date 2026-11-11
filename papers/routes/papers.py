@@ -135,6 +135,13 @@ def list_papers(topic_id: int | None = None, archived: bool = False):
     return papers
 
 
+@router.get("/with-pdf")
+def papers_with_pdf() -> list[int]:
+    """Which papers have their PDF by now. Covers waiting for a download ask this, then draw the first page."""
+    folder = db.pdf_path(0).parent
+    return sorted(int(f.stem) for f in folder.glob("*.pdf") if f.stem.isdigit()) if folder.is_dir() else []
+
+
 @router.get("/{paper_id}")
 def read_paper(paper_id: int):
     return get_paper(paper_id)

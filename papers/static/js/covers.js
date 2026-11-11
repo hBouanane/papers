@@ -2,6 +2,8 @@
 // Papers without a PDF get a typeset cover instead (title in the paper serif, authors, year), which
 // also shows while the real page is being drawn. Pages are drawn only when a cover scrolls into view,
 // one at a time, and kept in the browser's cache so the next visit shows them at once.
+// A paper whose PDF is still downloading starts with the typeset cover; the page it's on keeps asking which
+// PDFs have arrived and swaps the first page in when one does, so nothing has to be reopened to see it.
 import { cite, esc } from "./core.js";
 
 const RENDER_WIDTH = 240; // CSS px; the largest cover is about this wide
@@ -40,12 +42,14 @@ function thumbnail(id) {
     }).catch(() => null))) // a broken PDF keeps its typeset cover
       .then((blob) => (blob ? URL.createObjectURL(blob) : null));
     drawn.set(id, job);
+    job.then((src) => { if (!src && drawn.get(id) === job) drawn.delete(id); }); // a failure isn't remembered: try again next time
   }
   return drawn.get(id);
 }
 
-async function fill(el) {
+async function fill(el, tries = 2) {
   const src = await thumbnail(el.dataset.cover);
+  if (!src && tries > 0 && el.isConnected) return void setTimeout(() => fill(el, tries - 1), 4000); // just arrived, perhaps
   if (!src || !el.isConnected || el.querySelector("img")) return;
   const img = new Image();
   img.alt = "";
@@ -54,8 +58,32 @@ async function fill(el) {
   el.append(img);
 }
 
+// Covers of papers with no PDF yet, waiting for one. One timer for the whole app asks the server every few
+// seconds which PDFs exist, for as long as a waiting cover is on screen (five minutes at most per cover).
+const waiting = new Map(); // element -> when to give up
+let asking = null;
+function waitForPdfs(root) {
+  for (const el of root.querySelectorAll(".cover[data-cover]:not([data-pdf])")) {
+    if (/^\d+$/.test(el.dataset.cover) && !waiting.has(el)) waiting.set(el, Date.now() + 5 * 60 * 1000);
+  }
+  if (!waiting.size || asking) return;
+  asking = setInterval(async () => {
+    for (const [el, until] of waiting) if (!el.isConnected || Date.now() > until) waiting.delete(el);
+    if (!waiting.size) { clearInterval(asking); asking = null; return; }
+    let have;
+    try { have = new Set(await (await fetch("/api/papers/with-pdf")).json()); } catch { return; }
+    for (const el of [...waiting.keys()]) {
+      if (!have.has(Number(el.dataset.cover))) continue;
+      waiting.delete(el);
+      el.setAttribute("data-pdf", "");
+      fill(el);
+    }
+  }, 5000);
+}
+
 // Draws the covers inside `root` as they come near the screen.
 export function drawCovers(root) {
+  waitForPdfs(root);
   const covers = [...root.querySelectorAll(".cover[data-pdf]")];
   if (!covers.length) return;
   if (!("IntersectionObserver" in window)) return covers.forEach(fill);

@@ -46,7 +46,9 @@ def save_pdf(paper_id: int, data: bytes) -> None:
     figures.forget(paper_id)  # cut out again from the new file
     path = db.pdf_path(paper_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
+    part = path.with_suffix(".part")  # whole or not there: a cover drawn from a half-written file stays blank
+    part.write_bytes(data)
+    part.replace(path)
     library.sync_paper(paper_id)
 
 

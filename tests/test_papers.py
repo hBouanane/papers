@@ -164,3 +164,13 @@ def test_list_carries_each_papers_summary_line(client):
     assert (listed["tldr"], listed["key_idea"]) == ("It adds noise, then learns to undo it.", "Denoising as generation.")
     q = client.post("/api/papers", json={"title": "Q"}).json()
     assert next(x for x in client.get("/api/papers").json() if x["id"] == q["id"])["tldr"] is None
+
+
+def test_which_papers_have_their_pdf(client):
+    from papers import db, store
+    first = client.post("/api/papers", json={"title": "With a PDF"}).json()["id"]
+    client.post("/api/papers", json={"title": "Without one"})
+    assert client.get("/api/papers/with-pdf").json() == []
+    store.save_pdf(first, b"%PDF-1.4 whole")
+    assert client.get("/api/papers/with-pdf").json() == [first]
+    assert not list(db.pdf_path(first).parent.glob("*.part"))  # saved whole, nothing half-written left behind
