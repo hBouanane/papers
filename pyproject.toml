@@ -24,6 +24,7 @@ dependencies = [
   "uvicorn>=0.30",
   "httpx>=0.27",
   "pypdf>=5",
+  "fonttools>=4",  # pypdf reads some embedded fonts' encodings with it
   "pdfplumber>=0.11",
   "anthropic>=0.40",
   "python-multipart>=0.0.9",

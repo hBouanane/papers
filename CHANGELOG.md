@@ -10,6 +10,11 @@ What changed in each release. Versions follow [semantic versioning](https://semv
   shown at the end, and Settings can move it). The question that stays is the folder you actually open: *Your
   papers as normal files*, with PDFs under their real titles and a notes file each. It's suggested first, an
   unusable folder is asked for again instead of being dropped silently, and it can't be the app's data folder.
+- **No more crash on an unsupported Python**: on a pre-release Python the setup stopped halfway with a long
+  traceback. Papers now notices before asking anything and starts itself again on Python 3.13 (through uv), or
+  says what to do when uv isn't there. The README says how to install `uv`, and tests also run on Python 3.14.
+- **A quiet terminal while reading PDFs**: the "fontTools is required…" lines and other notes from the PDF reader
+  no longer fill the terminal. fontTools is now installed with the app, so those fonts are read properly.
 
 ## 0.3.0
 
