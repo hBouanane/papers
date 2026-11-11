@@ -2,6 +2,12 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **The Library always has something on the desk**: with nothing in progress it shows the next paper to start
+  (*Up next*, with **Start reading** and **Overview first**) instead of an empty box, and when every paper is
+  finished it says so and offers to find more or recall what you read.
+
 ## 0.3.0
 
 - **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each
