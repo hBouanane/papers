@@ -48,3 +48,40 @@ def test_ai_grading_also_schedules_the_next_review(client, monkeypatch):
     monkeypatch.setattr(llm, "grade", lambda paper, quiz, answers: {"results": [], "score": 0.9})
     client.post(f"/api/papers/{p['id']}/quiz/grade", json={"answers": ["a", "b"]})
     assert client.get(f"/api/papers/{p['id']}").json()["review_due"] == day(3)
+
+
+def test_more_questions_are_added_without_repeats(client, monkeypatch):
+    p = finished(client, monkeypatch)
+    monkeypatch.setattr(llm, "more_questions", lambda paper, existing, count=5: [
+        {"question": "q1 ", "answer": "again"}, {"question": "Q3", "answer": "A3"}])
+    quiz = client.post(f"/api/papers/{p['id']}/quiz/more").json()
+    assert [q["question"] for q in quiz] == ["Q1", "Q2", "Q3"]
+    assert len(client.get(f"/api/papers/{p['id']}").json()["quiz"]) == 3
+    empty = client.post("/api/papers", json={"title": "No quiz"}).json()
+    assert client.post(f"/api/papers/{empty['id']}/quiz/more").status_code == 400
+
+
+def test_grading_is_one_request_and_skips_blank_answers(client, monkeypatch):
+    p = finished(client, monkeypatch)
+    calls = []
+
+    def grade(paper, quiz, answers):
+        calls.append(([q["question"] for q in quiz], answers))
+        return {"results": [{"score": 1, "feedback": "Right."} for _ in quiz], "score": 1}
+
+    monkeypatch.setattr(llm, "grade", grade)
+    r = client.post(f"/api/papers/{p['id']}/quiz/grade", json={"answers": ["mine", "  "]}).json()
+    assert calls == [(["Q1"], ["mine"])]
+    assert [x["score"] for x in r["results"]] == [1, 0] and r["score"] == 0.5 and r["questions"] == [0, 1]
+    r = client.post(f"/api/papers/{p['id']}/quiz/grade", json={"answers": ["", "second"], "only": [1]}).json()
+    assert calls[-1] == (["Q2"], ["second"]) and r["questions"] == [1] and len(r["results"]) == 1
+    client.post(f"/api/papers/{p['id']}/quiz/grade", json={"answers": ["", ""]})
+    assert len(calls) == 2
+
+
+def test_grading_only_new_questions_keeps_the_score_of_the_others(client, monkeypatch):
+    p = finished(client, monkeypatch)
+    monkeypatch.setattr(llm, "grade", lambda paper, quiz, answers: {"results": [{"score": 1, "feedback": ""} for _ in quiz], "score": 1})
+    client.post(f"/api/papers/{p['id']}/quiz/grade", json={"answers": ["a", ""]})  # 50%
+    client.post(f"/api/papers/{p['id']}/quiz/grade", json={"answers": ["", "b"], "only": [1]})
+    assert client.get(f"/api/papers/{p['id']}").json()["understanding"] == 0.75

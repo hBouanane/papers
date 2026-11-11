@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 from papers import db, figures, index
 from papers import notes as notes_db
+from papers.ai import providers
 from papers.store import get_paper
 
 
@@ -143,12 +144,44 @@ def look_at_figure(paper: dict, number: int, kind: str = "figure") -> Result:
     if not f:
         have = ", ".join(f"{'Table' if x['kind'] == 'table' else 'Figure'} {x['number']}" for x in figures.for_paper(paper["id"]))
         return Result(f"{name} {number} wasn't found in the PDF. Found: {have or 'none'}.", f"Looked for {name} {number}")
-    image = (figures.folder(paper["id"]) / figures.image_name(kind, f["number"])).read_bytes()
     text = paper.get("text") or ""
     mentions = [m.start() for m in re.finditer(rf"\b{name}\s+{number}\b", text)][:3]
     around = "\n…\n".join(text[max(0, i - 300):i + 400] for i in mentions)
-    return Result(f"{f['caption']} (page {f['page']}).\nWhere the paper mentions it:\n{around or '(not mentioned in the text)'}",
-                  f"Looked at {name} {number}", image=image)
+    about = f"{f['caption']} (page {f['page']}).\nWhere the paper mentions it:\n{around or '(not mentioned in the text)'}"
+    if not can_see():
+        return Result(about + "\n\nYou were given the caption and the text only, not the image (this model isn't sent "
+                      "images). Don't describe what the image looks like, and don't put boxes on it.",
+                      f"Read about {name} {number} (the image isn't sent to this model)")
+    image = (figures.folder(paper["id"]) / figures.image_name(kind, f["number"])).read_bytes()
+    grid = figures.with_grid(image)
+    if not grid:
+        return Result(about + "\n\nShow it without boxes.", f"Looked at {name} {number}", image=image)
+    return Result(about + POINTING, f"Looked at {name} {number}", image=grid)
+
+
+POINTING = """
+
+The image has a grid drawn over it, for you only (the reader sees the figure without it): columns A to J from left to
+right, rows 1 to 10 from top to bottom, each cell named in its corner. To point at a part of the figure, name the
+cells it covers in a ```figure block: "from" is the cell at its top-left corner, "to" the cell at its bottom-right
+corner, for example {"figure": 1, "boxes": [{"from": "B3", "to": "E5", "label": "the encoder stack"}]}. Read the cell
+names off the image; cover the whole part and nothing else. If you can't tell exactly where a part is, leave the
+box out."""
+
+
+def can_see() -> bool:
+    """Whether the model gets the figure's image: always, except OpenAI-compatible models with images turned off."""
+    return providers.backend() != "openai" or setting_vision()
+
+
+def seen(steps: list[dict]) -> set[tuple[str, int]]:
+    """The figures and tables the model really looked at in an answer, from its steps."""
+    found = set()
+    for s in steps:
+        m = re.match(r"Looked at (Figure|Table) (\d+)$", s.get("summary") or "")
+        if m and s.get("name") == "look_at_figure":
+            found.add((m.group(1).lower(), int(m.group(2))))
+    return found
 
 
 def search_library(paper: dict, idea: str) -> Result:

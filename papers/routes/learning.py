@@ -140,6 +140,7 @@ REVIEW_DAYS = [1, 3, 7, 21, 60]  # wait before the next review, by how many revi
 
 class AnswersIn(BaseModel):
     answers: list[str]
+    only: list[int] | None = None  # grade just these questions (the ones added by "More questions")
 
 
 class RatingsIn(BaseModel):
@@ -171,9 +172,41 @@ def grade_quiz(paper_id: int, body: AnswersIn):
     paper = get_paper(paper_id)
     if not paper["quiz"]:
         raise HTTPException(400, "Generate a quiz first")
-    result = llm.grade(paper, paper["quiz"], body.answers)
-    schedule_review(paper_id, result["score"])
-    return result
+    quiz = paper["quiz"]
+    picked = [i for i in (body.only if body.only is not None else range(len(quiz))) if 0 <= i < len(quiz)]
+    answers = {i: (body.answers[i] if i < len(body.answers) else "").strip() for i in picked}
+    written = [i for i in picked if answers[i]]
+    # Every answer goes to the model in one request. Questions left empty score 0 without asking it.
+    result = llm.grade(paper, [quiz[i] for i in written], [answers[i] for i in written]) if written else {"results": [], "score": 0}
+    if len(written) < len(picked):
+        graded = dict(zip(written, result["results"]))
+        results = [graded.get(i, {"score": 0, "feedback": "No answer."}) for i in picked]
+        result = {"results": results, "score": sum(r["score"] for r in results) / max(len(results), 1)}
+    score = result["score"]
+    if len(picked) < len(quiz) and paper["understanding"] is not None:
+        # only some questions were graded (the new ones): the others keep the score they had
+        score = (paper["understanding"] * (len(quiz) - len(picked)) + score * len(picked)) / len(quiz)
+    schedule_review(paper_id, score)
+    return {**result, "questions": picked}
+
+
+MAX_QUESTIONS = 30
+
+
+@router.post("/papers/{paper_id}/quiz/more")
+def more_quiz(paper_id: int):
+    """Five more questions, different from the ones the paper already has. Returns the whole list."""
+    paper = get_paper(paper_id)
+    quiz = paper["quiz"] or []
+    if not quiz:
+        raise HTTPException(400, "Generate a quiz first")
+    if len(quiz) >= MAX_QUESTIONS:
+        raise HTTPException(400, f"This paper already has {len(quiz)} questions, which is the most it can keep.")
+    known = {q["question"].strip().lower() for q in quiz}
+    new = [q for q in llm.more_questions(paper, quiz) if q["question"].strip().lower() not in known]
+    quiz = (quiz + new)[:MAX_QUESTIONS]
+    update_paper(paper_id, quiz=json.dumps(quiz))
+    return quiz
 
 
 @router.post("/papers/{paper_id}/review")

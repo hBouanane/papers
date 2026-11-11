@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from papers import ai, config, db, folders, keys, library, llm, storage
-from papers.ai import providers
+from papers.ai import capabilities, providers
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -36,7 +36,7 @@ def settings() -> dict:
             "ai_provider": cfg["provider"], "ai_base_url": cfg["base_url"], "ai_model": cfg["model"],
             "ai_key_set": bool(cfg["api_key"]), "ai_context": db.setting("ai_context") or "full",
             "ai_vision": db.setting("ai_vision") == "on", "ai_pages": db.setting("ai_pages") == "on",
-            "ai_name": providers.ai_name(), "providers": providers.PROVIDERS,
+            "ai_name": providers.ai_name(), "providers": providers.PROVIDERS, "ai_can": capabilities.known(),
             "language": db.setting("language"), "name": db.setting("name"),
             "api_key_set": config.anthropic_key_in_env(),
             # which providers have a key saved ("…a1b2"), and where keys are kept, so you never paste one twice
@@ -118,6 +118,14 @@ def test_ai():
     p = providers.BY_ID[providers.provider()]
     via = f"your {p['name'].split(' (')[0]} subscription" if p["group"] == "subscription" else p["name"]
     return {"ok": True, "message": f"It works: {providers.ai_name()} answered through {via}."}
+
+
+@router.post("/ai/capabilities")
+def ai_capabilities():
+    """Find out whether the chosen model can see images and use tools (two tiny real requests), and set
+    "Look at figures" to match. Returns {images, tools: {ok, note}, ai_vision}."""
+    found = capabilities.check()
+    return {**found, "ai_vision": db.setting("ai_vision") == "on"}
 
 
 @router.get("/ai/models")

@@ -221,38 +221,77 @@ never just for decoration):
   Wrap each part in \htmlClass{t1}{...} to \htmlClass{t6}{...} so it gets the same colour as its meaning. This is JSON:
   double every backslash, and nothing after the closing brace. (The example only shows the format: write the paper's
   own formula.)
-- Numbers to compare, or the shape of a function: a Vega-Lite v5 spec with its data inline (no "url"), with readable
-  axis titles. A line chart of a few computed points, a bar chart of results from a table, or a heatmap:
+- Numbers to compare (results from a table, a trend, a distribution): any Vega-Lite v5 spec (bars, lines, points,
+  areas, heatmaps, box plots, error bars, layers, facets, transforms) with its data inline (no "url") and readable
+  axis titles:
 ```chart
 {"title": "Accuracy by model", "mark": "bar", "data": {"values": [{"model": "A", "acc": 71.2}, {"model": "B", "acc": 74.9}]},
  "encoding": {"x": {"field": "model", "type": "nominal", "title": "Model"}, "y": {"field": "acc", "type": "quantitative", "title": "Accuracy (%)"}}}
 ```
-- A process, an architecture or how parts connect: Mermaid (keep labels short, quote labels with symbols):
+- How parts connect or follow each other: any Mermaid diagram. Pick the type that fits: flowchart (a method, a
+  pipeline, an architecture, a pathway), sequenceDiagram (who sends what to whom: a protocol, a signalling cascade),
+  stateDiagram-v2 (states and what moves between them), timeline (history, the phases of a study), mindmap (how
+  ideas group), classDiagram or erDiagram (kinds of things and their relations), quadrantChart, gantt, sankey-beta
+  (flows of amounts). Keep labels short, quote labels that have symbols:
 ```diagram
 flowchart LR
-  A["Word embedding"] --> C(("+")) --> D["Encoder"]
-  B["Position encoding"] --> C
+  A["Sample"] --> B["Treatment"] --> D["Measure"]
+  A --> C["Control"] --> D
 ```
-- The paper's own figure or table, with numbered boxes on the parts you talk about (x, y, w, h are fractions of the
-  image). Only add "boxes" after you have looked at the image itself; otherwise show the figure without them:
+- The paper's own figure or table, when the reader should look at it (you can't see the image yourself unless a
+  tool shows it to you, so say what its caption and the text say about it, and never guess where things are in it):
 ```figure
-{"figure": 1, "boxes": [{"x": 0.05, "y": 0.7, "w": 0.4, "h": 0.12, "label": "where position is added"}]}
+{"figure": 1}
 ```
-- Something the reader should play with to understand it (how a value changes with a parameter, a rotation, a grid of
-  values, a calculation done step by step): an interactive widget. Expressions use math.js syntax (sin, cos, exp, log,
-  sqrt, pi, ^). One of:
+- Something the reader should play with to understand it: an interactive widget, in a ```widget block. Pick the
+  kind that fits the idea and the paper's field, whatever the field (physics, biology, medicine, chemistry,
+  economics, statistics, engineering, computer science, social science). Every expression is math.js (+ - * / ^,
+  sin, cos, exp, log, sqrt, abs, min, max, floor, mod, pi, e, a ? b : c) over the sliders' names. All kinds take:
+  "title"; "caption"; "params" (sliders: {"name", "from", "to", "step", "value", "label", "unit"}, and "play": true
+  on one of them to add a play button that animates it); "let" (named values worked out from the sliders, usable
+  in every expression: {"half": "log(2) / k"}); "outputs" (live numbers under the picture: [{"label", "expr",
+  "unit", "digits"}]). Labels and text may hold {expressions} in braces. The kinds:
+  "plot": curves, with moving points, shaded areas and marker lines. Lines are {"expr" in x, "label", "dash"} (or
+  {"x", "y"} in t with "t": {"from", "to"}); "points" [{"x", "y", "label"}]; "areas" [{"expr", "from", "to"}]
+  (shaded between the curve and zero); "vlines" / "hlines" [{"at", "label"}]; "y": {"from", "to", "label"} fixes
+  the range.
 ```widget
-{"type": "plot", "title": "...", "x": {"from": 0, "to": 50, "label": "position"},
- "params": [{"name": "i", "from": 0, "to": 8, "step": 1, "value": 0, "label": "dimension pair i"}],
- "lines": [{"expr": "sin(x / 10000^(2*i/16))", "label": "sin"}, {"expr": "cos(x / 10000^(2*i/16))", "label": "cos"}]}
+{"type": "plot", "title": "How much drug is left in the blood", "x": {"from": 0, "to": 24, "label": "hours after the dose"},
+ "y": {"from": 0, "to": 100, "label": "% of the dose"},
+ "params": [{"name": "h", "from": 1, "to": 12, "step": 0.5, "value": 4, "label": "half-life", "unit": "h"},
+            {"name": "t", "from": 0, "to": 24, "step": 0.5, "value": 8, "label": "time", "unit": "h", "play": true}],
+ "lines": [{"expr": "100 * 0.5^(x / h)", "label": "drug left"}],
+ "areas": [{"expr": "100 * 0.5^(x / h)", "from": 0, "to": "t"}],
+ "points": [{"x": "t", "y": "100 * 0.5^(t / h)", "label": "{100 * 0.5^(t / h)} %"}],
+ "vlines": [{"at": "h", "label": "one half-life"}],
+ "outputs": [{"label": "Left after {t} h", "expr": "100 * 0.5^(t / h)", "unit": "%", "digits": 1}]}
 ```
+  "scene": a free drawing that moves with the sliders: a set-up, a mechanism, a geometry, a small model. You
+  choose the coordinates ("x" and "y": {"from", "to"}; "axes": true to show them). "shapes" are drawn in order:
+  circle {x, y, r}, point {x, y}, rect {x, y, w, h} (x, y is its lower-left corner), line and arrow {x1, y1, x2,
+  y2}, text {x, y, text}, curve {expr in x, from, to} or {x, y in t, "t": {"from", "to"}}, polygon {"points":
+  [[x, y], ...]}. Every number may be an expression. Each takes "color" (blue, orange, green, red, purple, cyan,
+  muted), "fill": true, "dash": true, "width", "label", "opacity", and "repeat": {"name": "k", "from": 0, "to": 5}
+  to draw it once per value of k.
 ```widget
-{"type": "circles", "title": "...", "params": [{"name": "pos", "from": 0, "to": 50, "step": 1, "value": 0, "label": "position"}],
- "circles": [{"label": "pair 0", "angle": "pos"}, {"label": "pair 1", "angle": "pos / 10"}, {"label": "pair 2", "angle": "pos / 100"}]}
+{"type": "scene", "title": "A pendulum", "x": {"from": -1.2, "to": 1.2}, "y": {"from": -1.4, "to": 0.2},
+ "params": [{"name": "L", "from": 0.3, "to": 1.2, "step": 0.05, "value": 1, "label": "length", "unit": "m"},
+            {"name": "t", "from": 0, "to": 10, "step": 0.02, "value": 0, "label": "time", "unit": "s", "play": true, "seconds": 10}],
+ "let": {"a": "0.5 * cos(sqrt(9.81 / L) * t)"},
+ "shapes": [{"shape": "line", "x1": -0.4, "y1": 0, "x2": 0.4, "y2": 0, "color": "muted", "width": 4},
+            {"shape": "line", "x1": 0, "y1": 0, "x2": "L * sin(a)", "y2": "-L * cos(a)", "color": "muted"},
+            {"shape": "circle", "x": "L * sin(a)", "y": "-L * cos(a)", "r": 0.08, "fill": "solid"}],
+ "outputs": [{"label": "Period", "expr": "2 * pi * sqrt(L / 9.81)", "unit": "s", "digits": 2}]}
 ```
-  ("heatmap": {"rows": {"name": "pos", "from": 0, "to": 50}, "cols": {"name": "j", "from": 0, "to": 31}, "expr": "...",
-  "params": [...]}; "steps": {"steps": [{"title": "...", "text": "Markdown"}]}.) Use a widget at most once per answer,
-  when it really helps.
+  "bars": bars that change with the sliders: {"bars": [{"label", "expr"}]}, or one bar per value of a counter:
+  {"repeat": {"name": "k", "from": 0, "to": 10}, "expr": "combinations(10, k) * p^k * (1 - p)^(10 - k)",
+  "x": {"label": "successes"}, "y": {"from": 0, "to": 0.5}, "params": [{"name": "p", ...}]}.
+  "circles": dials: {"circles": [{"label", "angle" in radians}], "show": "sincos" | "degrees" | "turns" | "none"}.
+  "heatmap": a grid of values: {"rows": {"name": "i", "from": 0, "to": 50, "label"}, "cols": {"name": "j", "from":
+  0, "to": 31, "label"}, "expr": "..."}.
+  "steps": a walkthrough, one step at a time: {"steps": [{"title": "...", "text": "Markdown"}]}.
+  The examples only show the format: build the widget for this paper's own idea, with its real quantities and
+  units. One widget per answer is usually enough; a second only when it shows a different idea.
 Only cite or show figures and tables listed in <figures> below. Write visual blocks directly in the Markdown, never
 inside HTML tags.
 
@@ -378,6 +417,20 @@ def quiz(paper: dict) -> list[dict]:
         "to prior work), not trivia. Give a short reference answer for each."
     )
     return [q.model_dump() for q in ai.parse(prompt, Quiz).questions]
+
+
+def more_questions(paper: dict, existing: list[dict], count: int = 5) -> list[dict]:
+    """New questions for a paper that already has some: about other things, not the same ones reworded."""
+    asked = "\n".join(f"- {q['question']}" for q in existing)
+    prompt = (
+        f"{_paper_context(paper)}\n\n"
+        f"I'm testing myself on this paper and already have these questions:\n{asked}\n\n"
+        f"Write {count} more open questions that check real understanding of things those don't cover: other "
+        "sections, the details of the method, the experiments and what they do and don't show, assumptions, "
+        "what would happen if a part were changed. No trivia, and none that repeats one above in other words. "
+        "Give a short reference answer for each."
+    )
+    return [q.model_dump() for q in ai.parse(prompt, Quiz).questions][:count]
 
 
 class GradeItem(BaseModel):

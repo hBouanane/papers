@@ -10,6 +10,7 @@
 //   renderAnswer(text, { streaming })  → HTML (visuals as placeholders)
 //   drawVisuals(root, ctx)             → draws the placeholders in root (lazy-loads Mermaid and Vega once needed)
 import { esc } from "../core.js";
+import { iconButton } from "../icons.js";
 
 const CDN = "https://cdn.jsdelivr.net/npm";
 const [{ Marked }, { default: DOMPurify }, { default: katex }] = await Promise.all([
@@ -82,7 +83,7 @@ export function renderAnswer(text, { streaming = false } = {}) {
     }
     return `<figure class="visual visual-${v.kind}" data-visual="${v.kind}" data-spec="${esc(v.body)}">
       <div class="visual-stage"></div>
-      <button type="button" class="visual-open link-button" title="Open it large">Open large</button></figure>`;
+      ${iconButton("expand", "Open it large", { cls: "visual-open", size: 15 })}</figure>`;
   });
   return isRightToLeft(text) ? `<div class="answer-rtl" dir="rtl">${html}</div>` : html;
 }
@@ -158,17 +159,43 @@ function drawMath(stage, spec) {
     ${m.example ? `<p class="math-example">${esc(m.example)}</p>` : ""}`;
 }
 
+// A box on a figure: the model names grid cells ("from": "B3", "to": "E5": columns A–J, rows 1–10, the grid it was
+// shown over the image); fractions x, y, w, h (older answers) still work. Returns fractions, or null if it's nonsense.
+const CELL = /^([A-Ja-j])(10|[1-9])$/;
+export function boxArea(b) {
+  const a = CELL.exec(String(b.from || "").trim()), z = CELL.exec(String(b.to || b.from || "").trim());
+  if (a && z) {
+    const col = (m) => m[1].toUpperCase().charCodeAt(0) - 65, row = (m) => Number(m[2]) - 1;
+    const c0 = Math.min(col(a), col(z)), c1 = Math.max(col(a), col(z)), r0 = Math.min(row(a), row(z)), r1 = Math.max(row(a), row(z));
+    return { x: c0 / 10, y: r0 / 10, w: (c1 - c0 + 1) / 10, h: (r1 - r0 + 1) / 10 };
+  }
+  const n = ["x", "y", "w", "h"].map((k) => Number(b[k]));
+  if (n.some((v) => !Number.isFinite(v)) || n[2] <= 0 || n[3] <= 0) return null;
+  const x = Math.min(Math.max(n[0], 0), 1), y = Math.min(Math.max(n[1], 0), 1);
+  return { x, y, w: Math.min(n[2], 1 - x), h: Math.min(n[3], 1 - y) };
+}
+
 async function drawFigure(stage, spec, ctx) {
   const f = typeof spec === "string" ? looseJSON(spec) : spec;
   const kind = f.table ? "table" : "figure";
   const number = f.table || f.figure;
   const fig = (await ctx.figures?.())?.find((x) => x.kind === kind && x.number === Number(number));
   if (!fig) { stage.innerHTML = `<p class="faint">${kind === "table" ? "Table" : "Figure"} ${esc(String(number))} isn't available (the PDF's figures are cut out from their captions).</p>`; return; }
+  const boxes = (Array.isArray(f.boxes) ? f.boxes : []).map((b) => ({ ...boxArea(b || {}), label: b?.label })).filter((b) => b.w);
+  const pct = (v) => `${Math.round(v * 1000) / 10}%`;
   stage.innerHTML = `<div class="figure-frame"><img src="${fig.url}" alt="${esc(fig.caption)}">
-      ${(f.boxes || []).map((b, i) => `<span class="figure-box" style="left:${b.x * 100}%;top:${b.y * 100}%;width:${b.w * 100}%;height:${b.h * 100}%">
+      ${boxes.map((b, i) => `<span class="figure-box" data-box="${i}" style="left:${pct(b.x)};top:${pct(b.y)};width:${pct(b.w)};height:${pct(b.h)}">
         <span class="figure-box-label">${i + 1}</span></span>`).join("")}</div>
-    <figcaption>${(f.boxes || []).map((b, i) => `<span class="figure-box-note"><b>${i + 1}</b> ${esc(b.label || "")}</span>`).join("")}
+    <figcaption>${boxes.map((b, i) => `<span class="figure-box-note" data-box="${i}"><b>${i + 1}</b> ${esc(b.label || "")}</span>`).join("")}
       <span class="faint">${esc(fig.caption)} · page ${fig.page}</span></figcaption>`;
+  // Point at a note and its box stands out (and the other way round)
+  const lit = (e) => {
+    const at = e.type === "mouseover" ? e.target.closest?.("[data-box]")?.dataset.box : null;
+    stage.querySelectorAll("[data-box]").forEach((el) => el.classList.toggle("is-lit", at != null && el.dataset.box === at));
+    stage.classList.toggle("has-lit", at != null);
+  };
+  stage.onmouseover = lit;
+  stage.onmouseout = lit;
 }
 
 // A page the model wrote (```page, only when Settings allows it): run in a sealed frame. The frame can't reach the

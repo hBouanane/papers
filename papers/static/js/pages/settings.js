@@ -109,8 +109,9 @@ export async function settingsPage(stale) {
       <p class="hint">In a paper's chat, <strong>Quick</strong> answers at once from the paper. <strong>Deep</strong> lets the AI
         work in steps: search the paper, read a section, look at a figure, check your library, and save notes or highlights
         for you (each with Undo). Deep needs a model that can use tools.</p>
+      <div class="ai-can" id="ai-can"></div>
       ${toggle("ai-vision", s.ai_vision, "Look at figures",
-        "In Deep mode the AI can see the paper's figures and charts. Claude always can; for other providers, turn this on only if your model accepts images (most free and small local models don't).")}
+        "In Deep mode the AI can see the paper's figures and charts, and point at parts of them. Claude always can; for other providers the check above finds out and sets this for you (most free and small local models can't).")}
       ${toggle("ai-pages", s.ai_pages, "Interactive pages",
         "Besides its built-in charts and widgets, let the AI write a small interactive page when an idea is easier to play with than to read. It runs in a sealed frame: no access to the app, your files or the internet.")}
     </form>
@@ -172,6 +173,7 @@ export async function settingsPage(stale) {
     q("#ai-state").innerHTML = ai.ai_ready
       ? `<strong>Set up:</strong> ${esc(ai.ai_model || "the default model")} through ${esc(p.name)}.`
       : `<strong>Not ready:</strong> ${missing}.`;
+    showCan();
   };
   const showProvider = () => {
     const p = provider();
@@ -228,12 +230,41 @@ export async function settingsPage(stale) {
     say("Waiting for an answer…");
     const r = await api("/ai/test", { method: "POST" });
     say(r.ok ? `✓ ${r.message}` : r.message, r.ok);
+    if (r.ok && ai.ai_backend === "openai") await checkCan();
   });
+
+  // ----- What this model can do: images and tools, found out by asking it -----
+  function showCan(can = ai.ai_can, asking = false) {
+    const row = (name, c) => `<li class="${c?.ok ? "yes" : c?.ok === false ? "no" : "unknown"}"><span class="ai-can-mark" aria-hidden="true">${c?.ok ? "✓" : c?.ok === false ? "✕" : "?"}</span>
+      <span><strong>${name}</strong> ${esc(c?.note || "Not checked yet for this model.")}</span></li>`;
+    q("#ai-can").innerHTML = `<ul>${row("Images.", can?.images)}${row("Tools.", can?.tools)}</ul>
+      ${ai.ai_backend === "openai" ? `<button type="button" class="button secondary small" id="ai-can-check" ${asking || !ai.ai_ready ? "disabled" : ""}>
+        ${asking ? "Asking the model…" : can ? "Check again" : "Check this model"}</button>` : ""}`;
+    if (q("#ai-can-check")) q("#ai-can-check").onclick = checkCan;
+    // Claude always gets the figures and the ChatGPT subscription never does, so the switch is only yours to set for the others.
+    const fixed = ai.ai_backend !== "openai";
+    q("#ai-vision").disabled = fixed;
+    q("#ai-vision").checked = fixed ? ai.ai_backend !== "codex" : ai.ai_vision;
+    q("#ai-vision").closest(".switch-row").classList.toggle("is-fixed", fixed);
+  }
+  async function checkCan() {
+    showCan(ai.ai_can, true);
+    try {
+      const r = await api("/ai/capabilities", { method: "POST" });
+      ai.ai_can = r;
+      if (ai.ai_vision !== r.ai_vision) {
+        ai.ai_vision = r.ai_vision;
+        saved("#features-form", `Look at figures turned ${r.ai_vision ? "on" : "off"}`);
+      }
+    } catch (err) { toast(err.message); }
+    showCan();
+  }
 
   // ----- Features -----
   for (const [id, field, name] of [["#ai-vision", "ai_vision", "Figures"], ["#ai-pages", "ai_pages", "Interactive pages"]]) {
     q(id).onchange = async (e) => {
       await api("/settings", { method: "PUT", json: { [field]: e.target.checked } });
+      ai[field] = e.target.checked;
       saved("#features-form", `${name} ${e.target.checked ? "on" : "off"}`);
     };
   }

@@ -66,3 +66,14 @@ label.check input { width: auto; margin: 0; }
 .store-parts { width: 100%; border-collapse: collapse; font-size: 14px; margin: 4px 0; }
 .store-parts td { padding: 6px 8px 6px 0; border-top: 1px solid var(--line-soft); vertical-align: top; }
 .store-parts td.num { text-align: right; white-space: nowrap; color: var(--pencil); }
+
+/* What the chosen model can do (images, tools), found out by asking it */
+.ai-can { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-control); }
+.ai-can ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; flex: 1; min-width: 240px; font-size: 14px; }
+.ai-can li { display: flex; gap: 8px; align-items: flex-start; line-height: 20px; color: var(--graphite); }
+.ai-can-mark { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; font-weight: 800;
+  line-height: 1; margin-top: 1px; background: var(--line); color: var(--graphite); }
+.ai-can li.yes .ai-can-mark { background: var(--ink-fill); color: var(--on-ink, #fff); }
+.ai-can li.no .ai-can-mark { background: transparent; box-shadow: inset 0 0 0 1.5px var(--pencil); color: var(--pencil); }
+.switch-row.is-fixed .toggle-switch { opacity: .55; }
+.switch-row.is-fixed { cursor: default; }

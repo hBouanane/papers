@@ -17,6 +17,20 @@ What changed in each release. Versions follow [semantic versioning](https://semv
   options), with Quick and Deep explained.
 - **Where everything is kept**: Settings shows the data folder and what's in it (with sizes), where API keys are kept,
   and the optional library folder. **Move…** copies the data folder elsewhere and switches to it.
+- **Visuals for any field**: the chat's interactive widgets are general now. Plots, drawings (shapes, arrows,
+  curves that move), bars, grids and step-by-step walks, all with sliders, a play button and live numbers, so the AI
+  can show a pendulum, a drug's half-life or supply and demand as easily as an attention pattern. They size to the
+  panel, so the text stays readable.
+- **Pointing at parts of a figure is accurate**: the AI sees the figure with a lettered grid and names cells, and it
+  can only point at a figure it really looked at. Hover a number to light up its part.
+- **Check what your model can do**: for OpenAI-compatible providers, Settings sends a tiny picture and a tiny tool
+  request to the chosen model, shows whether it can see images and use tools (needed for Deep), and sets *Look at
+  figures* to match.
+- **More questions**: after a review or a graded quiz, ask for five more about other parts of the paper. Typed
+  answers are graded in one request; blank answers aren't sent, and new questions are graded on their own.
+- **Reader and chat polish**: the toolbar stays whole with the side panel open, icons replace text buttons such as
+  Close, the marker's colours are reachable on hover and picking one turns the marker on, and the chat has a tidier
+  composer and suggested first questions.
 - Search results carry citation counts, used to rank suggestions.
 - Open-source basics: code of conduct, security policy, issue and pull request templates, this changelog, and a
   README with screenshots.
