@@ -2,6 +2,7 @@
 import { api, app, busy, cite, empty, esc, loading } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { coverFan, paperCard, shorten } from "./shared.js";
+import { firstPaper, sampleBackdrop } from "./welcome.js";
 
 // ---------- Recall ----------
 // Your papers, big, behind Recall (since that's what it searches): three first pages fanned out like the
@@ -27,6 +28,12 @@ export async function recallPage() {
   const input = app.querySelector("#idea");
   api("/papers").then((papers) => {
     if (!app.querySelector(".recall-page")) return; // left the page meanwhile
+    if (!papers.length) { // nothing to search yet: stand-in papers behind, and where to start
+      app.insertAdjacentHTML("afterbegin", sampleBackdrop());
+      app.querySelector("#recall-extras").innerHTML = firstPaper("Nothing to search yet",
+        "Recall looks through the papers in your library, your notes and the explanations you asked for. Add a paper and it has something to find.");
+      return;
+    }
     app.insertAdjacentHTML("afterbegin", recallBackdrop(papers));
     drawCovers(app.querySelector("#backdrop"));
     // Ideas from your own papers to try, and the papers searched first (the ones you finished).

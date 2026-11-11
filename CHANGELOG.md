@@ -4,6 +4,10 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **A welcome instead of empty pages**: with no papers yet, the Library opens on what the app is for, with a drawn
+  paper being highlighted, asked about and scored, and three ways to start: **Add paper**, **Find papers for a
+  goal**, or try it with a well-known paper in one click. Goals offers example goals to start from, the Map shows
+  an example chain, and Recall says what it will search once there is something to search.
 - **Reading roadmap for each goal**: the AI picks the best papers from a wide search and orders them in stages (the
   basics, the core, the newest work), with why each one and about how long it takes. Tick the ones you want, or keep
   them all; they're added to the goal and their PDFs download in the background. The roadmap stays on the goal's

@@ -3,8 +3,17 @@ import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, e
 import { cover, drawCovers } from "../covers.js";
 import { iconButton } from "../icons.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
+import { sampleBackdrop } from "./welcome.js";
 
 // ---------- Goals ----------
+// Goals to start from, for a first goal.
+const EXAMPLES = [
+  "I want to understand how diffusion models turn noise into images",
+  "I'm writing a review on CRISPR base editing and its off-target effects",
+  "I need to catch up on causal inference for observational studies",
+  "I'm building a retrieval system and need to know how dense retrievers are trained",
+];
+
 export async function goalsPage(stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const [goals, papers] = await Promise.all([api("/topics"), api("/papers")]);
@@ -22,7 +31,8 @@ export async function goalsPage(stale) {
           <span class="goal-card-go">Open <span class="arrow" aria-hidden="true">→</span></span></span>
       </span></a>`;
   };
-  app.innerHTML = `<div class="container page">
+  const fresh = !goals.length && !papers.length; // nothing at all yet: stand-in papers behind the page
+  app.innerHTML = `${fresh ? sampleBackdrop() : ""}<div class="container page ${fresh ? "narrow with-backdrop" : ""}">
     <div class="page-head">
       <h1 class="page-title">Goals</h1>
       <p class="lede">What you're trying to understand, with the papers that help. Describe a new one and papers get found for it.</p>
@@ -33,6 +43,8 @@ export async function goalsPage(stale) {
       <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
       <div class="form-foot"><button class="button">Create goal</button></div>
     </form>
+    ${goals.length ? "" : `<section class="goal-examples"><h2>Or start from an example</h2>
+      <div class="try-ideas" id="goal-examples">${EXAMPLES.map((x) => `<button type="button" class="try-idea">${esc(x)}</button>`).join("")}</div></section>`}
     ${(() => {
       const loose = papers.filter((p) => !p.topic_id);
       return loose.length ? `<section class="page-section">
@@ -52,6 +64,12 @@ export async function goalsPage(stale) {
       toast(`Added to "${shorten(goals.find((g) => g.id === Number(pick.dataset.goal)).goal, 50)}".`);
       goalsPage(stale);
     });
+  });
+  app.querySelector("#goal-examples")?.addEventListener("click", (e) => {
+    const pick = e.target.closest(".try-idea");
+    if (!pick) return;
+    app.querySelector("#goal").value = pick.textContent;
+    app.querySelector("#goal").focus();
   });
   app.querySelector("#goal-form").onsubmit = (e) => {
     e.preventDefault();
