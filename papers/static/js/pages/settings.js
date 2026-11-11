@@ -230,7 +230,7 @@ export async function settingsPage(stale) {
   q("#ai-test").onclick = (e) => busy(e.currentTarget, "Asking the model…", async () => {
     say("Waiting for an answer…");
     const r = await api("/ai/test", { method: "POST" });
-    say(r.ok ? `✓ ${r.message}` : r.message, r.ok);
+    say(r.message, r.ok);
     if (r.ok && ai.ai_backend === "openai") await checkCan();
   });
 
