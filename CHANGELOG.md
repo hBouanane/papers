@@ -4,6 +4,9 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Goals says what it does**: the Goals page opens on *What do you want to understand?* with a **Find papers**
+  button and a picture of what comes back (a reading roadmap in three stages), whether or not you have papers.
+  The welcome page says the same: add a paper, or set a goal and the papers get found for you.
 - **A welcome instead of empty pages**: with no papers yet, the Library opens on what the app is for, with a drawn
   paper being highlighted, asked about and scored, and three ways to start: **Add paper**, **Find papers for a
   goal**, or try it with a well-known paper in one click. Goals offers example goals to start from, the Map shows

@@ -7,7 +7,35 @@
 .goal-title { font-size: 30px; max-width: 30ch; }
 .page-title.goal-title { font-size: 38px; max-width: 26ch; }
 @media (max-width: 640px) { .page-title.goal-title { font-size: 28px; } }
-.new-goal { max-width: 760px; }
+/* Start a goal: the box to describe it, and beside it what comes back (a roadmap in three stages). */
+.goal-finder { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); border-radius: 14px; overflow: hidden; }
+.gf-form { display: grid; gap: 10px; padding: 24px; align-content: start; }
+.gf-form > label { font-family: var(--paper); font-weight: 600; font-size: 22px; color: var(--heading); }
+.gf-form textarea { font-size: 16px; }
+.gf-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+.gf-foot .button { margin-left: auto; }
+.goal-examples { margin-top: 8px; }
+.goal-examples .try-ideas { margin-top: 8px; }
+.gf-show { padding: 22px 24px; background: var(--ink-tint); border-left: 1px solid var(--line); display: grid; align-content: start; gap: 4px; }
+.gf-show .chain-label { justify-self: start; }
+.gf-show-title { font-family: var(--paper); font-weight: 600; font-size: 20px; color: var(--heading); }
+.gf-stages { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.gf-stage { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-left: calc(var(--i) * 18px); border-radius: 10px;
+  background: var(--sheet); border: 1px solid var(--line);
+  animation: rise-in .7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.25s + var(--i) * .22s); }
+.gf-stage .step-n { margin: 0; flex-shrink: 0; }
+.gf-stage-text { display: grid; flex: 1; min-width: 0; font-size: 13px; color: var(--pencil); line-height: 1.3; }
+.gf-stage-text strong { font-size: 15px; color: var(--heading); }
+.gf-covers { display: flex; gap: 6px; flex-shrink: 0; }
+.gf-covers .cover-wrap { width: 34px; animation: gf-bob 5s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -1.3s); }
+.gf-covers .cover-wrap + .cover-wrap { animation-delay: calc(var(--i) * -1.3s - 2s); }
+.gf-covers .cover-sheet { display: none; }
+@keyframes gf-bob { from { translate: 0 1px; } to { translate: 0 -3px; } }
+@media (max-width: 860px) {
+  .goal-finder { grid-template-columns: 1fr; }
+  .gf-show { border-left: 0; border-top: 1px solid var(--line); }
+  .gf-stage { margin-left: 0; }
+}
 
 /* A card per goal, with its papers fanned out like cards in a hand. */
 .goal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 20px; margin-bottom: 28px; }

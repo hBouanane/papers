@@ -3,7 +3,7 @@ import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, e
 import { cover, drawCovers } from "../covers.js";
 import { iconButton } from "../icons.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
-import { sampleBackdrop } from "./welcome.js";
+import { sampleCover } from "./welcome.js";
 
 // ---------- Goals ----------
 // Goals to start from, for a first goal.
@@ -31,20 +31,32 @@ export async function goalsPage(stale) {
           <span class="goal-card-go">Open <span class="arrow" aria-hidden="true">→</span></span></span>
       </span></a>`;
   };
-  const fresh = !goals.length && !papers.length; // nothing at all yet: stand-in papers behind the page
-  app.innerHTML = `${fresh ? sampleBackdrop() : ""}<div class="container page ${fresh ? "narrow with-backdrop" : ""}">
+  // What a goal gets you, drawn: three stages of stand-in papers.
+  const STAGES = [["The basics", "Start here", [1]], ["The core", "The methods that matter", [0, 2]], ["The newest work", "Where the field is now", [1, 0]]];
+  app.innerHTML = `<div class="container page">
     <div class="page-head">
       <h1 class="page-title">Goals</h1>
-      <p class="lede">What you're trying to understand, with the papers that help. Describe a new one and papers get found for it.</p>
+      <p class="lede">Say what you're trying to understand. Papers finds the papers for it and puts them in reading order.</p>
     </div>
-    ${goals.length ? `<div class="goal-cards">${goals.map(card).join("")}</div>` : ""}
-    <form class="sheet form new-goal" id="goal-form">
-      <label for="goal">${goals.length ? "A new goal" : "What are you working on?"}</label>
-      <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
-      <div class="form-foot"><button class="button">Create goal</button></div>
+    <form class="sheet goal-finder" id="goal-form">
+      <div class="gf-form">
+        <label for="goal">What do you want to understand?</label>
+        <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
+        <div class="gf-foot"><span class="hint">Searches Semantic Scholar and arXiv. You choose which papers to keep.</span>
+          <button class="button">Find papers</button></div>
+        ${goals.length ? "" : `<div class="goal-examples"><span class="hint">Or start from an example</span>
+          <div class="try-ideas" id="goal-examples">${EXAMPLES.map((x) => `<button type="button" class="try-idea">${esc(x)}</button>`).join("")}</div></div>`}
+      </div>
+      <div class="gf-show" aria-hidden="true">
+        <span class="chain-label">What you get</span><span class="gf-show-title">A reading roadmap</span>
+        <ol class="gf-stages">${STAGES.map(([name, note, covers], i) => `<li class="gf-stage" style="--i:${i}">
+          <span class="step-n num">${i + 1}</span>
+          <span class="gf-stage-text"><strong>${name}</strong><span>${note}</span></span>
+          <span class="gf-covers">${covers.map((c) => sampleCover(c)).join("")}</span></li>`).join("")}</ol>
+      </div>
     </form>
-    ${goals.length ? "" : `<section class="goal-examples"><h2>Or start from an example</h2>
-      <div class="try-ideas" id="goal-examples">${EXAMPLES.map((x) => `<button type="button" class="try-idea">${esc(x)}</button>`).join("")}</div></section>`}
+    ${goals.length ? `<section class="page-section"><h2>Your goals</h2>
+      <div class="goal-cards">${goals.map(card).join("")}</div></section>` : ""}
     ${(() => {
       const loose = papers.filter((p) => !p.topic_id);
       return loose.length ? `<section class="page-section">
@@ -73,7 +85,7 @@ export async function goalsPage(stale) {
   });
   app.querySelector("#goal-form").onsubmit = (e) => {
     e.preventDefault();
-    busy(e.submitter, "Creating…", async () => {
+    busy(e.submitter, "Starting…", async () => {
       const g = await api("/topics", { method: "POST", json: { goal: app.querySelector("#goal").value.trim() } });
       try { sessionStorage.setItem("roadmap-for", String(g.id)); } catch { /* the button is there anyway */ }
       location.hash = `#/goals/${g.id}`;

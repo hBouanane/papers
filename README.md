@@ -16,6 +16,8 @@ and remember what you read.</p>
   <code>uvx papers-app</code>
 </p>
 
+![The welcome page: a paper being highlighted, asked about and scored](docs/screenshots/welcome.gif)
+
 ![The Library: the paper you're reading, the others on your desk, what's due for review, and your goals](docs/screenshots/library.png)
 
 ## About
