@@ -237,12 +237,45 @@ label.rm-row { cursor: pointer; }
 @media (max-width: 560px) { .found .rm-cover { display: none; } }
 
 /* The Goals page once you have goals: the box sits to the left, your papers fanned out behind on the right. */
-.gf-solo { grid-template-columns: 1fr; max-width: min(100%, 600px); }
+.gf-solo { grid-template-columns: 1fr; max-width: min(100%, 760px); } /* Recall's box */
 .gf-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .gf-foot .gf-buttons .button { margin-left: 0; }
 .goals-page .page-head .lede { max-width: 46ch; }
 .goals-page .page-section { position: relative; }
 @media (max-width: 900px) { .gf-solo { max-width: none; } }
+#rm-section { scroll-margin-top: 72px; }
+
+/* The road behind the Goals page: a floor seen from above and to the side, papers lying on it along a dashed
+   road with the three stages marked. Papers hover a little, each on its own beat; the dashes travel up the road.
+   While a search runs everything lifts and the road runs faster. */
+.road-backdrop { perspective: 1600px; perspective-origin: 70% 30%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 40%, #000 62%); mask-image: linear-gradient(90deg, transparent 40%, #000 62%); }
+.road-plane { position: absolute; right: max(-3vw, calc((100vw - 1120px) / 2 - 170px)); top: -100px; width: min(470px, 36vw); aspect-ratio: 50 / 100;
+  transform: rotateX(57deg) rotateZ(30deg); transform-style: preserve-3d;
+  animation: glide-in-right 1.1s cubic-bezier(.2, .8, .2, 1) backwards; }
+.road-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.road-line path { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.road-bed { stroke: color-mix(in srgb, var(--ink) 16%, transparent); stroke-width: 34px; }
+.road-dash { stroke: var(--ink); stroke-width: 3px; stroke-dasharray: 12 16; animation: road-run 1.8s linear infinite; opacity: .85; }
+.road-pin { position: absolute; left: var(--x); top: var(--y); width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--ink-fill); color: var(--on-ink); font-weight: 800; font-size: 20px;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--ink) 22%, transparent); transform: translateZ(26px) rotateZ(-30deg) rotateX(-57deg); }
+.road-paper { position: absolute; left: var(--x); top: var(--y); width: 34%; transform: translate(-50%, -50%) rotate(var(--r));
+  transform-style: preserve-3d; translate: 0 0 16px; animation: road-hover 5s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -1.3s); transition: translate .6s cubic-bezier(.2, .8, .2, 1); }
+.road-paper .cover-wrap { display: block; width: 100%; }
+.road-paper .cover-sheet { display: none; }
+.road-ghost { opacity: .45; } /* papers still to come */
+.road-paper .cover { box-shadow: 26px 30px 34px -6px rgb(0 0 0 / .42); }
+.road-paper .cover-title { font-size: clamp(8px, 1.1vw, 13px); }
+.road-paper .cover-cite { display: none; }
+@keyframes road-run { to { stroke-dashoffset: -28; } }
+@keyframes road-hover { from { translate: 0 0 12px; } to { translate: 0 0 40px; } }
+.road-backdrop.searching .road-dash { animation-duration: .5s; }
+.road-backdrop.searching .road-paper { animation-duration: 1.2s; }
+.road-backdrop.searching .road-paper .cover { box-shadow: 26px 30px 34px -6px rgb(0 0 0 / .42), 0 0 34px color-mix(in srgb, var(--ink) 60%, transparent); }
+@media (max-width: 900px) { .road-plane { width: 90vw; right: -30vw; top: 60px; opacity: .22; } .road-backdrop { -webkit-mask-image: none; mask-image: none; } }
+
 /* Search results on a goal: the abstract reads like the paper. */
 .result details p { font-family: var(--paper); font-size: 16px; line-height: 1.6; color: var(--graphite); max-width: 72ch; margin-top: 6px; }
 .result details summary { font-size: 14px; color: var(--pencil); cursor: pointer; margin-top: 4px; }
