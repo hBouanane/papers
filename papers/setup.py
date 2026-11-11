@@ -1,5 +1,6 @@
-"""The first-run setup in the terminal: a short banner, then a few questions, so it's clear from the start where
-everything is kept and which AI writes the answers. Everything here can be changed later in Settings.
+"""The first-run setup in the terminal: a short banner, then two questions: where your papers go as normal files
+(PDFs and notes you can open yourself), and which AI writes the answers. The app's own data folder isn't asked
+about: it goes to the usual place and is shown at the end. Everything here can be changed later in Settings.
 
     papers            asks these the first time (in a terminal), then starts the app
     papers setup      asks again
@@ -76,43 +77,39 @@ def step(console, n: int, total: int, title: str, about: str = "") -> None:
 
 
 # ---------- The questions ----------
-def ask_data_folder(console, q) -> Path:
-    here = Path("data") if Path("data/papers.db").exists() else None
-    usual = config.default_data_dir()
-    documents = Path.home() / "Documents" / "Papers"
+def overlaps(folder: Path, data: Path) -> bool:
+    """The browsable folder must not be the app's data folder, inside it, or around it: the two would mix."""
+    folder, data = folder.resolve(), data.resolve()
+    return folder == data or data in folder.parents or folder in data.parents
+
+
+def ask_library_folder(console, q, data: Path, current: Path | None = None) -> str:
+    """Where your papers go as normal files. Returns the folder, or "" for not now."""
+    suggested = Path.home() / "Documents" / "Papers"
+    if overlaps(suggested, data):
+        suggested = Path.home() / "Documents" / "Papers Library"
     choices = []
-    if here:
-        choices.append(q.Choice(f"Keep using the library found here   {here.resolve()}", str(here.resolve())))
-    choices += [q.Choice(f"The usual place for app data   {usual}", str(usual)),
-                q.Choice(f"In my Documents   {documents}", str(documents)),
-                q.Choice("Somewhere else…", "")]
-    picked = q.select("Where should Papers keep your library?", choices=choices, qmark="  ›").ask()
+    if current and not overlaps(current, data):
+        choices.append(q.Choice(f"Keep   {current}", str(current)))
+    if not current or current.resolve() != suggested.resolve():
+        choices.append(q.Choice(f"{suggested}", str(suggested)))
+    choices += [q.Choice("Somewhere else…", "other"), q.Choice("Stop keeping this folder" if current else "Not now", "")]
+    picked = q.select("Where should this folder go?", choices=choices, qmark="  ›").ask()
     if picked is None:
         raise KeyboardInterrupt
-    while not picked:
-        typed = q.path("Folder (full path):", only_directories=True, qmark="  ›").ask()
+    while picked == "other":
+        typed = q.path("Folder (full path, or leave empty to skip):", only_directories=True, qmark="  ›").ask()
         if typed is None:
             raise KeyboardInterrupt
-        if Path(typed).expanduser().is_absolute():
-            picked = str(Path(typed).expanduser())
-        else:
+        folder = Path(typed.strip()).expanduser()
+        if not typed.strip():
+            picked = ""
+        elif not folder.is_absolute():
             console.print("     [yellow]Give a full path, like D:\\Papers or ~/Papers.[/]")
-    folder = Path(picked)
-    folder.mkdir(parents=True, exist_ok=True)
-    return folder
-
-
-def ask_library_folder(console, q) -> str:
-    suggested = Path.home() / "Documents" / "Papers Library"
-    picked = q.select("Also keep a copy you can browse in your file manager?", qmark="  ›", choices=[
-        q.Choice("No, not now", ""),
-        q.Choice(f"Yes, in   {suggested}", str(suggested)),
-        q.Choice("Yes, somewhere else…", "other")]).ask()
-    if picked is None:
-        raise KeyboardInterrupt
-    if picked == "other":
-        typed = q.path("Folder (full path):", only_directories=True, qmark="  ›").ask() or ""
-        picked = str(Path(typed).expanduser()) if typed and Path(typed).expanduser().is_absolute() else ""
+        elif overlaps(folder, data):
+            console.print(f"     [yellow]That's where Papers keeps its own data ({data.resolve()}). Pick another folder.[/]")
+        else:
+            picked = str(folder)
     return picked
 
 
@@ -201,26 +198,28 @@ def run(console=None) -> None:
 
     console = console or Console()
     banner(console)
-    console.print("  A few questions so you know where everything goes. You can change all of it later in Settings.\n")
+    console.print("  Two questions, and you can change both later in Settings.\n")
     try:
-        step(console, 1, 3, "Your library",
-             "One folder holds everything: the database (papers, notes, highlights, goals), the PDFs and figure images.")
-        data = ask_data_folder(console, q)
-        config.write_config(data_dir=str(data.resolve()))
+        # The app's own data (database, PDFs, figures) goes to the usual place without asking.
+        data = config.data_dir()
+        data.mkdir(parents=True, exist_ok=True)
+        if config.data_dir_source() != "env":  # --data and PAPERS_DATA are for this run only
+            config.write_config(data_dir=str(data.resolve()))
         from papers import db, keys, library
         db.init()
-        console.print(f"     [green]✓[/] {data.resolve()}\n")
 
-        step(console, 2, 3, "A folder you can browse (optional)",
-             "Each goal a folder, each paper its PDF and a Markdown notes file. Opens in Obsidian as a graph.")
-        lib = ask_library_folder(console, q)
+        step(console, 1, 2, "Your papers as normal files",
+             "A folder per goal, each paper's PDF under its real title, and a notes file per paper.")
+        console.print("     [dim]Open it in your file manager, any editor, or Obsidian. Papers keeps this copy up to date,[/]")
+        console.print("     [dim]and a PDF dropped into its Inbox gets added.[/]")
+        lib = ask_library_folder(console, q, data, library.root())
+        library.set_root(lib)
         if lib:
-            library.set_root(lib)
-            console.print(f"     [green]✓[/] {lib}  (drop PDFs into its Inbox folder to add them)\n")
+            console.print(f"     [green]✓[/] {lib}\n")
         else:
-            console.print()
+            console.print("     [dim]Skipped. You can turn this on in Settings.[/]\n")
 
-        step(console, 3, 3, "The AI model",
+        step(console, 2, 2, "The AI model",
              "It writes key points, explanations, vocabulary and quizzes, and answers your questions.")
         pid = ask_ai(console, q)
         if pid:
@@ -230,10 +229,10 @@ def run(console=None) -> None:
         from papers.ai import providers
         ai_line = f"{providers.ai_name()} through {providers.BY_ID[pid]['name']}" if pid else "not chosen yet (Settings › AI model)"
         console.print(Panel.fit(
-            f"[bold]Library[/]        {data.resolve()}\n"
-            f"[bold]Browsable copy[/] {lib or 'none'}\n"
-            f"[bold]API keys[/]       {keys.where()}\n"
-            f"[bold]AI[/]             {ai_line}\n\n"
+            f"[bold]Your papers[/]  {lib or 'no folder yet'}\n"
+            f"[bold]AI[/]           {ai_line}\n"
+            f"[bold]API keys[/]     {keys.where()}\n"
+            f"[bold]App data[/]     {data.resolve()}\n\n"
             f"[dim]Change any of these in Settings, or run [bold]papers setup[/bold] again.[/]",
             title="[bold #3d5fd6]You're set[/]", border_style="#3d5fd6", padding=(1, 2)))
         config.write_config(setup_done=True)

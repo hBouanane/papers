@@ -2,6 +2,13 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **Setup asks two things, not three**: it no longer asks where to keep the app's data (it goes to the usual place,
+  shown at the end, and Settings can move it). The question that stays is the folder you actually open: *Your
+  papers as normal files*, with PDFs under their real titles and a notes file each. It's suggested first, an
+  unusable folder is asked for again instead of being dropped silently, and it can't be the app's data folder.
+
 ## 0.3.0
 
 - **A livelier roadmap, and searching is your choice**: a goal's roadmap is now a road of numbered stages with each
