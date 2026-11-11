@@ -123,3 +123,12 @@ label.rm-row { cursor: pointer; }
 /* Search results on a goal: the abstract reads like the paper. */
 .result details p { font-family: var(--paper); font-size: 16px; line-height: 1.6; color: var(--graphite); max-width: 72ch; margin-top: 6px; }
 .result details summary { font-size: 14px; color: var(--pencil); cursor: pointer; margin-top: 4px; }
+
+/* Rename / delete, next to the goal's title */
+.goal-head { min-width: 0; }
+.goal-sub { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.goal-sub .lede { margin-top: 0; }
+.goal-manage { display: inline-flex; gap: 2px; }
+.goal-rename { display: grid; gap: 10px; width: min(560px, 80vw); margin-bottom: 4px; }
+.goal-rename-foot { display: flex; gap: 8px; }
+.goal-rename textarea { font-family: var(--paper); font-size: 22px; line-height: 1.3; }

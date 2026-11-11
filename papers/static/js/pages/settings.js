@@ -80,7 +80,8 @@ export async function settingsPage(stale) {
       <p class="hint" id="ai-about"></p>
       <div class="ai-field" id="ai-key-field">
         <label for="ai-key">API key</label>
-        <input id="ai-key" type="password" autocomplete="off">
+        <input id="ai-key" class="secret" type="text" name="papers-ai-key" autocomplete="off" autocapitalize="off" autocorrect="off"
+          spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
         <p class="hint" id="ai-key-where"></p>
       </div>
       <label for="ai-model">Model</label>

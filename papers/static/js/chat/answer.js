@@ -35,7 +35,10 @@ export function answerView(el, { render, onRetry, onStop } = {}) {
   const seconds = () => Math.round((Date.now() - started) / 1000);
   const tick = () => {
     const s = seconds();
-    statusRow.querySelector(".status-time").textContent = s >= 5 ? ` · ${s}s` : "";
+    const time = s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s}s`;
+    // A long wait is normal in Deep mode (it reads sections and looks at figures); say so instead of looking stuck.
+    const note = s < 20 ? "" : steps.size ? " · still working; Deep answers often take a minute or two" : s >= 40 ? " · still working" : "";
+    statusRow.querySelector(".status-time").textContent = s >= 5 ? ` · ${time}${note}` : "";
   };
   ticker = setInterval(tick, 1000);
   el.querySelector(".answer-stop").onclick = () => onStop?.();

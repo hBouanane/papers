@@ -34,6 +34,13 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 - Search results carry citation counts, used to rank suggestions.
 - Open-source basics: code of conduct, security policy, issue and pull request templates, this changelog, and a
   README with screenshots.
+- **Manage goals**: rename or delete a goal from its page. Deleting keeps its papers in your library.
+- **Test yourself, two ways up front**: Flashcards or Written answers are two clear choices. Written answers show one
+  question at a time, with progress, and you can grade what you've written so far.
+- **"Understood" explained**: the paper's page says where the score comes from, with a link to test again.
+- **Deep answers say they're still working** after a while, with the time so far.
+- **Plots fit their curves**: when the range the AI chose is much taller than the curve, the axis is fitted to it.
+- **The API key field can't be filled in by a password manager** (a saved password could replace your key).
 
 ## 0.2.0
 
