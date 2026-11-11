@@ -4,6 +4,10 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Goals has a road behind it**: once you have goals, your papers lie on a tilted floor along a dashed road with
+  the three stages marked, on the right of the page. The papers hover and the road moves; both speed up while a
+  search runs. The goal box is now as wide as Recall's.
+- **Go to roadmap**: a goal with a roadmap has a button at the top that scrolls straight to it.
 - **The Library always has something on the desk**: with nothing in progress it shows the next paper to start
   (*Up next*, with **Start reading** and **Overview first**) instead of an empty box, and when every paper is
   finished it says so and offers to find more or recall what you read.
