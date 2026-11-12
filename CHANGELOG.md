@@ -2,6 +2,14 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **Starting is faster and never looks frozen**: a spinner shows while Papers loads and while the server starts.
+  The link is printed, and the browser opened, only once the page really answers. A slow library (the Anthropic
+  client) is now loaded when first used, which cuts several seconds from every start.
+- **Scanned PDFs say so**: a PDF that is only pictures of pages has no text to select. The reader now tells you
+  instead of leaving you to wonder why selecting does nothing.
+
 ## 0.3.1
 
 - **Covers appear by themselves**: a paper whose PDF was still downloading kept its plain title cover until you
