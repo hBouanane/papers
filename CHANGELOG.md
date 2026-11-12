@@ -2,7 +2,7 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.3.2
 
 - **Starting is faster and never looks frozen**: a spinner shows while Papers loads and while the server starts.
   The link is printed, and the browser opened, only once the page really answers. A slow library (the Anthropic
