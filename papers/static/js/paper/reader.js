@@ -40,6 +40,10 @@ export async function readerPage(id, stale) {
   const r = readerState({ id, paper: p, language, view: p.has_pdf && (innerWidth >= 700 || !p.text) ? "pdf" : "text" });
   const bar = setupBar(r);
   setupRoute(r);
+  // A scan is pictures of pages: it can be read, but there are no words to select, highlight or explain.
+  if (p.has_pdf && !p.text && !p.preparing) {
+    setTimeout(() => toast("This PDF is a scan (pictures of pages), so its text can't be selected or explained. A version with real text will work."), 1200);
+  }
   const notes = noteStore(id);
   const vocab = setupVocab(r);
   const views = createViews(r, { notes, vocab, fitBar: bar.fit });

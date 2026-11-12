@@ -16,7 +16,6 @@ import sys
 import tempfile
 from dataclasses import asdict, dataclass
 
-import anthropic
 import httpx
 
 from papers import config, llm
@@ -207,7 +206,7 @@ def _anthropic(paper: dict, system: list[dict], messages: list[dict]):
                 final = stream.get_final_message()
         except TypeError as e:
             raise AIError(anthropic_api.NOT_SET_UP) from e
-        except anthropic.APIError as e:
+        except anthropic_api.sdk().APIError as e:
             raise AIError(f"Claude request failed: {e}") from e
         uses = [b for b in final.content if b.type == "tool_use"]
         if final.stop_reason != "tool_use" or not uses:

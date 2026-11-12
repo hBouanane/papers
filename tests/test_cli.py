@@ -42,3 +42,29 @@ def test_with_uv_it_starts_again_on_a_python_that_works(monkeypatch, capsys):
     with pytest.raises(SystemExit) as stop:
         cli.check_python([])
     assert stop.value.code == 1 and len(ran) == 1
+
+
+def test_the_link_waits_for_the_app_to_answer(monkeypatch):
+    answers = iter([OSError("refused"), OSError("refused"), "up"])
+
+    class Up:
+        status = 200
+        __enter__ = lambda self: self
+        __exit__ = lambda self, *a: None
+
+    def fake_open(address, timeout):
+        got = next(answers)
+        if isinstance(got, OSError):
+            raise got
+        return Up()
+    monkeypatch.setattr(cli.urllib.request, "urlopen", fake_open)
+    monkeypatch.setattr(cli.time, "sleep", lambda s: None)
+    assert cli.wait_until_up("0.0.0.0", 8000) is True
+    assert next(answers, "used up") == "used up"  # it asked three times, and stopped at the first answer
+
+
+def test_starting_does_not_load_the_slow_anthropic_library():
+    import subprocess
+    import sys
+    code = "import sys, papers.main; print('anthropic' in sys.modules)"
+    assert subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout.strip() == "False"
