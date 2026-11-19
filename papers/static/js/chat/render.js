@@ -130,7 +130,10 @@ let diagrams = 0;
 
 async function drawDiagram(stage, code) {
   const mermaid = await loadMermaid();
+  // Labels as SVG text, not HTML inside <foreignObject>: the sanitizer below removes foreignObject, which left
+  // every box of a flowchart empty.
   mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", fontFamily: css("--ui") || "sans-serif",
+    htmlLabels: false, flowchart: { htmlLabels: false }, class: { htmlLabels: false }, state: { htmlLabels: false },
     themeVariables: { primaryColor: css("--ink-tint"), primaryTextColor: css("--graphite"), primaryBorderColor: css("--ink"),
       lineColor: css("--pencil"), secondaryColor: css("--raised"), tertiaryColor: css("--sheet"), background: css("--sheet"),
       fontSize: "14px", darkMode: dark() } });

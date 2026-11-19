@@ -53,6 +53,21 @@ def only_seen_boxes(text: str, seen: set[tuple[str, int]]) -> str:
     return FIGURE.sub(checked, text)
 
 
+FIGURE_NAMED = re.compile(r"\b(fig(?:ure)?|tab(?:le)?)\.?\s*(\d+)\b", re.I)
+
+
+def about_a_figure(asked: dict, known: list[dict]) -> bool:
+    """Whether the reader asks about one of the paper's figures or tables ("in Figure 1", "Fig. 2", a pointed-at
+    figure). Answering that well needs the image, which only Deep mode's look_at_figure gives the model, so such
+    a question is answered in Deep mode even when Quick was chosen. Not for Codex, which has no tools."""
+    if providers.backend() == "codex":
+        return False
+    words = " ".join([asked.get("content") or "", *[a.get("label") or "" for a in asked["meta"].get("attachments", [])]])
+    have = {(f["kind"], int(f["number"])) for f in known}
+    return any(("table" if m.group(1).lower().startswith("tab") else "figure", int(m.group(2))) in have
+               for m in FIGURE_NAMED.finditer(words))
+
+
 def line(**event) -> str:
     return json.dumps(event) + "\n"
 
@@ -72,7 +87,8 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     status, error = "done", ""
     known = figures.known(paper["id"])
     model = providers.describe()  # shown under the answer: "Written by ..."
-    deep = asked["meta"].get("depth") == "deep"  # Deep mode: the agent uses tools while it answers
+    # Deep mode: the agent uses tools while it answers. A question about a figure goes there too, to see it.
+    deep = asked["meta"].get("depth") == "deep" or about_a_figure(asked, known)
     steps: list[dict] = []
     actions: list[dict] = []
     if deep:

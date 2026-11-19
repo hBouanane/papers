@@ -1,5 +1,5 @@
 // Map: which paper led you to which, drawn as chains of paper cards.
-import { api, app, empty, esc, loading } from "../core.js";
+import { api, app, esc, loading } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { paperCard, plural, shorten } from "./shared.js";
 import { firstPaper, sampleCover, sampleTitle } from "./welcome.js";
@@ -89,10 +89,10 @@ export async function mapPage(stale) {
       <h1 class="page-title">Map</h1>
       <p class="lede">Which paper led you to which. Open a paper's references and pick one to grow a chain.</p>
     </div>
-    ${trees.length ? trees.map(chain).join("")
-      : empty("No chains yet. They appear when you follow a reference from one paper to another.")}
-    ${loose.length ? `<section class="section"><h2>Not linked to other papers</h2>
-      <p class="hint">Open one's References and pick a paper from them to start a chain.</p>
+    ${trees.map(chain).join("")}
+    ${loose.length ? `<section class="section${trees.length ? "" : " map-start"}"><h2>${trees.length ? "Not linked to other papers" : "Start your first chain"}</h2>
+      <p class="hint">${trees.length ? "Open one's References and pick a paper from them to start a chain."
+        : "A chain grows when one paper leads you to another: open a paper below, go to its References, and add one. The two appear here, joined."}</p>
       <div class="shelf goal-shelf">${loose.map((p) => paperCard(p)).join("")}</div></section>` : ""}
   </div>`;
   drawCovers(app);

@@ -2,6 +2,20 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **Diagrams have their text again**: boxes in flowcharts and other diagrams the AI drew were empty. Their labels
+  were HTML, which the safety filter removed; they're now drawn as plain SVG text.
+- **Questions about a figure get the figure**: asking about "Figure 1" (or pointing at it) now answers the way Deep
+  mode does even when Quick is chosen, so the AI looks at the image and can put numbered boxes on its parts.
+  Before, Quick mode answered from the caption only and said it couldn't point at anything.
+- **A goal with no papers is one clear card**: no empty shelf, empty list and roadmap heading stacked on top of
+  each other; just the card that finds papers, under the title. When a search brings nothing back, a card says
+  why it may have happened and offers Try again, in place of the empty one, not under it.
+- **Rename, Export BibTeX and Delete are in a More menu** on a goal's page, instead of icons always showing.
+- **Fewer "nothing here" boxes**: the Library shows *Due for review* only when something is due, and the Map
+  shows how to start a chain instead of a "No chains yet" box above your papers.
+
 ## 0.3.2
 
 - **Starting is faster and never looks frozen**: a spinner shows while Papers loads and while the server starts.
