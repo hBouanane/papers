@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from papers import ai, config, db, index, keys, library
+from papers import ai, config, db, index, keys, library, scholar
 from papers.ingest import import_inbox
 from papers.routes import ROUTERS
 
@@ -54,6 +54,11 @@ async def revalidate_static(request: Request, call_next):
 @app.exception_handler(ai.AIError)
 def ai_error(_: Request, exc: ai.AIError):
     return JSONResponse({"detail": str(exc)}, status_code=503)
+
+
+@app.exception_handler(scholar.Busy)
+def search_busy(_: Request, exc: scholar.Busy):
+    return JSONResponse({"detail": str(exc), "busy": True}, status_code=429)
 
 
 @app.exception_handler(httpx.HTTPError)

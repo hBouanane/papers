@@ -63,28 +63,38 @@ def candidates(goal: str) -> list[dict]:
     try:
         queries = llm.search_queries(goal)
     except Exception:
-        queries = [goal]
+        queries = [scholar.keywords(goal)]  # no AI: the goal's own words, without the filler
     try:
         titles = llm.landmark_titles(goal)  # the classics, which keyword searches tend to miss
     except Exception:
         titles = []
-    return scholar.gather([*queries, f"{queries[0]} survey"], titles, per_query=12, quiet=True)
+    return scholar.gather([*queries, f"{queries[0]} survey"], titles, per_query=12)
+
+
+def _why_listed(p: dict) -> str:
+    """What the search knows about a candidate's place in the field, for the AI choosing the roadmap."""
+    notes = []
+    if p.get("landmark"):
+        notes.append("a classic of this topic")
+    if (n := p.get("cited_here") or 0) >= 2:
+        notes.append(f"cited by {n} of the other candidates")
+    return "; " + "; ".join(notes) if notes else ""
 
 
 def plan_with_ai(goal: str, found: list[dict]) -> Plan:
     listing = "\n\n".join(
         f"[{n}] {p['title']} ({p.get('year') or 'n.d.'}; {p.get('citations') or 'unknown'} citations;"
         f" {'full text available' if p.get('pdf_url') else 'no free PDF'}"
-        f"{'; a classic of this topic' if p.get('landmark') else ''})\n{(p.get('abstract') or '')[:500]}"
+        f"{_why_listed(p)})\n{(p.get('abstract') or '')[:500]}"
         for n, p in enumerate(found, 1))
     prompt = (
         "A researcher wants to reach this goal and needs a reading roadmap.\n\n"
         f"<goal>{goal}</goal>\n\n<candidates>\n{listing}\n</candidates>\n\n"
         "Pick the 5 to 10 candidates that best serve the goal and order them into 2 to 4 stages: the foundations a "
         "newcomer needs first (a survey or the classic paper that started it), then the core methods, then the newest "
-        "or most advanced work. Candidates marked \"a classic of this topic\" are the papers the field starts from: "
-        "put the ones that fit the goal in the first stage. Otherwise prefer well-cited and recent papers, and ones "
-        "with full text. Leave out papers that "
+        "or most advanced work. Candidates marked \"a classic of this topic\", or cited by many of the other "
+        "candidates, are the papers the field is built on: put the ones that fit the goal in the first stage. "
+        "Otherwise prefer well-cited and recent papers, and ones with full text. Leave out papers that "
         "are off-topic or repeat another pick. For each pick give its number, one plain sentence on why to read it "
         "at that point (what it gives you), and about how many minutes a careful first read takes. Write a two-"
         "sentence intro describing the path. Use plain words."
@@ -108,9 +118,10 @@ def build(topic_id: int, goal: str) -> dict:
                 stages.append({"title": st.title, "why": st.why, "items": items})
         intro, by_ai = plan.intro, True
     except Exception:  # no AI (or it failed): the most cited results, as one stage
-        ranked = sorted(found, key=lambda p: (not p.get("landmark"), -(p.get("citations") or 0)))[:8]
+        ranked = sorted(found, key=lambda p: (not p.get("landmark"), -(p.get("cited_here") or 0),
+                                              -(p.get("citations") or 0)))[:8]
         used = {found.index(p) + 1 for p in ranked}
-        stages = [{"title": "Most cited", "why": "Set up an AI model in Settings for a roadmap in reading order.",
+        stages = [{"title": "Most cited", "why": "The classics and the papers the others cite most come first. Set up an AI model in Settings for a roadmap in reading order.",
                    "items": [{**p, "reason": "", "minutes": 0} for p in ranked]}] if ranked else []
         intro, by_ai = "", False
     others = [p for n, p in enumerate(found, 1) if n not in used]

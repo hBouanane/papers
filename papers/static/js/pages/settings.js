@@ -39,7 +39,8 @@ function aboutProvider(p, s) {
     then List models and pick one.`;
   if (p.group === "local") return `Free and private: the model runs on this computer and nothing leaves it. Install
     ${p.id === "ollama" ? link("ollama.com") : link("lmstudio.ai")}, download a model in it and keep it running, then List models.`;
-  return "Any server that speaks the OpenAI chat API (vLLM, llama.cpp, a company gateway). Set its address under More options.";
+  return `Any server that speaks the OpenAI chat API: DeepSeek, Together, xAI, vLLM, llama.cpp, a company gateway.
+    Give its address (it usually ends in <code>/v1</code>), its API key if it needs one, then List models.`;
 }
 
 
@@ -78,8 +79,9 @@ export async function settingsPage(stale) {
       <select id="ai-provider">${AI_GROUPS.map(([group, label]) => `<optgroup label="${label}">${s.providers.filter((p) => p.group === group)
         .map((p) => `<option value="${p.id}" ${p.id === s.ai_provider ? "selected" : ""}>${esc(p.name)}${s.keys_saved?.[p.id] ? " · key saved" : ""}</option>`).join("")}</optgroup>`).join("")}</select>
       <p class="hint" id="ai-about"></p>
+      <div class="ai-field" id="ai-base-slot"></div>
       <div class="ai-field" id="ai-key-field">
-        <label for="ai-key">API key</label>
+        <label for="ai-key" id="ai-key-label">API key</label>
         <input id="ai-key" class="secret" type="text" name="papers-ai-key" autocomplete="off" autocapitalize="off" autocorrect="off"
           spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
         <p class="hint" id="ai-key-where"></p>
@@ -89,11 +91,11 @@ export async function settingsPage(stale) {
         <button type="button" class="button secondary small" id="list-models">List models</button></div>
       <datalist id="ai-models"></datalist>
       <details class="advanced"><summary>More options</summary>
-        <div class="ai-field" id="ai-base-field">
+        <div id="ai-base-home"><div class="ai-field" id="ai-base-field">
           <label for="ai-base">Server address</label>
           <input id="ai-base" value="${esc(s.ai_base_url)}" placeholder="https://…/v1">
-          <p class="hint">Filled in for the provider you picked. Change it only for another server or port.</p>
-        </div>
+          <p class="hint" id="ai-base-hint">Filled in for the provider you picked. Change it only for another server or port.</p>
+        </div></div>
         <label for="ai-context">How much of a paper to send</label>
         <select id="ai-context">
           <option value="full" ${s.ai_context === "full" ? "selected" : ""}>The whole paper (large models)</option>
@@ -115,6 +117,20 @@ export async function settingsPage(stale) {
         "In Deep mode the AI can see the paper's figures and charts, and point at parts of them. Claude always can; for other providers the check above finds out and sets this for you (most free and small local models can't).")}
       ${toggle("ai-pages", s.ai_pages, "Interactive pages",
         "Besides its built-in charts and widgets, let the AI write a small interactive page when an idea is easier to play with than to read. It runs in a sealed frame: no access to the app, your files or the internet.")}
+    </form>
+    <form class="sheet form" id="search-form">
+      ${head("Finding papers")}
+      <p class="hint">Goals and roadmaps search <strong>Semantic Scholar</strong>, and <strong>OpenAlex</strong> when it's busy.
+        Both work without a key, but then they're shared with everyone and often say "too many requests". A free key of your
+        own makes searches reliable. Keys are kept in ${esc(s.keys_where)}.</p>
+      ${[["semanticscholar", "Semantic Scholar key", "semanticscholar.org/product/api", "Free; you get it by email. Allows about one search a second."],
+         ["openalex", "OpenAlex key", "openalex.org/settings/api", "Free; about 1,000 searches a day."]].map(([name, label, page, note]) => `
+      <div class="ai-field"><label for="key-${name}">${label} <span class="faint">(optional)</span></label>
+        <input id="key-${name}" class="secret" type="text" data-search-key="${name}" autocomplete="off" autocapitalize="off" autocorrect="off"
+          spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
+          placeholder="${s.search_keys?.[name] ? `Key ${s.search_keys[name] === "saved" ? "" : `ending in ${esc(s.search_keys[name].slice(1))} `}saved. Paste a new one to replace it.` : "Paste your key"}">
+        <p class="hint">${note} Get one at <a href="https://${page}" target="_blank" rel="noopener">${page}</a>.
+          ${s.search_keys?.[name] ? `<button type="button" class="link-button" data-forget-key="${name}">Forget this key</button>` : ""}</p></div>`).join("")}
     </form>
     <form class="sheet form" id="storage-form">
       ${head("Where everything is kept")}
@@ -180,13 +196,20 @@ export async function settingsPage(stale) {
     const p = provider();
     const subscription = p.group === "subscription";
     q("#ai-about").innerHTML = aboutProvider(p, ai);
-    q("#ai-key-field").hidden = !p.key;
+    q("#ai-key-field").hidden = !p.key && !p.key_optional;
+    q("#ai-key-label").textContent = p.key_optional ? "API key (if the server needs one)" : "API key";
+    // The custom server's address is what it most needs, so it sits up here instead of under More options.
+    const baseField = q("#ai-base-field");
+    (p.id === "custom" ? q("#ai-base-slot") : q("#ai-base-home")).append(baseField);
+    q("#ai-base-slot").hidden = p.id !== "custom";
+    q("#ai-base-hint").textContent = p.id === "custom" ? "The server's address, as its documentation gives it (it usually ends in /v1)."
+      : "Filled in for the provider you picked. Change it only for another server or port.";
     q("#ai-key").value = "";
     const key = ai.keys_saved?.[p.id];
     q("#ai-key").placeholder = key ? `Key ${key === "saved" ? "" : `ending in ${key.slice(1)} `}saved. Paste a new one to replace it.` : "Paste your key";
     q("#ai-key-where").innerHTML = key
       ? `Kept in ${esc(ai.keys_where)}, so you don't need to paste it again. <button type="button" class="link-button" id="ai-key-forget">Forget this key</button>`
-      : `Kept in ${esc(ai.keys_where || "this computer")}, never sent anywhere but ${esc(p.name.split(" (")[0])}.`;
+      : `Kept in ${esc(ai.keys_where || "this computer")}, never sent anywhere but ${p.id === "custom" ? "that server" : esc(p.name.split(" (")[0])}.`;
     q("#ai-key-forget")?.addEventListener("click", async () => {
       ai = await api("/settings", { method: "PUT", json: { ai_api_key: "" } });
       showProvider();
@@ -216,6 +239,25 @@ export async function settingsPage(stale) {
     showProvider();
   };
   q("#ai-model").onchange = async (e) => { await put({ ai_model: e.target.value }); showState(); };
+  // ----- Keys for finding papers: saved when pasted, forgotten on request -----
+  const searchForm = q("#search-form");
+  const saveSearchKey = async (name, value, note) => {
+    const now = await api("/settings", { method: "PUT", json: { [`search_key_${name}`]: value } });
+    const input = q(`#key-${name}`);
+    const hint = now.search_keys?.[name];
+    input.value = "";
+    input.placeholder = hint ? `Key ${hint === "saved" ? "" : `ending in ${hint.slice(1)} `}saved. Paste a new one to replace it.` : "Paste your key";
+    input.closest(".ai-field").querySelector("[data-forget-key]")?.toggleAttribute("hidden", !hint);
+    saved("#search-form", note);
+  };
+  searchForm.addEventListener("change", (e) => {
+    const name = e.target.dataset.searchKey;
+    if (name && e.target.value.trim()) saveSearchKey(name, e.target.value.trim(), "Key saved");
+  });
+  searchForm.addEventListener("click", (e) => {
+    const forget = e.target.closest("[data-forget-key]");
+    if (forget) saveSearchKey(forget.dataset.forgetKey, "", "Key forgotten");
+  });
   q("#ai-base").onchange = async (e) => { await put({ ai_base_url: e.target.value }); showState(); };
   q("#ai-context").onchange = (e) => put({ ai_context: e.target.value });
   // Ask the provider which models it has, so you pick a real name instead of guessing one.

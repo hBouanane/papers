@@ -53,7 +53,7 @@ def delete_topic(topic_id: int):
 
 @router.get("/topics/{topic_id}/search")
 def search_topic(topic_id: int):
-    """Papers for a goal: the AI turns it into a few search queries (or the goal itself is the query)."""
+    """Papers for a goal: the classics the AI names, the papers the results cite most, then the keyword results."""
     with db.connect() as conn:
         topic = conn.execute("select * from topics where id = ?", (topic_id,)).fetchone()
     if not topic:
@@ -61,7 +61,7 @@ def search_topic(topic_id: int):
     try:
         queries = llm.search_queries(topic["goal"])
     except Exception:
-        queries = [topic["goal"]]
+        queries = [scholar.keywords(topic["goal"])]  # no AI: the goal's own words, without the filler
     try:
         titles = llm.landmark_titles(topic["goal"])  # the classics first: keyword searches tend to miss them
     except Exception:

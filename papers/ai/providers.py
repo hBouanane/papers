@@ -22,7 +22,8 @@ PROVIDERS = [
     {"id": "openrouter", "group": "key", "kind": "openai", "name": "OpenRouter (hundreds of models)", "base_url": "https://openrouter.ai/api/v1", "key": True},
     {"id": "ollama", "group": "local", "kind": "openai", "name": "Ollama", "base_url": "http://localhost:11434/v1", "key": False},
     {"id": "lmstudio", "group": "local", "kind": "openai", "name": "LM Studio", "base_url": "http://localhost:1234/v1", "key": False},
-    {"id": "custom", "group": "other", "kind": "openai", "name": "Any OpenAI-compatible server", "base_url": "", "key": False},
+    {"id": "custom", "group": "other", "kind": "openai", "name": "Any OpenAI-compatible server", "base_url": "", "key": False,
+     "key_optional": True},  # many such servers (DeepSeek, Together, a company gateway) need one, local ones don't
 ]
 BY_ID = {p["id"]: p for p in PROVIDERS}
 DEFAULT_FOR_KIND = {"claude-code": "claude-plan", "codex": "chatgpt-plan", "api": "anthropic"}

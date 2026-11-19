@@ -20,13 +20,18 @@ const stagesPicture = () => `<ol class="gf-stages">${STAGES.map(([name, note, co
   <span class="gf-stage-text"><strong>${name}</strong><span>${note}</span></span>
   <span class="gf-covers">${covers.map((c) => sampleCover(c)).join("")}</span></li>`).join("")}</ol>`;
 
+// Why a search result matters: a classic the field starts from, or a paper many of the other results cite.
+const standing = (p) => p.landmark ? `<span class="rm-tag rm-tag-classic" title="Named as a paper this topic starts from">A classic</span>`
+  : (p.cited_here || 0) >= 2 ? `<span class="rm-tag rm-tag-classic" title="How many of the other results build on it">Cited by ${p.cited_here} of these</span>` : "";
+
 // When a search brings nothing back. Usually the paper databases were busy (they limit how often anyone may
 // ask), sometimes the goal's words matched nothing; either way the next step is the same.
-const nothingFound = (what, again = "roadmap") => `<div class="sheet rm-start rm-nothing">
+const nothingFound = (what, again = "roadmap", why = "") => `<div class="sheet rm-start rm-nothing">
     <div class="rm-start-text"><span class="chain-label">${what}</span>
-      <h3>No papers came back</h3>
-      <p class="hint">The paper databases may be busy right now (they limit how often they can be asked), or the goal's
-        words matched nothing. Try again in a minute, or say the goal with the field's usual terms.</p>
+      <h3>${why ? "The paper databases are busy" : "No papers came back"}</h3>
+      <p class="hint">${why ? `${esc(why)} <a href="#/settings">Search keys are in Settings.</a>`
+        : `The paper databases may be busy right now (they limit how often they can be asked), or the goal's
+        words matched nothing. Try again in a minute, or say the goal with the field's usual terms.`}</p>
       <div class="rm-start-actions"><button class="button" data-go="${again}">Try again</button>
         ${again === "find" ? `<button class="button secondary" data-go="roadmap">Suggest a roadmap</button>`
           : `<button class="button secondary" data-go="find">Just search</button>`}</div>
@@ -76,7 +81,7 @@ export async function goalsPage(stale) {
       <div class="gf-form">
         <label for="goal">What do you want to understand?</label>
         <textarea id="goal" rows="3" required placeholder="I'm building a retrieval system and need to understand how dense retrievers are trained and evaluated"></textarea>
-        <div class="gf-foot"><span class="hint">Finding papers searches Semantic Scholar and arXiv. You choose which to keep.</span>
+        <div class="gf-foot"><span class="hint">Finding papers searches Semantic Scholar and OpenAlex. You choose which to keep.</span>
           <span class="gf-buttons"><button class="button quiet" data-plain>Create without searching</button>
             <button class="button">Find papers</button></span></div>
         ${!first ? "" : `<div class="goal-examples"><span class="hint">Or start from an example</span>
@@ -184,7 +189,7 @@ export async function goalPage(id, stale) {
       <div id="roadmap">${plan ? roadmapHtml(plan, byId) : `<div class="sheet rm-start">
         <div class="rm-start-text"><span class="chain-label">Find papers for this goal</span>
           <h3>Want a reading roadmap?</h3>
-          <p class="hint">Papers searches Semantic Scholar and arXiv and puts the best papers in the order to read them: the basics
+          <p class="hint">Papers searches Semantic Scholar and OpenAlex, finds the papers the field is built on, and puts the best in the order to read them: the basics
             first, then the core, then the newest work. You pick which to add; their PDFs are downloaded for you.</p>
           <div class="rm-start-actions"><button class="button" data-go="roadmap">Suggest a roadmap</button>
             <button class="button secondary" data-go="find">Just search</button></div>
@@ -281,8 +286,8 @@ export async function goalPage(id, stale) {
   const makeRoadmap = () => busy(makeButton, "Working…", async () => {
     app.querySelector("#suggestions").innerHTML = "";
     section.classList.remove("no-plan");
-    const stop = searchScene(roadmapBox, ["Writing search queries for your goal", "Searching Semantic Scholar and arXiv",
-      "Reading what came back", "Putting the best papers in reading order"], "This takes up to a minute.");
+    const stop = searchScene(roadmapBox, ["Writing search queries for your goal", "Searching Semantic Scholar and OpenAlex",
+      "Finding the papers the field is built on", "Putting the best papers in reading order"], "This takes up to a minute.");
     try {
       const made = await api(`/topics/${id}/roadmap`, { method: "POST" });
       roadmapBox.innerHTML = roadmapHtml(made, byId, true);
@@ -290,7 +295,10 @@ export async function goalPage(id, stale) {
       makeButton.classList.add("secondary");
       countChosen();
       return true;
-    } catch (err) { roadmapBox.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
+    } catch (err) {
+      roadmapBox.innerHTML = err.status === 429 ? nothingFound("Reading roadmap", "roadmap", err.message)
+        : `<p class="error">${esc(err.message)}</p>`;
+    }
     finally { stop(); }
   }).then((made) => { if (made) makeButton.textContent = "Make a new roadmap"; });
   makeButton.onclick = makeRoadmap;
@@ -332,11 +340,17 @@ export async function goalPage(id, stale) {
   }
   const find = (button) => busy(button, "Searching…", async () => {
     const box = app.querySelector("#suggestions");
-    const stop = searchScene(box, ["Writing search queries for your goal", "Searching Semantic Scholar and arXiv"], "A few seconds.");
+    const stop = searchScene(box, ["Writing search queries for your goal", "Searching Semantic Scholar and OpenAlex", "Finding the papers the field is built on"], "About ten seconds.");
     box.scrollIntoView({ block: "nearest", behavior: "smooth" });
     let found;
     try { found = await api(`/topics/${id}/search`); }
-    catch (err) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; return; }
+    catch (err) {
+      if (err.status !== 429) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; return; }
+      const target = roadmapBox.querySelector(".rm-start") ? roadmapBox : box;
+      box.innerHTML = "";
+      target.innerHTML = nothingFound("Search", "find", err.message);
+      return;
+    }
     finally { stop(); }
     box.innerHTML = found.length ? `<h3 class="found-title">${plural(found.length, "paper")} found</h3>
       <div class="sheet list found">${found.map((p, i) => `
@@ -344,7 +358,7 @@ export async function goalPage(id, stale) {
         <span class="rm-cover" aria-hidden="true">${cover({ id: "", title: p.title }, "small")}</span>
         <div class="result-body">
           <h3 class="paper-name">${esc(p.title)}</h3>
-          <p class="result-cite"><span>${cite(p)}</span>${p.citations ? `<span>${p.citations.toLocaleString()} citations</span>` : ""}${p.pdf_url ? `<span class="rm-tag">Free PDF</span>` : ""}</p>
+          <p class="result-cite"><span>${cite(p)}</span>${p.citations ? `<span>${p.citations.toLocaleString()} citations</span>` : ""}${p.pdf_url ? `<span class="rm-tag">Free PDF</span>` : ""}${standing(p)}</p>
           ${p.abstract ? `<details><summary>Abstract</summary><p>${esc(p.abstract)}</p></details>` : ""}
         </div>
         ${known.has(p.external_id) ? `<span class="in-library">In library</span>`
@@ -413,7 +427,7 @@ function roadmapHtml(plan, byId = new Map(), enter = false) {
       <span class="rm-body">${i === next ? `<span class="chip chip-reading rm-next">${items[0] === i ? "Start here" : "Next up"}</span>` : ""}${title}
         <span class="result-cite"><span>${cite(i)}</span>${i.citations ? `<span>${i.citations.toLocaleString()} citations</span>` : ""}
           ${i.pdf_url ? `<span class="rm-tag">Free PDF</span>` : `<span class="rm-tag rm-tag-none" title="Added with its abstract; upload the PDF if you have it">No free PDF</span>`}
-          ${i.in_library_before ? `<span class="rm-tag rm-tag-have">Already in your library</span>` : ""}</span>
+          ${i.in_library_before ? `<span class="rm-tag rm-tag-have">Already in your library</span>` : ""}${standing(i)}</span>
         ${i.reason ? `<span class="rm-reason">${esc(i.reason)}</span>` : ""}</span>
       <span class="rm-time">${minutes(i.minutes)}</span></${Tag}></li>`;
   };

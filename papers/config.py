@@ -98,9 +98,6 @@ def default_model() -> str:
     return os.environ.get("PAPERS_MODEL", "claude-opus-5-5")
 
 
-def semantic_scholar_key() -> str:
-    return os.environ.get("S2_API_KEY", "")
-
 
 def anthropic_key_in_env() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
