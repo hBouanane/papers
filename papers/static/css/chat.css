@@ -168,6 +168,11 @@ dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { backgr
 .figure-box.is-lit { background: transparent; box-shadow: 0 0 0 9999px rgb(255 255 255 / .55); }
 .figure-box-note { padding: 2px 4px; border-radius: 6px; cursor: default; }
 .figure-box-note.is-lit { background: var(--raised); }
+.figure-box[role="button"] { cursor: pointer; }
+.figure-box[role="button"]:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.figure-tour { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; font-size: 14px; color: var(--pencil); }
+.figure-tour .link-button { font-size: 20px; line-height: 1; padding: 0 6px; }
+.msg-shortened { margin: 6px 0 0; font-size: 13px; }
 .visual-figure figcaption, .chat-canvas figcaption { display: grid; gap: 4px; font-size: 13px; margin-top: 6px; }
 .figure-box-note b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; margin-right: 6px; }
 

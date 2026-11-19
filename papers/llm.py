@@ -46,6 +46,12 @@ def landmark_titles(goal: str) -> list[str]:
 CONTEXT_CHARS = {"32k": 100_000, "8k": 24_000}
 
 
+def shortened(paper: dict) -> bool:
+    """Whether the model got only the beginning of this paper (Settings › How much of a paper to send)."""
+    limit = CONTEXT_CHARS.get(ai.setting("ai_context"))
+    return bool(limit and len(paper.get("text") or "") > limit)
+
+
 def _paper_context(paper: dict) -> str:
     body = paper.get("text") or f"(Full text unavailable. Abstract only.)\n{paper.get('abstract', '')}"
     limit = CONTEXT_CHARS.get(ai.setting("ai_context"))
@@ -238,7 +244,8 @@ never just for decoration):
   Wrap each part in \htmlClass{t1}{...} to \htmlClass{t6}{...} so it gets the same colour as its meaning. This is JSON:
   double every backslash, and nothing after the closing brace. (The example only shows the format: write the paper's
   own formula.)
-- Numbers to compare (results from a table, a trend, a distribution): any Vega-Lite v5 spec (bars, lines, points,
+- Numbers to compare (results from a table, a trend, a distribution): when the reader asks to plot or compare a
+  table, take its numbers from the paper's text (tables are in it) and never invent one. Any Vega-Lite v5 spec (bars, lines, points,
   areas, heatmaps, box plots, error bars, layers, facets, transforms) with its data inline (no "url") and readable
   axis titles:
 ```chart
@@ -323,7 +330,11 @@ external images. Keep it under 150 lines, readable on a narrow panel, and use th
 
 def tutor() -> str:
     """The tutor's rules, with interactive pages when the reader turned them on in Settings."""
-    return TUTOR + ("\n\n" + PAGES if ai.setting("ai_pages") == "on" else "")
+    from papers.ai import capabilities
+    plain = "" if capabilities.allows("json") else (
+        "\n\nThis model's JSON is unreliable: don't write ```chart, ```math or ```widget blocks. Use Markdown tables, "
+        "formulas in $...$ and ```diagram blocks instead.")
+    return TUTOR + plain + ("\n\n" + PAGES if ai.setting("ai_pages") == "on" else "")
 
 TASKS = {
     "explain": """Explain this passage the way a patient expert teacher would, as deeply as it needs: a short, simple

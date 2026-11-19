@@ -276,11 +276,11 @@ export async function settingsPage(stale) {
     if (r.ok && ai.ai_backend === "openai") await checkCan();
   });
 
-  // ----- What this model can do: images and tools, found out by asking it -----
+  // ----- What this model can do (images, tools, clean JSON, pointing), found out by asking it; what it fails is turned off -----
   function showCan(can = ai.ai_can, asking = false) {
     const row = (name, c) => `<li class="${c?.ok ? "yes" : c?.ok === false ? "no" : "unknown"}"><span class="ai-can-mark" aria-hidden="true">${c?.ok ? "✓" : c?.ok === false ? "✕" : "?"}</span>
       <span><strong>${name}</strong> ${esc(c?.note || "Not checked yet for this model.")}</span></li>`;
-    q("#ai-can").innerHTML = `<ul>${row("Images.", can?.images)}${row("Tools.", can?.tools)}</ul>
+    q("#ai-can").innerHTML = `<ul>${row("Images.", can?.images)}${row("Tools.", can?.tools)}${row("Charts and widgets.", can?.json)}${row("Boxes on figures.", can?.pointing)}</ul>
       ${ai.ai_backend === "openai" ? `<button type="button" class="button secondary small" id="ai-can-check" ${asking || !ai.ai_ready ? "disabled" : ""}>
         ${asking ? "Asking the model…" : can ? "Check again" : "Check this model"}</button>` : ""}`;
     if (q("#ai-can-check")) q("#ai-can-check").onclick = checkCan;

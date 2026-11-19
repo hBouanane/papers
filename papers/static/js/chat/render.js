@@ -184,21 +184,43 @@ async function drawFigure(stage, spec, ctx) {
   const number = f.table || f.figure;
   const fig = (await ctx.figures?.())?.find((x) => x.kind === kind && x.number === Number(number));
   if (!fig) { stage.innerHTML = `<p class="faint">${kind === "table" ? "Table" : "Figure"} ${esc(String(number))} isn't available (the PDF's figures are cut out from their captions).</p>`; return; }
-  const boxes = (Array.isArray(f.boxes) ? f.boxes : []).map((b) => ({ ...boxArea(b || {}), label: b?.label })).filter((b) => b.w);
+  const boxes = (Array.isArray(f.boxes) ? f.boxes : []).map((b) => ({ ...boxArea(b || {}), label: b?.label })).filter((b) => b.w).slice(0, 6);
   const pct = (v) => `${Math.round(v * 1000) / 10}%`;
+  const name = `${kind === "table" ? "Table" : "Figure"} ${number}`;
+  const asking = !!ctx.askAbout;
   stage.innerHTML = `<div class="figure-frame"><img src="${fig.url}" alt="${esc(fig.caption)}">
-      ${boxes.map((b, i) => `<span class="figure-box" data-box="${i}" style="left:${pct(b.x)};top:${pct(b.y)};width:${pct(b.w)};height:${pct(b.h)}">
+      ${boxes.map((b, i) => `<span class="figure-box" data-box="${i}" style="left:${pct(b.x)};top:${pct(b.y)};width:${pct(b.w)};height:${pct(b.h)}"
+        ${asking ? `role="button" tabindex="0" title="Ask about ${esc(b.label || `part ${i + 1}`)}"` : ""}>
         <span class="figure-box-label">${i + 1}</span></span>`).join("")}</div>
+    ${boxes.length > 1 ? `<div class="figure-tour" role="group" aria-label="One part at a time">
+      <button type="button" class="link-button" data-tour="-1" aria-label="Previous part">‹</button>
+      <span class="figure-tour-at" aria-live="polite">Go through the ${boxes.length} parts</span>
+      <button type="button" class="link-button" data-tour="1" aria-label="Next part">›</button></div>` : ""}
     <figcaption>${boxes.map((b, i) => `<span class="figure-box-note" data-box="${i}"><b>${i + 1}</b> ${esc(b.label || "")}</span>`).join("")}
-      <span class="faint">${esc(fig.caption)} · page ${fig.page}</span></figcaption>`;
-  // Point at a note and its box stands out (and the other way round)
-  const lit = (e) => {
-    const at = e.type === "mouseover" ? e.target.closest?.("[data-box]")?.dataset.box : null;
-    stage.querySelectorAll("[data-box]").forEach((el) => el.classList.toggle("is-lit", at != null && el.dataset.box === at));
+      <span class="faint">${esc(fig.caption)} · page ${fig.page}${boxes.length && asking ? " · click a box to ask about it" : ""}</span></figcaption>`;
+  // One box stands out: the one pointed at, or the tour's current one. Its note stands out with it.
+  let touring = null;
+  const show = (at) => {
+    stage.querySelectorAll("[data-box]").forEach((el) => el.classList.toggle("is-lit", at != null && el.dataset.box === String(at)));
     stage.classList.toggle("has-lit", at != null);
   };
+  const lit = (e) => show(e.type === "mouseover" ? e.target.closest?.("[data-box]")?.dataset.box ?? touring : touring);
   stage.onmouseover = lit;
   stage.onmouseout = lit;
+  stage.onclick = (e) => {
+    const step = e.target.closest("[data-tour]");
+    if (step) {
+      touring = ((touring ?? (step.dataset.tour === "1" ? -1 : boxes.length)) + Number(step.dataset.tour) + boxes.length) % boxes.length;
+      stage.querySelector(".figure-tour-at").textContent = `${touring + 1} of ${boxes.length}: ${boxes[touring].label || "this part"}`;
+      return show(touring);
+    }
+    const box = e.target.closest(".figure-box");
+    if (box && asking) {
+      const b = boxes[box.dataset.box];
+      ctx.askAbout(`In ${name}, the part in box ${Number(box.dataset.box) + 1} (${b.label || "this part"}): `);
+    }
+  };
+  stage.onkeydown = (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.closest(".figure-box")) { e.preventDefault(); e.target.click(); } };
 }
 
 // A page the model wrote (```page, only when Settings allows it): run in a sealed frame. The frame can't reach the

@@ -113,7 +113,7 @@ def build(topic_id: int, goal: str) -> dict:
             for pick in st.papers:
                 if 1 <= pick.number <= len(found) and pick.number not in used:
                     used.add(pick.number)
-                    items.append({**found[pick.number - 1], "reason": pick.reason, "minutes": max(5, pick.minutes)})
+                    items.append({**found[pick.number - 1], "reason": pick.reason, "minutes": min(240, max(5, pick.minutes))})
             if items:
                 stages.append({"title": st.title, "why": st.why, "items": items})
         intro, by_ai = plan.intro, True
