@@ -1,7 +1,6 @@
 // Goals: what you're working on, each with its papers; and one goal's page.
-import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, empty, esc, loading, moreButton, PAGE, paperRow, setBar, tableHead, toast } from "../core.js";
+import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, esc, loading, moreButton, PAGE, paperRow, setBar, tableHead, toast } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
-import { iconButton } from "../icons.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
 import { sampleCover } from "./welcome.js";
 
@@ -20,6 +19,19 @@ const stagesPicture = () => `<ol class="gf-stages">${STAGES.map(([name, note, co
   <span class="step-n num">${i + 1}</span>
   <span class="gf-stage-text"><strong>${name}</strong><span>${note}</span></span>
   <span class="gf-covers">${covers.map((c) => sampleCover(c)).join("")}</span></li>`).join("")}</ol>`;
+
+// When a search brings nothing back. Usually the paper databases were busy (they limit how often anyone may
+// ask), sometimes the goal's words matched nothing; either way the next step is the same.
+const nothingFound = (what, again = "roadmap") => `<div class="sheet rm-start rm-nothing">
+    <div class="rm-start-text"><span class="chain-label">${what}</span>
+      <h3>No papers came back</h3>
+      <p class="hint">The paper databases may be busy right now (they limit how often they can be asked), or the goal's
+        words matched nothing. Try again in a minute, or say the goal with the field's usual terms.</p>
+      <div class="rm-start-actions"><button class="button" data-go="${again}">Try again</button>
+        ${again === "find" ? `<button class="button secondary" data-go="roadmap">Suggest a roadmap</button>`
+          : `<button class="button secondary" data-go="find">Just search</button>`}</div>
+      <p class="hint">Or add a paper you already have with <strong>Add paper</strong>.</p></div>
+    <div class="rm-start-show" aria-hidden="true">${stagesPicture()}</div></div>`;
 
 // Behind the Goals page once you have goals: your papers laid flat on a tilted floor, along a road with the
 // three stages marked on it (the roadmap, drawn). Stand-in papers until there are real ones.
@@ -147,17 +159,23 @@ export async function goalPage(id, stale) {
   app.innerHTML = `<div class="container page">
     <div class="page-head page-head-split">
       <div class="goal-head"><h1 class="page-title goal-title">${esc(goal.goal)}</h1>
-      <div class="goal-sub"><p class="lede">${plural(papers.length, "paper")}, ${read} finished.</p>
-      <span class="goal-manage">${iconButton("edit", "Rename this goal", { attrs: 'id="goal-rename"' })}${iconButton("trash", "Delete this goal", { attrs: 'id="goal-delete"' })}</span></div></div>
-      <span class="bar-actions">${plan ? `<button type="button" class="button quiet" id="to-roadmap">Go to roadmap <span aria-hidden="true">↓</span></button>` : ""}<a class="button quiet" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>${addPaperControl(id)}</span>
+      <div class="goal-sub"><p class="lede">${papers.length ? `${plural(papers.length, "paper")}, ${read} finished.`
+        : "No papers yet. Find them below, or add one you already have."}</p></div></div>
+      <span class="bar-actions">${plan && papers.length ? `<button type="button" class="button quiet" id="to-roadmap">Go to roadmap <span aria-hidden="true">↓</span></button>` : ""}
+        <details class="menu goal-more"><summary class="button quiet" aria-label="More for this goal">More</summary>
+          <div class="menu-list sheet" role="menu">
+            <button role="menuitem" id="goal-rename">Rename goal</button>
+            ${papers.length ? `<a role="menuitem" href="/api/bibtex?topic_id=${id}" download>Export BibTeX</a>` : ""}
+            <button role="menuitem" id="goal-delete" class="danger">Delete goal</button>
+          </div></details>${addPaperControl(id)}</span>
     </div>
-    <section>
+    <section id="goal-papers"${papers.length ? "" : " hidden"}>
       <div id="shelf">${shelf(papers)}</div>
       <details class="as-list"><summary>Show as a list (archive, delete)</summary>
         <div class="sheet table" id="mine">${mine(papers)}</div></details>
     </section>
     ${says(papers)}
-    <section class="section rm-section${plan ? "" : " no-plan"}" id="rm-section">
+    <section class="section rm-section${plan ? "" : " no-plan"}${papers.length ? "" : " goal-empty"}" id="rm-section">
       <div class="section-bar">
         <h2>Reading roadmap</h2>
         <span class="bar-actions"><button class="button quiet" id="find">Just search</button>
@@ -179,6 +197,7 @@ export async function goalPage(id, stale) {
   drawCovers(app);
   // ----- Rename or delete the goal -----
   app.querySelector("#goal-rename").onclick = () => {
+    app.querySelector(".goal-more").open = false;
     const title = app.querySelector(".goal-title");
     if (app.querySelector("#goal-name")) return app.querySelector("#goal-name").focus();
     title.hidden = true;
@@ -206,7 +225,7 @@ export async function goalPage(id, stale) {
   app.querySelector("#goal-delete").onclick = async (e) => {
     const n = (await api(`/papers?topic_id=${id}`)).length;
     if (!confirm(`Delete the goal "${shorten(goal.goal, 80)}"?\n\n${n ? `Its ${plural(n, "paper")} stay in your library, in no goal.` : "It has no papers."} Its roadmap is removed.`)) return;
-    busy(e.target.closest("button"), "", async () => {
+    busy(e.target.closest("button"), "Deleting…", async () => {
       await api(`/topics/${id}`, { method: "DELETE" });
       toast("Goal deleted. Its papers are still in your library.");
       location.hash = "#/goals";
@@ -225,6 +244,8 @@ export async function goalPage(id, stale) {
   const roadmapBox = app.querySelector("#roadmap");
   const redrawPapers = async () => {
     const list = await api(`/papers?topic_id=${id}`);
+    app.querySelector("#goal-papers").hidden = !list.length;
+    app.querySelector("#rm-section").classList.toggle("goal-empty", !list.length);
     app.querySelector("#mine").innerHTML = mine(list);
     app.querySelector("#shelf").innerHTML = shelf(list);
     drawCovers(app.querySelector("#shelf"));
@@ -302,11 +323,13 @@ export async function goalPage(id, stale) {
       if (!plan) makeRoadmap();
     }
   } catch { /* no storage: the button is there */ }
-  // The start card's own buttons (shown until there is a roadmap).
-  roadmapBox.addEventListener("click", (e) => {
-    const go = e.target.closest("[data-go]");
-    if (go) (go.dataset.go === "find" ? find(go) : makeRoadmap());
-  });
+  // The start card's own buttons (shown until there is a roadmap), and the same ones on "No papers came back".
+  for (const box of [roadmapBox, app.querySelector("#suggestions")]) {
+    box.addEventListener("click", (e) => {
+      const go = e.target.closest("[data-go]");
+      if (go) (go.dataset.go === "find" ? find(go) : makeRoadmap());
+    });
+  }
   const find = (button) => busy(button, "Searching…", async () => {
     const box = app.querySelector("#suggestions");
     const stop = searchScene(box, ["Writing search queries for your goal", "Searching Semantic Scholar and arXiv"], "A few seconds.");
@@ -326,7 +349,14 @@ export async function goalPage(id, stale) {
         </div>
         ${known.has(p.external_id) ? `<span class="in-library">In library</span>`
           : `<button class="button secondary" data-add="${i}">Add</button>`}
-      </div>`).join("")}</div>` : `<p class="faint">No results. Try rewording the goal.</p>`;
+      </div>`).join("")}</div>` : "";
+    if (!found.length) {
+      // One card, not two: where the start card (or an empty roadmap) is, the "nothing came back" card replaces it.
+      const target = roadmapBox.querySelector(".rm-start") ? roadmapBox : box;
+      box.innerHTML = "";
+      target.innerHTML = nothingFound("Search", "find");
+      return;
+    }
     box.onclick = (ev) => {
       const b = ev.target.closest("[data-add]");
       if (b) busy(b, "Adding…", async () => {
@@ -402,7 +432,7 @@ function roadmapHtml(plan, byId = new Map(), enter = false) {
         <div class="rm-stage-head"><span class="rm-stage-title"><strong>${esc(s.title)}</strong>
           ${s.why ? `<span class="hint">${esc(s.why)}</span>` : ""}</span><span class="rm-time">${minutes(total(s.items))}</span></div>
         <ul class="rm-items">${s.items.map((i) => row(i)).join("")}</ul></div></li>`).join("")}</ol>`
-      : `<p class="faint pad">No papers found. Try rewording the goal.</p>`}
+      : plan.others.length ? "" : nothingFound("Reading roadmap")}
     ${plan.others.length ? `<details class="sheet rm-others"><summary>${plural(plan.others.length, "more result")} the roadmap left out</summary>
       <ul class="rm-items">${plan.others.map((i) => row(i, true)).join("")}</ul></details>` : ""}
     ${open ? `<div class="rm-foot"><span class="rm-select">Select: <button type="button" class="link-button" data-pick-all="stages">the roadmap</button>

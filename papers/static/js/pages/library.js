@@ -90,12 +90,11 @@ export async function libraryPage(stale) {
           ${others.length > 4 ? `<button class="button quiet small" id="all-reading">All ${reading.length} in progress</button>` : ""}` : ""}
       </section>
       <aside class="desk-side">
-        <div class="sheet desk-box">
+        ${due.length ? `<div class="sheet desk-box">
           <h2>Due for review</h2>
-          ${due.length ? due.map((d) => `<a class="desk-item" href="#/papers/${d.id}/quiz"><span class="desk-item-title paper-name">${esc(d.title)}</span>
-            <span class="faint num">${d.questions} cards</span></a>`).join("")
-            : `<p class="hint">Nothing today. Finished papers come back here for a short review.</p>`}
-        </div>
+          ${due.map((d) => `<a class="desk-item" href="#/papers/${d.id}/quiz"><span class="desk-item-title paper-name">${esc(d.title)}</span>
+            <span class="faint num">${d.questions} cards</span></a>`).join("")}
+        </div>` : ""}
         <div class="sheet desk-box">
           <h2>Goals</h2>
           ${goals.length ? goals.map(goalLine).join("") : `<p class="hint">Group papers around what you're working on.</p>`}
