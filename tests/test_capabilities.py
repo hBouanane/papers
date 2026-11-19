@@ -37,7 +37,10 @@ def test_a_model_that_sees_and_calls_tools(client, server, monkeypatch):
     def handle(body):
         if "tools" in body:
             return says({"content": None, "tool_calls": [{"id": "1", "function": {"name": "add", "arguments": "{}"}}]})
-        assert body["messages"][0]["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
+        content = body["messages"][0]["content"]
+        if isinstance(content, str):  # the JSON check
+            return says({"content": "not json"})
+        assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
         return says({"content": "Green."})
     server["handle"] = handle
     assert client.get("/api/settings").json()["ai_can"] is None  # not checked yet

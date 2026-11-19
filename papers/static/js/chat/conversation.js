@@ -52,6 +52,13 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   const $ = (s) => root.querySelector(s);
   const thread = $(".thread");
   const box = $("textarea");
+  // A click on a box in a figure starts a question about that part.
+  ctx.askAbout = (text) => {
+    box.value = text;
+    box.dispatchEvent(new Event("input"));
+    box.focus();
+    box.setSelectionRange(text.length, text.length);
+  };
   const chipsEl = $(".composer-chips");
   const historyEl = $(".chat-history");
 
@@ -90,6 +97,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       <button type="button" class="msg-chip" data-act="simpler" title="Say it again more simply">Simpler</button>
       <button type="button" class="msg-chip" data-act="deeper" title="Go deeper, with the details (uses Deep mode)">Deeper</button>
       ${m.meta?.model ? `<span class="msg-model" title="The model that wrote this answer">${esc(m.meta.model.model)} · ${esc(m.meta.model.provider)}</span>` : ""}</div>
+    ${m.meta?.shortened ? `<p class="msg-shortened hint">This model was sent only the beginning of the paper, so the answer may miss later
+      parts. <a href="#/settings">Settings › How much of a paper to send</a></p>` : ""}
     ${last && m.meta?.followups?.length ? `<div class="followups">${m.meta.followups.map((q) =>
       `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}`;
   const assistantHtml = (m, last) => {

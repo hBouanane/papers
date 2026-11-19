@@ -4,6 +4,19 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **A figure's boxes, one at a time**: when the AI boxes several parts of a figure, ‹ › walks through them, each
+  highlighted with its name. Clicking a box starts a question about that part.
+- **The model check-up does more and switches off what fails**: *Check this model* in Settings now also tests
+  whether the model writes clean JSON (charts, formulas, widgets) and can point at the right spot on a picture.
+  A model that fails gets tables and diagrams instead of charts, figures without boxes, and Quick answers instead
+  of Deep for figure questions.
+- **Weak models can't spoil an answer as easily**: boxes around the whole figure, the same part boxed twice, or
+  more than six boxes are dropped; tool calls a model writes into its answer as text are taken out (and if
+  nothing else is left, it says the model can't do Deep mode); reading times in roadmaps stay under four hours.
+- **"Plot Table 2" uses the paper's numbers**: the AI is told to take a table's values from the paper, never to
+  invent them.
+- **Said when the paper was too long for the model**: when Settings sends only the beginning of a paper, the answer
+  says so, with a link to the setting.
 - **Roadmaps start with the papers a field is built on**: besides keyword searches, Papers now looks at what the
   results themselves cite, and a paper most of them reference comes first, even when no search returned it. For
   "attention" that brings *Attention Is All You Need* to the top; for causal inference, Rosenbaum and Rubin. The

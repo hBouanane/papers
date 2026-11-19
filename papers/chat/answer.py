@@ -31,6 +31,41 @@ def split_followups(text: str) -> tuple[str, list[str]]:
 FIGURE = re.compile(r"```figure[ \t]*\n(.*?)```", re.S)
 
 
+CELL = re.compile(r"^([A-Ja-j])(10|[1-9])$")
+MOST_BOXES = 6
+
+
+def _area(box: dict) -> tuple[int, int, int, int] | None:
+    """A box's cells as (col0, row0, col1, row1), or None when it names no real cell."""
+    a, z = CELL.match(str(box.get("from", "")).strip()), CELL.match(str(box.get("to") or box.get("from", "")).strip())
+    if not (a and z):
+        return None
+    cols = sorted(ord(m.group(1).upper()) - 65 for m in (a, z))
+    rows = sorted(int(m.group(2)) - 1 for m in (a, z))
+    return cols[0], rows[0], cols[1], rows[1]
+
+
+def tidy_boxes(boxes: list) -> list:
+    """Boxes that point at something: real cells, not most of the figure, no near-duplicates, at most six. A weak
+    model draws one box around everything, or the same part three times."""
+    kept, areas = [], []
+    for b in boxes if isinstance(boxes, list) else []:
+        area = _area(b) if isinstance(b, dict) else None
+        if not area:
+            continue
+        c0, r0, c1, r1 = area
+        size = (c1 - c0 + 1) * (r1 - r0 + 1)
+        if size > 70:  # more than 70 of the 100 cells: that's the whole figure, not a part of it
+            continue
+        same = any(max(0, min(c1, d1) - max(c0, d0) + 1) * max(0, min(r1, e1) - max(r0, e0) + 1) / max(size, (d1 - d0 + 1) * (e1 - e0 + 1)) > .8
+                   for d0, e0, d1, e1 in areas)
+        if same:
+            continue
+        kept.append(b)
+        areas.append(area)
+    return kept[:MOST_BOXES]
+
+
 def only_seen_boxes(text: str, seen: set[tuple[str, int]]) -> str:
     """Take the "look here" boxes off any figure the model didn't look at while answering: placed from memory or
     from the caption they land in the wrong place, which is worse than no box."""
@@ -47,8 +82,9 @@ def only_seen_boxes(text: str, seen: set[tuple[str, int]]) -> str:
         except (TypeError, ValueError):
             number = -1
         if (kind, number) in seen:
-            return m.group(0)
-        spec.pop("boxes")
+            spec["boxes"] = tidy_boxes(spec["boxes"])
+        else:
+            spec.pop("boxes")
         return "```figure\n" + json.dumps(spec) + "\n```"
     return FIGURE.sub(checked, text)
 
@@ -60,12 +96,36 @@ def about_a_figure(asked: dict, known: list[dict]) -> bool:
     """Whether the reader asks about one of the paper's figures or tables ("in Figure 1", "Fig. 2", a pointed-at
     figure). Answering that well needs the image, which only Deep mode's look_at_figure gives the model, so such
     a question is answered in Deep mode even when Quick was chosen. Not for Codex, which has no tools."""
-    if providers.backend() == "codex":
+    from papers.ai import capabilities
+    if providers.backend() == "codex" or not capabilities.allows("tools"):
         return False
     words = " ".join([asked.get("content") or "", *[a.get("label") or "" for a in asked["meta"].get("attachments", [])]])
     have = {(f["kind"], int(f["number"])) for f in known}
     return any(("table" if m.group(1).lower().startswith("tab") else "figure", int(m.group(2))) in have
                for m in FIGURE_NAMED.finditer(words))
+
+
+TOOL_TEXT = [
+    re.compile(r"<tool_call>.*?(</tool_call>|$)", re.S),  # Qwen, Hermes
+    re.compile(r"<\|?(?:tool_calls?|function_calls?)[^>]*>.*?(<\|?/?(?:tool_calls?|function_calls?)[^>]*>|$)", re.S),
+    re.compile(r"<function=\w+>.*?(</function>|$)", re.S),  # Llama
+]
+
+
+def strip_tool_text(text: str) -> tuple[str, bool]:
+    """Some models write their tool calls into the answer as text instead of making them, so the reader would see raw
+    JSON. Take those out; say whether anything was taken out."""
+    names = "|".join(re.escape(n) for n in tools.TOOLS)
+    json_call = re.compile(r"(?:```(?:json)?\s*)?\{\s*\"(?:name|tool|function)\"\s*:\s*\"(?:" + names
+                           + r")\".*?\}\s*\}?\s*(?:```)?", re.S)
+    out = text
+    for pattern in [*TOOL_TEXT, json_call]:
+        out = pattern.sub("", out)
+    return out.strip(), out.strip() != text.strip()
+
+
+TOOLS_AS_TEXT = ("This model wrote its steps as text instead of using the app's tools, so Deep mode doesn't work with it. "
+                 "Ask again in Quick mode, or pick another model in Settings.")
 
 
 def line(**event) -> str:
@@ -119,11 +179,16 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
         stream.close()
         content, followups = split_followups("".join(parts))
         content = only_seen_boxes(content, tools.seen(steps))
+        if deep:
+            content, had_tool_text = strip_tool_text(content)
+        else:
+            had_tool_text = False
         if status == "done" and not content:
-            status, error = "error", NO_ANSWER
+            status, error = "error", TOOLS_AS_TEXT if had_tool_text else NO_ANSWER
         message = store.add_message(conversation_id, "assistant", kind=asked["kind"], content=content,
                                     thinking="".join(thought), status=status,
                                     meta={"followups": followups, "model": model, **({"steps": steps} if deep else {}),
+                                          **({"shortened": True} if llm.shortened(paper) else {}),
                                           **({"actions": actions} if actions else {}),
                                           **({"error": error} if error else {})})
         if status == "done":

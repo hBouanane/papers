@@ -153,7 +153,8 @@ def look_at_figure(paper: dict, number: int, kind: str = "figure") -> Result:
                       "images). Don't describe what the image looks like, and don't put boxes on it.",
                       f"Read about {name} {number} (the image isn't sent to this model)")
     image = (figures.folder(paper["id"]) / figures.image_name(kind, f["number"])).read_bytes()
-    grid = figures.with_grid(image)
+    from papers.ai import capabilities
+    grid = figures.with_grid(image) if capabilities.allows("pointing") else None  # boxes in the wrong place are worse than none
     if not grid:
         return Result(about + "\n\nShow it without boxes.", f"Looked at {name} {number}", image=image)
     return Result(about + POINTING, f"Looked at {name} {number}", image=grid)
