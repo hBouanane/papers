@@ -22,6 +22,10 @@ def no_network(monkeypatch):
         raise httpx.ConnectError("network disabled in tests")
 
     monkeypatch.setattr(httpx, "get", blocked)
+    monkeypatch.setattr(httpx, "post", blocked)
+    from papers import scholar
+    scholar.forget()  # no search results or busy marks carried over from another test
+    monkeypatch.setattr(scholar, "GAP", 0)  # no spacing between fake calls
 
 
 def pytest_configure(config):

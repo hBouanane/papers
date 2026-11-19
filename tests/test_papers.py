@@ -101,7 +101,8 @@ def test_scholar_retries_on_rate_limit(monkeypatch):
 
     monkeypatch.setattr(scholar.httpx, "get", fake_get)
     monkeypatch.setattr(scholar.time, "sleep", lambda s: None)
-    assert scholar.search("q") == [] and len(calls) == 3
+    scholar.search("q")
+    assert len([c for c in calls if c.startswith(scholar.API)]) == 3  # two "too many requests", then the answer
 
 
 def test_upstream_errors_become_502(client, monkeypatch):
@@ -114,7 +115,7 @@ def test_upstream_errors_become_502(client, monkeypatch):
     monkeypatch.setattr(scholar, "search", fail)
     t = client.post("/api/topics", json={"goal": "g"}).json()
     r = client.get(f"/api/topics/{t['id']}/search")
-    assert r.status_code == 502 and "Semantic Scholar" in r.json()["detail"]
+    assert r.status_code == 429 and "busy" in r.json()["detail"]  # said, not an empty list
 
 
 ATOM = """<?xml version="1.0" encoding="UTF-8"?>

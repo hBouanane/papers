@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from papers import ai, config, db, folders, keys, library, llm, storage
+from papers import ai, config, db, folders, keys, library, llm, scholar, storage
 from papers.ai import capabilities, providers
 
 router = APIRouter(prefix="/api", tags=["settings"])
@@ -23,6 +23,12 @@ class SettingsIn(BaseModel):
     ai_pages: bool | None = None  # let the AI write interactive pages (run in a sealed frame)
     language: str | None = None  # the reader's first language, for translations
     name: str | None = None  # what the Library greets you with; empty means just "Good morning"
+    # Optional keys for finding papers (kept in the keychain like the AI's; empty forgets one)
+    search_key_semanticscholar: str | None = None
+    search_key_openalex: str | None = None
+
+
+SEARCH_KEYS = ("semanticscholar", "openalex")
 
 
 def settings() -> dict:
@@ -40,7 +46,9 @@ def settings() -> dict:
             "language": db.setting("language"), "name": db.setting("name"),
             "api_key_set": config.anthropic_key_in_env(),
             # which providers have a key saved ("…a1b2"), and where keys are kept, so you never paste one twice
-            "keys_saved": {p["id"]: h for p in providers.PROVIDERS if p["key"] and (h := keys.hint(f"ai_key:{p['id']}"))},
+            "keys_saved": {p["id"]: h for p in providers.PROVIDERS
+                           if (p["key"] or p.get("key_optional")) and (h := keys.hint(f"ai_key:{p['id']}"))},
+            "search_keys": {name: keys.hint(f"search_key:{name}") for name in SEARCH_KEYS},
             "keys_where": keys.where()}
 
 
@@ -71,6 +79,10 @@ def save_settings(body: SettingsIn):
     for field, key in (("ai_model", "ai_model"), ("ai_base_url", "ai_base_url")):
         if (value := getattr(body, field)) is not None:
             db.set_setting(f"{key}:{current}", value.strip())
+    for name in SEARCH_KEYS:
+        if (value := getattr(body, f"search_key_{name}")) is not None:
+            keys.put(f"search_key:{name}", value)
+            scholar.forget()  # a service marked busy may answer now
     if body.language is not None:
         db.set_setting("language", body.language.strip())
     if body.name is not None:

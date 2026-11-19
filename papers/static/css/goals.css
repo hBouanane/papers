@@ -157,6 +157,7 @@ label.rm-row { cursor: pointer; }
 .rm-tag { padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--ink); background: var(--ink-tint); white-space: nowrap; }
 .rm-tag-none { color: var(--pencil); background: none; border: 1px dashed var(--line); font-weight: 400; }
 .rm-tag-have { color: var(--pencil); background: none; border: 1px solid var(--line); }
+.rm-tag-classic { color: var(--on-ink); background: var(--ink-fill); }
 .rm-status { flex-shrink: 0; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 4px; border-radius: 50%;
   border: 2px solid var(--line); font-size: 11px; font-weight: 700; color: var(--on-ink); }
 .rm-status.rm-reading { border-color: var(--ink); background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }

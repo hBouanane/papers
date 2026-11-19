@@ -202,17 +202,18 @@ def ask_ai(console, q) -> str | None:
             how = "https://claude.com/claude-code" if pid == "claude-plan" else "npm install -g @openai/codex"
             careful(console, f"Not installed yet. Install it ({how}), sign in once, and it's ready.")
         return pid
-    if p["key"]:
+    if p["key"] or p.get("key_optional"):
+        if pid == "custom":  # its address first: the key belongs to that server
+            base = q.text("Server address (like http://localhost:8080/v1):", **look).ask() or ""
+            db.set_setting(f"ai_base_url:{pid}", base.strip())
         has = keys.get(f"ai_key:{pid}")
-        key = q.password(f"API key{' (Enter keeps the saved one)' if has else ''}:", **look).ask()
+        hint = " (Enter keeps the saved one)" if has else " (leave empty if the server needs none)" if p.get("key_optional") else ""
+        key = q.password(f"API key{hint}:", **look).ask()
         if key is None:
             raise KeyboardInterrupt
         if key.strip():
             keys.put(f"ai_key:{pid}", key.strip())
             good(console, f"kept in {keys.where()}, never written to a file")
-    if pid == "custom":
-        base = q.text("Server address (like http://localhost:8080/v1):", **look).ask() or ""
-        db.set_setting(f"ai_base_url:{pid}", base.strip())
 
     models: list[str] = []
     with console.status("  [dim]asking the provider which models it has…[/]", spinner="dots", spinner_style=BLUE):

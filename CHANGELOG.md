@@ -4,6 +4,18 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Roadmaps start with the papers a field is built on**: besides keyword searches, Papers now looks at what the
+  results themselves cite, and a paper most of them reference comes first, even when no search returned it. For
+  "attention" that brings *Attention Is All You Need* to the top; for causal inference, Rosenbaum and Rubin. The
+  roadmap and search results mark these as *A classic* or *Cited by N of these*.
+- **Searches don't come back empty when a service is busy**: Semantic Scholar is tried first, then OpenAlex, with
+  arXiv only for exact titles. Calls are spaced out, results are reused for an hour, and when every service
+  refuses, a card says so (with Try again) instead of showing nothing.
+- **Search keys in Settings**: optional free keys for Semantic Scholar and OpenAlex make searches reliable. They're
+  kept in the system keychain like the AI keys.
+- **Any OpenAI-compatible server can have an API key**: choosing it now shows a key field (for DeepSeek, Together,
+  xAI, a company gateway) and its server address right away, not under More options. The terminal setup asks for
+  both too.
 - **Diagrams have their text again**: boxes in flowcharts and other diagrams the AI drew were empty. Their labels
   were HTML, which the safety filter removed; they're now drawn as plain SVG text.
 - **Questions about a figure get the figure**: asking about "Figure 1" (or pointing at it) now answers the way Deep
