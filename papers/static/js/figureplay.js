@@ -56,7 +56,7 @@ export function figureQuiz(root) {
       if (answered) return;
       const r = e.currentTarget.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height, b = parts[at].box;
-      const near = 0.1; // one cell of slack around the part: the boxes are drawn on a coarse grid
+      const near = 0.05; // half a cell of slack around the part: the boxes are drawn on a coarse grid
       const hit = x >= b.x - near && x <= b.x + b.w + near && y >= b.y - near && y <= b.y + b.h + near;
       answered = true;
       right += hit ? 1 : 0;
@@ -99,7 +99,7 @@ export function compareFigures(root, papers) {
     const select = root.querySelector(`#fc-fig-${side}`);
     select.innerHTML = "<option>Loading figures…</option>";
     const list = (figuresOf[id] ??= await api(`/papers/${id}/figures`).catch(() => []));
-    select.innerHTML = list.length ? list.map((f) => `<option value="${f.kind}:${f.number}">${f.kind === "table" ? "Table" : "Figure"} ${f.number}: ${esc(f.caption.slice(0, 60))}</option>`).join("")
+    select.innerHTML = list.length ? list.map((f) => `<option value="${f.kind}:${f.number}">${f.kind === "table" ? "Table" : "Figure"} ${f.number}: ${esc(f.caption.replace(/^\s*(fig(ure)?|table)\.?\s*\d+\s*[:.]\s*/i, "").slice(0, 60))}</option>`).join("")
       : "<option value=''>No figures found in this PDF</option>";
   };
   fill("a"); fill("b");
