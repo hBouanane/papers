@@ -3,6 +3,7 @@ import { api, app, busy, cite, empty, esc, loading } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { coverFan, paperCard, shorten } from "./shared.js";
 import { firstPaper, sampleBackdrop } from "./welcome.js";
+import { figureQuiz } from "../figureplay.js";
 
 // ---------- Recall ----------
 // Your papers, big, behind Recall (since that's what it searches): three first pages fanned out like the
@@ -39,13 +40,16 @@ export async function recallPage() {
     // Ideas from your own papers to try, and the papers searched first (the ones you finished).
     const ideas = papers.filter((p) => p.key_idea && p.status !== "new").slice(0, 5).map((p) => shorten(p.key_idea, 90));
     const finished = papers.filter((p) => p.status === "read");
+    const quizzable = papers.some((p) => p.has_pdf && (p.status === "reading" || p.status === "read"));
     app.querySelector("#recall-extras").innerHTML = `
       ${ideas.length ? `<section><h2>Try an idea from your papers</h2>
         <div class="try-ideas">${ideas.map((i) => `<button type="button" class="try-idea">${esc(i)}</button>`).join("")}</div></section>` : ""}
       ${finished.length ? `<section class="page-section"><h2>Searched first</h2>
         <p class="hint">The papers you've finished; then everything else, your notes and the explanations you asked for.</p>
-        <div class="shelf goal-shelf">${finished.slice(0, 8).map((p) => paperCard(p)).join("")}</div></section>` : ""}`;
+        <div class="shelf goal-shelf">${finished.slice(0, 8).map((p) => paperCard(p)).join("")}</div></section>` : ""}
+      ${quizzable ? `<div id="figure-quiz"></div>` : ""}`;
     drawCovers(app.querySelector("#recall-extras"));
+    if (quizzable) figureQuiz(app.querySelector("#figure-quiz"));
     app.querySelector("#recall-extras").onclick = (e) => {
       const idea = e.target.closest(".try-idea");
       if (!idea) return;

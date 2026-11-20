@@ -20,6 +20,20 @@
 .try-idea:hover { border-color: var(--ink); color: var(--ink); transform: translateY(-1px); }
 .recall-extras { margin-top: 34px; }
 
+/* The figure quiz: the figure without boxes; after a click, the part's box (blue if found, red if not) and the click. */
+.fq-stage { display: grid; gap: 10px; justify-items: start; }
+.fq-from { font-size: 14px; color: var(--pencil); }
+.fq-ask { font-size: 18px; color: var(--heading); min-height: 1.5em; }
+.fq-total { display: block; margin-top: 4px; font-weight: 700; color: var(--ink); }
+.fq-frame { position: relative; display: inline-block; max-width: min(100%, 620px); cursor: crosshair; border-radius: 8px; overflow: hidden;
+  background: #fff; box-shadow: var(--shadow-pop); }
+.fq-frame img { display: block; max-width: 100%; }
+.fq-marks { position: absolute; inset: 0; pointer-events: none; }
+.fq-box { position: absolute; border: 3px solid var(--ink); border-radius: 10px; background: rgb(61 95 214 / .12); animation: rise-in .3s ease both; }
+.fq-box.is-wrong { border-color: var(--miss); background: rgb(200 60 60 / .1); }
+.fq-dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--heading); border: 2px solid #fff; }
+.fq-foot { display: flex; align-items: center; gap: 12px; }
+
 /* The fan behind the page (the Goals cards' fan, enlarged). Landing on Recall, it glides in from the right,
    like the Map's corner paper; at rest it drifts, and each page sways and bobs on its own rhythm, a little out
    of step with the others. While a search runs the pages spread out and glow. */
