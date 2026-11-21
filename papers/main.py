@@ -4,15 +4,18 @@ Run it with `papers` (see cli.py), or for development:
     uvicorn papers.main:app --reload
 """
 import asyncio
+import logging
 import mimetypes
 from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from papers import ai, config, db, index, keys, library, scholar
+from papers.ai.errors import plain
 from papers.ingest import import_inbox
 from papers.routes import ROUTERS
 
@@ -40,6 +43,7 @@ async def watch_inbox(every: float):
             print(f"Inbox import failed: {e}")
 
 
+log = logging.getLogger("papers")
 app = FastAPI(title="Papers", lifespan=lifespan)
 
 
@@ -53,7 +57,23 @@ async def revalidate_static(request: Request, call_next):
 
 @app.exception_handler(ai.AIError)
 def ai_error(_: Request, exc: ai.AIError):
-    return JSONResponse({"detail": str(exc)}, status_code=503)
+    return JSONResponse({"detail": plain(str(exc)), "technical": str(exc)}, status_code=503)
+
+
+@app.exception_handler(RequestValidationError)
+def bad_request(_: Request, exc: RequestValidationError):
+    """A request the page shouldn't have sent (missing or wrong fields): no field names or JSON paths for the reader."""
+    log.warning("Bad request: %s", exc.errors())
+    return JSONResponse({"detail": "Something was missing from that request. Reload the page and try again.",
+                         "technical": str(exc.errors())[:2000]}, status_code=422)
+
+
+@app.exception_handler(Exception)
+def unexpected(_: Request, exc: Exception):
+    """A bug: the reader gets a sentence, the terminal gets the traceback."""
+    log.exception("Unexpected error")
+    return JSONResponse({"detail": "Something went wrong on our side. Try again; if it keeps happening, please report it "
+                         "(github.com/hBouanane/papers/issues).", "technical": f"{type(exc).__name__}: {exc}"[:2000]}, status_code=500)
 
 
 @app.exception_handler(scholar.Busy)
@@ -63,7 +83,8 @@ def search_busy(_: Request, exc: scholar.Busy):
 
 @app.exception_handler(httpx.HTTPError)
 def upstream_error(_: Request, exc: httpx.HTTPError):
-    return JSONResponse({"detail": f"Semantic Scholar request failed: {exc}"}, status_code=502)
+    return JSONResponse({"detail": "Couldn't reach the paper databases (Semantic Scholar, OpenAlex, arXiv). Check your "
+                         "internet connection and try again.", "technical": str(exc)[:2000]}, status_code=502)
 
 
 @app.get("/api/health")

@@ -242,7 +242,8 @@ def check_ai(console) -> None:
             llm.search_queries("checking the connection")
             ok, msg = True, f"{providers.ai_name()} answered"
         except Exception as e:  # shown, not fatal: it can be fixed in Settings
-            ok, msg = False, str(e)
+            from papers.ai.errors import plain
+            ok, msg = False, plain(str(e))
     if ok:
         good(console, msg)
     else:

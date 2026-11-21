@@ -11,6 +11,12 @@ What changed in each release. Versions follow [semantic versioning](https://semv
   fonts now ship with Papers instead of loading from the internet each time. With a local model (Ollama, LM
   Studio) you can read, ask, take notes and review offline; only finding and downloading papers need a
   connection. Pages also load faster. Papers is about 8 MB bigger.
+- **Uploading a paper that isn't on arXiv works again**: when its PDF had a DOI, the paper was looked up and the
+  save failed on a detail that came back with it (its citation count). Now only the paper's own fields are saved.
+- **Errors in plain words**: no more HTTP codes, JSON or "Request failed (500)". You're told what happened and what
+  to do ("You've reached the AI's usage limit for now (it resets at 2:20am)", "The AI didn't accept the API key.
+  Check it in Settings", "Papers isn't answering: check that it's still running"). The original message is under
+  *Details* in the chat and in the terminal, for reporting a problem.
 - **Figure quiz** (Recall): a figure from a paper you're reading or have read, and "Click the decoder". The
   right part is shown after each click, and you get a score at the end. The AI finds a figure's parts once and
   they're kept, so the next quiz on it starts at once.

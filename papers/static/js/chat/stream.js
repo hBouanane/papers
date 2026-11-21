@@ -7,12 +7,19 @@
 // `signal` (an AbortController's) stops it: the server notices and ends the model's run.
 
 export async function streamEvents(path, json, onEvent, { signal } = {}) {
-  const res = await fetch(`/api${path}`, {
-    method: "POST", body: JSON.stringify(json), headers: { "Content-Type": "application/json" }, signal,
-  });
+  let res;
+  try {
+    res = await fetch(`/api${path}`, {
+      method: "POST", body: JSON.stringify(json), headers: { "Content-Type": "application/json" }, signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    throw new Error("Papers isn't answering. Check that it's still running (its terminal window is open), then try again.");
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(typeof data.detail === "string" ? data.detail : `Request failed (${res.status})`);
+    throw new Error(typeof data.detail === "string" ? data.detail
+      : res.status >= 500 ? "Something went wrong on our side. Try again in a moment." : "That didn't work. Reload the page and try again.");
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

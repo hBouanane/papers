@@ -34,7 +34,8 @@ def test_an_error_midway_is_reported_and_nothing_is_saved(client, monkeypatch):
     monkeypatch.setattr(llm, "explain_stream", broken)
     p = make(client)
     _, lines = stream(client, p["id"], question="What is it?")
-    assert lines == [{"text": "Half an ans"}, {"error": "Claude request failed: overloaded"}]
+    assert lines == [{"text": "Half an ans"}, {"error": "The AI is busy right now. Wait a moment and try again.",
+                                               "technical": "Claude request failed: overloaded"}]
     assert client.get(f"/api/papers/{p['id']}/explanations").json() == []
 
 

@@ -177,6 +177,8 @@ dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { backgr
 .figure-tour { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; font-size: 14px; color: var(--pencil); }
 .figure-tour .link-button { font-size: 20px; line-height: 1; padding: 0 6px; }
 .msg-shortened { margin: 6px 0 0; font-size: 13px; }
+.error-details { margin-top: 4px; font-size: 13px; color: var(--pencil); }
+.error-details code { display: block; margin-top: 4px; white-space: pre-wrap; word-break: break-word; font-size: 12px; }
 .visual-figure figcaption, .chat-canvas figcaption { display: grid; gap: 4px; font-size: 13px; margin-top: 6px; }
 .figure-box-note b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; margin-right: 6px; }
 
