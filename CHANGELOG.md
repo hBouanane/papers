@@ -4,6 +4,10 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Works without internet**: the PDF viewer, answer formatting and formulas, diagrams, charts, widgets and the
+  fonts now ship with Papers instead of loading from the internet each time. With a local model (Ollama, LM
+  Studio) you can read, ask, take notes and review offline; only finding and downloading papers need a
+  connection. Pages also load faster. Papers is about 8 MB bigger.
 - **Figure quiz** (Recall): a figure from a paper you're reading or have read, and "Click the decoder". The
   right part is shown after each click, and you get a score at the end. The AI finds a figure's parts once and
   they're kept, so the next quiz on it starts at once.
