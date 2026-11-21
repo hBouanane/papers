@@ -1,16 +1,11 @@
-"""What's where in a figure, and what the figures and ideas of several papers have in common.
+"""What's where in a figure, for the figure quiz in Recall.
 
-- `parts(paper, kind, number)`: the figure's main parts as boxes on its 10 x 10 grid ({label, from, to}). The Deep
-  agent is asked to look at the figure and box them, the same way it does in an answer, so it works with every
-  model that can use tools and see images. Found once per figure, then kept.
-- `match(a, b)`: which parts of two figures are the same thing (the encoder here is the encoder there).
-- `idea_map(papers)`: the ideas of a goal's papers and which builds on which, as a Mermaid flowchart.
+`parts(paper, kind, number)`: the figure's main parts as boxes on its 10 x 10 grid ({label, from, to}). The Deep
+agent is asked to look at the figure and box them, the same way it does in an answer, so it works with every model
+that can use tools and see images. Found once per figure, then kept.
 """
 import json
 import random
-import re
-
-from pydantic import BaseModel
 
 from papers import ai, db, figures
 from papers.ai import capabilities
@@ -101,75 +96,3 @@ def pick_for_quiz(skip: str = "") -> dict | None:
     raise failure
 
 
-# ---------- Two figures side by side ----------
-class Pair(BaseModel):
-    a: int  # part number in the first figure
-    b: int  # part number in the second
-    same: str  # what they both are, in a few words
-
-
-class Pairs(BaseModel):
-    pairs: list[Pair]
-
-
-def match(first: dict, second: dict) -> list[dict]:
-    """Which parts of two figures play the same role. Each figure: {title, caption, parts}."""
-    def listing(f: dict) -> str:
-        rows = "\n".join(f"  {i}. {p['label']}" for i, p in enumerate(f["parts"], 1))
-        return f"Paper: {f['title']}\nCaption: {f['caption']}\nParts:\n{rows}"
-    prompt = ("Two figures from two research papers, each with its main parts numbered. Pair the parts that play the "
-              "same role in both (the same component, step or quantity, even if named differently). Pair a part at "
-              "most once; leave out parts with no counterpart. For each pair, say in a few words what they both are."
-              f"\n\n<first>\n{listing(first)}\n</first>\n\n<second>\n{listing(second)}\n</second>")
-    pairs, used_a, used_b = [], set(), set()
-    for p in ai.parse(prompt, Pairs, effort="low").pairs:
-        if 1 <= p.a <= len(first["parts"]) and 1 <= p.b <= len(second["parts"]) and p.a not in used_a and p.b not in used_b:
-            used_a.add(p.a)
-            used_b.add(p.b)
-            pairs.append({"a": p.a - 1, "b": p.b - 1, "same": p.same.strip()[:60]})
-    return pairs
-
-
-# ---------- The ideas of a goal's papers ----------
-class Idea(BaseModel):
-    name: str  # 2 to 5 words
-    papers: list[int]  # the numbers of the papers it comes from
-    builds_on: list[int]  # the numbers of earlier ideas in this list it builds on
-
-
-class IdeaMap(BaseModel):
-    ideas: list[Idea]
-
-
-def idea_map(goal: str, papers: list[dict]) -> dict:
-    """The main ideas across the papers and which builds on which: {"diagram": Mermaid flowchart, "papers": [...]}."""
-    listing = "\n\n".join(f"[{n}] {p['title']} ({p.get('year') or 'n.d.'})\n{(p.get('tldr') or p.get('key_idea') or p.get('abstract') or '')[:600]}"
-                          for n, p in enumerate(papers, 1))
-    prompt = ("These papers are read for one goal. Name the 5 to 12 main ideas they contain (methods, findings, "
-              "concepts), each in 2 to 5 plain words, with the numbers of the papers it comes from, and the earlier "
-              "ideas in your list that it builds on (by their position, starting at 1; only earlier ones). Order the "
-              "ideas from the most basic to the most advanced. Merge ideas that are the same thing."
-              f"\n\n<goal>{goal}</goal>\n\n<papers>\n{listing}\n</papers>")
-    ideas = ai.parse(prompt, IdeaMap, effort="low").ideas[:14]
-    clean = lambda s: re.sub(r'["\[\]{}()<>|#;`]', "", s).strip()[:48] or "idea"
-    lines = ["flowchart LR"]
-    for i, idea in enumerate(ideas, 1):
-        refs = sorted({n for n in idea.papers if 1 <= n <= len(papers)})
-        tag = f" · {', '.join(map(str, refs))}" if refs else ""
-        lines.append(f'  I{i}["{clean(idea.name)}{tag}"]')
-    for i, idea in enumerate(ideas, 1):
-        for j in sorted({j for j in idea.builds_on if 1 <= j < i}):
-            lines.append(f"  I{j} --> I{i}")
-    return {"diagram": "\n".join(lines), "papers": [{"n": n, "id": p["id"], "title": p["title"]} for n, p in enumerate(papers, 1)],
-            "ideas": len(ideas)}
-
-
-def kept_map(topic_id: int) -> dict | None:
-    raw = db.setting(f"idea_map:{topic_id}")
-    return json.loads(raw) if raw else None
-
-
-def make_map(topic_id: int, goal: str, papers: list[dict]) -> dict:
-    found = idea_map(goal, papers)
-    db.set_setting(f"idea_map:{topic_id}", json.dumps(found))
-    return found

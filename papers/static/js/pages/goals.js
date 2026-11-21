@@ -3,7 +3,6 @@ import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, esc, loa
 import { cover, drawCovers } from "../covers.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
 import { sampleCover } from "./welcome.js";
-import { compareFigures, ideaMap } from "../figureplay.js";
 
 // ---------- Goals ----------
 // Goals to start from, for a first goal.
@@ -181,8 +180,6 @@ export async function goalPage(id, stale) {
         <div class="sheet table" id="mine">${mine(papers)}</div></details>
     </section>
     ${says(papers)}
-    <div id="idea-map"></div>
-    <div id="compare-figures"></div>
     <section class="section rm-section${plan ? "" : " no-plan"}${papers.length ? "" : " goal-empty"}" id="rm-section">
       <div class="section-bar">
         <h2>Reading roadmap</h2>
@@ -203,8 +200,6 @@ export async function goalPage(id, stale) {
 
   bindAddPaper();
   drawCovers(app);
-  ideaMap(app.querySelector("#idea-map"), id, papers.length);
-  compareFigures(app.querySelector("#compare-figures"), papers);
   // ----- Rename or delete the goal -----
   app.querySelector("#goal-rename").onclick = () => {
     app.querySelector(".goal-more").open = false;
