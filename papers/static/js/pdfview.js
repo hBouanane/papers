@@ -2,7 +2,7 @@
 // It draws only the pages near the screen, keeps a selectable text layer, follows links inside the
 // PDF (like citations), and zooms smoothly: pages are stretched at once and redrawn sharp shortly
 // after, around the point you zoom at.
-const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168";
+const PDFJS = "/vendor/pdfjs"; // pdf.js 4.4.168, shipped with Papers so PDFs open without internet
 const MAX_WIDTH = 920; // px: wider pages are hard to read line by line
 const CSS_PER_PDF_UNIT = 96 / 72; // PDF.js scale 1 shows a page at 96 dpi
 let libs;

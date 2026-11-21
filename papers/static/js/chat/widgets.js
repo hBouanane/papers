@@ -13,8 +13,10 @@
 // {expressions} in braces.
 import { esc } from "../core.js";
 import { icon } from "../icons.js";
+import { script } from "../vendor.js";
 
-const { create, all } = await import("https://cdn.jsdelivr.net/npm/mathjs@13.1.1/+esm");
+await script("mathjs/math.js"); // its browser build sets the global `math`
+const { create, all } = globalThis.math;
 const math = create(all);
 // As math.js advises for untrusted expressions: keep compile, then take away what an expression could misuse
 // (defining functions or units, evaluating text inside an expression, changing math.js itself).

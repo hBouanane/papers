@@ -4,6 +4,10 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Works without internet**: the PDF viewer, answer formatting and formulas, diagrams, charts, widgets and the
+  fonts now ship with Papers instead of loading from the internet each time. With a local model (Ollama, LM
+  Studio) you can read, ask, take notes and review offline; only finding and downloading papers need a
+  connection. Pages also load faster. Papers is about 8 MB bigger.
 - **Uploading a paper that isn't on arXiv works again**: when its PDF had a DOI, the paper was looked up and the
   save failed on a detail that came back with it (its citation count). Now only the paper's own fields are saved.
 - **Errors in plain words**: no more HTTP codes, JSON or "Request failed (500)". You're told what happened and what

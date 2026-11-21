@@ -9,17 +9,17 @@
 //
 //   renderAnswer(text, { streaming })  → HTML (visuals as placeholders)
 //   drawVisuals(root, ctx)             → draws the placeholders in root (lazy-loads Mermaid and Vega once needed)
+import { script, VENDOR } from "../vendor.js";
 import { esc } from "../core.js";
 import { iconButton } from "../icons.js";
 
-const CDN = "https://cdn.jsdelivr.net/npm";
 const [{ Marked }, { default: DOMPurify }, { default: katex }] = await Promise.all([
-  import(`${CDN}/marked@12.0.2/lib/marked.esm.js`),
-  import(`${CDN}/dompurify@3.1.6/dist/purify.es.mjs`),
-  import(`${CDN}/katex@0.16.11/dist/katex.mjs`),
-]).catch(() => [{}, {}, {}]); // offline: plain text rendering below still works
+  import(`${VENDOR}/marked/marked.esm.js`),
+  import(`${VENDOR}/dompurify/purify.es.mjs`),
+  import(`${VENDOR}/katex/katex.mjs`),
+]).catch(() => [{}, {}, {}]); // a library missing: plain text rendering below still works
 if (katex && !document.querySelector("link[data-katex]")) {
-  document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" data-katex href="${CDN}/katex@0.16.11/dist/katex.min.css">`);
+  document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" data-katex href="${VENDOR}/katex/katex.min.css">`);
 }
 const marked = Marked ? new Marked({ gfm: true, breaks: false }) : null;
 
@@ -124,8 +124,9 @@ const css = (name) => getComputedStyle(document.documentElement).getPropertyValu
 const dark = () => document.documentElement.dataset.theme === "dark" || document.documentElement.dataset.theme === "dim"
   || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
 
-const loadMermaid = () => (mermaidReady ??= import(`${CDN}/mermaid@10.9.1/dist/mermaid.esm.min.mjs`).then(({ default: m }) => m));
-const loadVega = () => (vegaReady ??= import(`${CDN}/vega-embed@6.26.0/+esm`).then((m) => m.default));
+const loadMermaid = () => (mermaidReady ??= script("mermaid/mermaid.min.js").then(() => globalThis.mermaid));
+const loadVega = () => (vegaReady ??= script("vega/vega.min.js").then(() => script("vega/vega-lite.min.js"))
+  .then(() => script("vega/vega-embed.min.js")).then(() => globalThis.vegaEmbed));
 let diagrams = 0;
 
 async function drawDiagram(stage, code) {
