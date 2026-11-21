@@ -72,7 +72,7 @@ def test_a_failed_answer_is_kept_and_retry_replaces_it(client, monkeypatch):
     fake_model(monkeypatch, llm.AIError("overloaded"), ["Second time lucky."])
     p = make(client)
     lines = events(client.post(f"/api/papers/{p['id']}/conversations/start", json={"content": "Q?"}))
-    assert lines[-1]["type"] == "error" and lines[-1]["error"] == "overloaded"
+    assert lines[-1]["type"] == "error" and lines[-1]["error"] == "The AI is busy right now. Wait a moment and try again."
     cid = lines[0]["conversation"]["id"]
     assert client.get(f"/api/conversations/{cid}").json()["messages"][-1]["status"] == "error"
     again = events(client.post(f"/api/conversations/{cid}/retry"))

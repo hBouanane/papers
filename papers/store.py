@@ -34,7 +34,11 @@ def update_paper(paper_id: int, **fields) -> dict:
 
 
 def insert_paper(fields: dict) -> int:
+    """Save a new paper. Lookups bring extra facts (a citation count, where it was found, ...): only the fields the
+    papers table has are kept, so a paper found by its DOI can't fail to save over one of those."""
     with db.connect() as conn:
+        columns = {row["name"] for row in conn.execute("pragma table_info(papers)")}
+        fields = {k: v for k, v in fields.items() if k in columns}
         cur = conn.execute(f"insert into papers ({', '.join(fields)}) values ({', '.join('?' * len(fields))})",
                            tuple(fields.values()))
     index.index_paper(get_paper(cur.lastrowid))
