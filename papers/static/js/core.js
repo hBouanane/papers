@@ -29,9 +29,19 @@ export async function api(path, opts = {}) {
     init.body = JSON.stringify(opts.json);
     init.headers = { "Content-Type": "application/json" };
   }
-  const res = await fetch(`/api${path}`, init);
+  let res;
+  try { res = await fetch(`/api${path}`, init); }
+  catch (err) {
+    if (err.name === "AbortError") throw err;
+    throw Object.assign(new Error("Papers isn't answering. Check that it's still running (its terminal window is open), then try again."), { status: 0 });
+  }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.detail || `Request failed (${res.status})`), { status: res.status });
+  if (!res.ok) {
+    // The server says what happened in a sentence; anything else (a crash page, a list of fields) isn't for the reader.
+    const said = typeof data.detail === "string" ? data.detail : res.status >= 500
+      ? "Something went wrong on our side. Try again in a moment." : "That didn't work. Reload the page and try again.";
+    throw Object.assign(new Error(said), { status: res.status, technical: data.technical || "" });
+  }
   return data;
 }
 

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from papers import db, index, library, llm
+from papers.ai.errors import plain
 from papers.ai.streaming import Thinking, guarded
 from papers.chat import store as chat
 from papers.store import ai_wrote, get_paper, goal_of, update_paper
@@ -115,7 +116,7 @@ def explain_passage_stream(paper_id: int, body: ExplainIn):
                 parts.append(piece)
                 yield json.dumps({"text": piece}) + "\n"
         except llm.AIError as e:
-            yield json.dumps({"error": str(e)}) + "\n"
+            yield json.dumps({"error": plain(str(e)), "technical": str(e)}) + "\n"
             return
         answer = "".join(parts).strip()
         if not answer:  # it only thought, or said nothing: say so, and keep nothing

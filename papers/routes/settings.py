@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from papers import ai, config, db, folders, keys, library, llm, scholar, storage
 from papers.ai import capabilities, providers
+from papers.ai.errors import plain
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -126,7 +127,7 @@ def test_ai():
     try:
         llm.search_queries("checking the connection")
     except llm.AIError as e:
-        return {"ok": False, "message": str(e)}
+        return {"ok": False, "message": plain(str(e)), "technical": str(e)}
     p = providers.BY_ID[providers.provider()]
     via = f"your {p['name'].split(' (')[0]} subscription" if p["group"] == "subscription" else p["name"]
     return {"ok": True, "message": f"It works: {providers.ai_name()} answered through {via}."}
@@ -148,7 +149,7 @@ def ai_models():
     try:
         return {"models": ai.list_models()}
     except ai.AIError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, plain(str(e)))
 
 
 # ---------- Library folder: the app's own folder browser ----------
