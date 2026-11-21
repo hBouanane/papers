@@ -1,7 +1,7 @@
 """The figure quiz, two figures side by side, and a goal's idea map: parts found once and kept, matches checked."""
 import pytest
 
-from papers import ai, figure_parts, figures
+from papers import ai, figures
 from papers.agent import loop as agent
 
 ANSWER = ('```figure\n{"figure": 1, "boxes": [{"from": "B5", "to": "E8", "label": "the encoder"}, '
@@ -50,26 +50,3 @@ def test_the_quiz_picks_a_figure_from_what_you_read(client, paper, monkeypatch):
     assert quiz["number"] == 1 and len(quiz["parts"]) == 2 and quiz["url"].endswith("/figures/figure-1.png")
 
 
-def test_matched_parts_are_checked(client, paper, monkeypatch):
-    monkeypatch.setattr(agent, "run", agent_that(True))
-    other = client.post("/api/papers", json={"title": "RNN attention", "text": "Figure 1: Another model."}).json()["id"]
-    answer = figure_parts.Pairs(pairs=[figure_parts.Pair(a=1, b=1, same="encoder"), figure_parts.Pair(a=1, b=2, same="again"),
-                                       figure_parts.Pair(a=9, b=1, same="no such part")])
-    monkeypatch.setattr(ai, "parse", lambda prompt, schema, **kw: answer)
-    r = client.post("/api/figures/compare", json={"first": {"paper_id": paper, "number": 1}, "second": {"paper_id": other, "number": 1}}).json()
-    assert r["pairs"] == [{"a": 0, "b": 0, "same": "encoder"}]  # each part paired once, only real parts
-    assert len(r["sides"]) == 2 and r["sides"][1]["title"] == "RNN attention"
-
-
-def test_the_idea_map_is_a_diagram_with_only_earlier_links(client, monkeypatch):
-    goal = client.post("/api/topics", json={"goal": "attention"}).json()["id"]
-    assert client.post(f"/api/topics/{goal}/idea-map").status_code == 400  # needs two papers
-    for title in ("RNN attention", "Transformer"):
-        client.post("/api/papers", json={"title": title, "topic_id": goal})
-    ideas = figure_parts.IdeaMap(ideas=[
-        figure_parts.Idea(name="Encoder-decoder", papers=[1], builds_on=[]),
-        figure_parts.Idea(name='Attention "weights" [new]', papers=[1, 2, 7], builds_on=[1, 2, 5])])
-    monkeypatch.setattr(ai, "parse", lambda prompt, schema, **kw: ideas)
-    made = client.post(f"/api/topics/{goal}/idea-map").json()
-    assert made["diagram"].splitlines() == ["flowchart LR", '  I1["Encoder-decoder · 1"]', '  I2["Attention weights new · 1, 2"]', "  I1 --> I2"]
-    assert client.get(f"/api/topics/{goal}/idea-map").json() == made  # kept for the goal page

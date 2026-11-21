@@ -246,30 +246,6 @@ label.rm-row { cursor: pointer; }
 @media (max-width: 900px) { .gf-solo { max-width: none; } }
 #rm-section { scroll-margin-top: 72px; }
 
-/* How the ideas connect: the map, and the papers its numbers refer to */
-.im-sheet { padding: 16px; overflow-x: auto; }
-.im-papers { margin: 10px 0 0; padding-left: 22px; display: grid; gap: 2px; font-size: 14px; color: var(--pencil); }
-.im-empty { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-
-/* Two figures side by side; parts that are the same thing share a colour */
-.fc-picks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 6px 0 12px; }
-.fc-pick { display: grid; gap: 6px; min-width: 0; }
-.fc-pick select { width: 100%; }
-.fc-out { margin-top: 16px; }
-.fc-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.fc-side { margin: 0; display: grid; gap: 6px; min-width: 0; }
-.fc-side figcaption { display: grid; gap: 2px; font-size: 14px; }
-.fc-frame { position: relative; background: #fff; border-radius: 8px; overflow: hidden; }
-.fc-frame img { display: block; width: 100%; }
-.fc-box { position: absolute; border: 3px solid var(--pair); border-radius: 10px; background: color-mix(in srgb, var(--pair) 12%, transparent); transition: opacity .2s; }
-.fc-box.is-alone { --pair: #8a8f98; border-style: dashed; border-width: 2px; background: none; }
-.fc-pairs { list-style: none; padding: 0; margin: 14px 0 6px; display: grid; gap: 6px; }
-.fc-pairs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 6px 10px; border-radius: 8px; cursor: default; }
-.fc-pairs i { width: 12px; height: 12px; border-radius: 3px; background: var(--pair); align-self: center; }
-.fc-out.has-lit [data-pair]:not(.is-lit), .fc-out.has-lit .fc-box.is-alone { opacity: .25; }
-.fc-pairs li.is-lit { background: var(--raised); }
-@media (max-width: 700px) { .fc-picks, .fc-sides { grid-template-columns: 1fr; } }
-
 /* The road behind the Goals page: a floor seen from above and to the side, papers lying on it along a dashed
    road with the three stages marked. Papers hover a little, each on its own beat; the dashes travel up the road.
    While a search runs everything lifts and the road runs faster. */

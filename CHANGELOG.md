@@ -4,6 +4,9 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Diagrams look hand-drawn**: flowcharts and the other diagrams in answers are now sketched like a whiteboard
+  drawing (Excalidraw's look), with Excalidraw's handwriting for the labels. Mind maps get soft colours that
+  read in both themes.
 - **Works without internet**: the PDF viewer, answer formatting and formulas, diagrams, charts, widgets and the
   fonts now ship with Papers instead of loading from the internet each time. With a local model (Ollama, LM
   Studio) you can read, ask, take notes and review offline; only finding and downloading papers need a
@@ -11,10 +14,6 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 - **Figure quiz** (Recall): a figure from a paper you're reading or have read, and "Click the decoder". The
   right part is shown after each click, and you get a score at the end. The AI finds a figure's parts once and
   they're kept, so the next quiz on it starts at once.
-- **Compare two figures** (a goal's page): pick a figure from two papers; the parts that are the same thing get
-  the same colour, even when the papers name them differently. Point at a pair to see it on both sides.
-- **How the ideas connect** (a goal's page): the main ideas across the goal's papers as a map, from the basics to
-  the newest, with arrows for what builds on what and the papers each idea comes from.
 - **A figure's boxes, one at a time**: when the AI boxes several parts of a figure, ‹ › walks through them, each
   highlighted with its name. Clicking a box starts a question about that part.
 - **The model check-up does more and switches off what fails**: *Check this model* in Settings now also tests

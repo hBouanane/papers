@@ -129,15 +129,36 @@ const loadVega = () => (vegaReady ??= script("vega/vega.min.js").then(() => scri
   .then(() => script("vega/vega-embed.min.js")).then(() => globalThis.vegaEmbed));
 let diagrams = 0;
 
+// The branches of mind maps and other diagrams with sections: soft colours that read on the page (Mermaid's own
+// turn black on a dark page). No green: it means "done" everywhere else in Papers.
+function branches() {
+  const fills = dark() ? ["#2b3a6b", "#5a3d24", "#47306b", "#5c2a3c", "#4a3b2a", "#5a4a1c"]
+    : ["#dfe6fb", "#fbe5d3", "#ebe0fb", "#fbdfe7", "#efe6da", "#f8efcf"];
+  const vars = {};
+  for (let i = 0; i < 12; i++) {
+    vars[`cScale${i}`] = fills[i % fills.length];
+    vars[`cScaleLabel${i}`] = css("--heading");
+    vars[`cScalePeer${i}`] = css("--ink");
+    vars[`cScaleInv${i}`] = css("--ink"); // the line under a branch's label (Mermaid's own is green for some)
+  }
+  return vars;
+}
+
 async function drawDiagram(stage, code) {
   const mermaid = await loadMermaid();
   // Labels as SVG text, not HTML inside <foreignObject>: the sanitizer below removes foreignObject, which left
   // every box of a flowchart empty.
-  mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", fontFamily: css("--ui") || "sans-serif",
-    htmlLabels: false, flowchart: { htmlLabels: false }, class: { htmlLabels: false }, state: { htmlLabels: false },
-    themeVariables: { primaryColor: css("--ink-tint"), primaryTextColor: css("--graphite"), primaryBorderColor: css("--ink"),
-      lineColor: css("--pencil"), secondaryColor: css("--raised"), tertiaryColor: css("--sheet"), background: css("--sheet"),
-      fontSize: "14px", darkMode: dark() } });
+  // Drawn by hand, like a sketch on a whiteboard (Excalidraw's look): wobbly lines and Excalidraw's own
+  // handwriting, Virgil. The same seed every time, so a diagram doesn't change shape when it's drawn again.
+  // Mind maps keep Mermaid's usual shapes: its hand-drawn mind map clips the centre's label.
+  const sketch = !code.split("\n").find((line) => line.trim() && !line.trim().startsWith("%%"))?.trim().startsWith("mindmap");
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", look: sketch ? "handDrawn" : "classic", handDrawnSeed: 7,
+    fontFamily: `Virgil, ${css("--ui") || "sans-serif"}`,
+    htmlLabels: false, flowchart: { htmlLabels: false, curve: "basis", padding: 14 }, class: { htmlLabels: false }, state: { htmlLabels: false },
+    themeVariables: { primaryColor: css("--ink-tint"), primaryTextColor: css("--heading"), primaryBorderColor: css("--ink"),
+      lineColor: css("--graphite"), secondaryColor: css("--raised"), tertiaryColor: css("--sheet"), background: css("--sheet"),
+      fontFamily: `Virgil, ${css("--ui") || "sans-serif"}`, fontSize: "16px", darkMode: dark(), ...branches() } });
+  await document.fonts.load("16px Virgil").catch(() => {}); // labels are measured: the font must be ready first
   const { svg } = await mermaid.render(`diagram-${++diagrams}`, code);
   stage.innerHTML = DOMPurify?.sanitize ? DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } }) : svg;
 }

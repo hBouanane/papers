@@ -143,6 +143,10 @@
 .visual-failed pre { max-height: 160px; overflow: auto; font-size: 12px; }
 .visual-chart .vega-embed { width: 100%; }
 .visual-diagram .visual-stage { display: grid; justify-items: center; }
+/* A mind map's centre: the app's blue with light writing (Mermaid's own is dark text on mid blue). */
+.visual-diagram .section-root :is(circle, path, rect) { fill: var(--ink-fill) !important; }
+.visual-diagram .section-root text { fill: var(--on-ink) !important; text-anchor: middle; }
+.visual-diagram .section-root text tspan { text-anchor: middle; }
 
 /* A formula with its parts coloured; the same colours in the list of what each part means */
 .math-formula { overflow-x: auto; }
