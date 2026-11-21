@@ -12,6 +12,7 @@ from papers import db, figures, index, library, llm
 from papers.agent import loop as agent
 from papers.agent import tools
 from papers.ai import providers
+from papers.ai.errors import plain
 from papers.ai.streaming import Thinking, guarded
 from papers.chat import store
 
@@ -144,7 +145,7 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     language = db.setting("language")
     parts: list[str] = []
     thought: list[str] = []
-    status, error = "done", ""
+    status, error, technical = "done", "", ""
     known = figures.known(paper["id"])
     model = providers.describe()  # shown under the answer: "Written by ..."
     # Deep mode: the agent uses tools while it answers. A question about a figure goes there too, to see it.
@@ -171,7 +172,7 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
                 parts.append(piece)
                 yield line(type="text", text=piece)
     except llm.AIError as e:
-        status, error = "error", str(e)
+        status, error, technical = "error", plain(str(e)), str(e)
     except GeneratorExit:  # Stop, or the reader left: keep what was written, marked as stopped
         status = "stopped"
         raise
@@ -190,7 +191,8 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
                                     meta={"followups": followups, "model": model, **({"steps": steps} if deep else {}),
                                           **({"shortened": True} if llm.shortened(paper) else {}),
                                           **({"actions": actions} if actions else {}),
-                                          **({"error": error} if error else {})})
+                                          **({"error": error} if error else {}),
+                                          **({"error_details": technical} if technical and technical != error else {})})
         if status == "done":
             index.index_paper(paper)
             library.sync_paper(paper["id"])

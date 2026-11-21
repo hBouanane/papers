@@ -106,7 +106,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       return `<div class="msg msg-claude answer is-done" data-message="${m.id}">${thinkingHtml(m)}${stepsHtml(m)}
         <div class="answer-body">${render(m.content)}</div>${actionsListHtml(m)}</div>${actionsHtml(m, last)}`;
     }
-    const problem = m.status === "stopped" ? `<p class="faint">Stopped.</p>` : `<p class="error">${esc(m.meta?.error || "Something went wrong.")}</p>`;
+    const problem = m.status === "stopped" ? `<p class="faint">Stopped.</p>` : `<p class="error">${esc(m.meta?.error || "Something went wrong.")}</p>${m.meta?.error_details
+      ? `<details class="error-details"><summary>Details</summary><code>${esc(m.meta.error_details.slice(0, 1500))}</code></details>` : ""}`;
     return `<div class="msg msg-claude answer is-${m.status}" data-message="${m.id}">${thinkingHtml(m)}${stepsHtml(m)}
       <div class="answer-body">${m.content ? render(m.content) : ""}<div class="answer-problem">${problem}
         ${last ? `<button type="button" class="button secondary small" data-act="retry">Retry</button>` : ""}</div></div></div>`;
