@@ -185,6 +185,116 @@ def seen(steps: list[dict]) -> set[tuple[str, int]]:
     return found
 
 
+# ---------- Comparing a figure with one from another paper ----------
+COMPARING = """
+
+The image shows both figures side by side: LEFT is Figure {left} of this paper, RIGHT is Figure {right} of "{title}".
+Each has its own grid (columns A to J, rows 1 to 10). To show what they have in common, write a ```compare block:
+```compare
+{{"left": {{"figure": {left}, "boxes": [{{"from": "B3", "to": "D6", "label": "the encoder"}}]}},
+ "right": {{"paper": {paper}, "figure": {right}, "boxes": [{{"from": "C2", "to": "F5", "label": "the RNN encoder"}}]}},
+ "pairs": [{{"left": 1, "right": 1, "same": "turns the input into vectors"}}]}}
+```
+Boxes are numbered from 1 on each side; a pair joins a left box and a right box that do the same job. Rules: box
+only parts you can clearly see; pair only parts that truly play the same role (the same component, step or
+quantity), each box at most once; leave out anything you're unsure of; at most 6 pairs. If the two figures show
+different kinds of things, say so in words and write no pairs: a wrong match is worse than none."""
+
+
+def _library_paper(paper: dict, wanted: str) -> tuple[dict | None, list[str]]:
+    """The reader's paper whose title best matches `wanted` (not this one), or None and some titles to choose from."""
+    with db.connect() as conn:
+        rows = [dict(r) for r in conn.execute("select id, title from papers where id != ? and coalesce(archived, 0) = 0",
+                                              (paper["id"],))]
+    norm = lambda s: re.sub(r"[^a-z0-9 ]", "", (s or "").lower())
+    want = norm(wanted)
+    words = {w for w in want.split() if len(w) > 2}
+    scored = []
+    for r in rows:
+        title = norm(r["title"])
+        if title == want:
+            return r, []
+        if words:
+            share = len(words & set(title.split())) / len(words)
+            if share >= 0.6:
+                scored.append((share, r))
+    scored.sort(key=lambda x: -x[0])
+    if scored and (len(scored) == 1 or scored[0][0] > scored[1][0]):
+        return scored[0][1], []
+    return None, [r["title"] for _, r in scored[:6]] or [r["title"] for r in rows[:8]]
+
+
+def _side_by_side(left: bytes, right: bytes) -> bytes | None:
+    """Two figures next to each other under LEFT / RIGHT labels, the same height, for one look."""
+    try:
+        import io
+
+        from PIL import Image, ImageDraw
+        a, b = (Image.open(io.BytesIO(x)).convert("RGB") for x in (left, right))
+        h = max(a.height, b.height)
+        a, b = (im.resize((max(1, round(im.width * h / im.height)), h)) for im in (a, b))
+        sheet = Image.new("RGB", (a.width + b.width + 30, h + 36), "white")
+        sheet.paste(a, (0, 36))
+        sheet.paste(b, (a.width + 30, 36))
+        ink = ImageDraw.Draw(sheet)
+        ink.line([(a.width + 15, 0), (a.width + 15, h + 36)], fill=(120, 120, 120), width=3)
+        for x, word in ((6, "LEFT"), (a.width + 36, "RIGHT")):
+            ink.text((x, 8), word, fill=(0, 0, 0))
+        out = io.BytesIO()
+        sheet.save(out, "PNG")
+        return out.getvalue()
+    except Exception:
+        return None
+
+
+def compare_with_figure(paper: dict, own_figure: int, other_paper: str, other_figure: int) -> Result:
+    """This paper's figure next to a figure of another paper in the reader's library, to say what they share."""
+    from papers.ai import capabilities
+    mine = _figure(paper, "figure", int(own_figure))
+    if not mine:
+        tables = any(f["kind"] == "table" and f["number"] == int(own_figure) for f in figures.for_paper(paper["id"]))
+        return Result("Comparing works on figures only, not tables." if tables else f"Figure {own_figure} wasn't found in this paper.",
+                      f"Couldn't compare Figure {own_figure}")
+    other, choices = _library_paper(paper, other_paper)
+    if not other:
+        listing = "\n".join(f"- {t}" for t in choices) or "(none)"
+        return Result(f"No single paper in the reader's library matches “{other_paper}”. Ask again with one of these exact "
+                      f"titles, or ask the reader which paper they mean:\n{listing}", "Looked for the other paper")
+    theirs = _figure({"id": other["id"]}, "figure", int(other_figure))
+    if not theirs:
+        have = ", ".join(f"{'Table' if f['kind'] == 'table' else 'Figure'} {f['number']}" for f in figures.for_paper(other["id"]))
+        return Result(f"“{other['title']}” has no Figure {other_figure} (comparing works on figures, not tables). "
+                      f"It has: {have or 'no figures found in its PDF'}.", "Looked for the other figure")
+    about = (f"LEFT: Figure {mine['number']} of this paper: {mine['caption']}\n"
+             f"RIGHT: Figure {theirs['number']} of “{other['title']}”: {theirs['caption']}")
+    summary = f"Compared Figure {mine['number']} with Figure {theirs['number']} of “{other['title']}”"
+    if not can_see():
+        return Result(about + "\n\nYou were given the captions only, not the images: compare what the captions say, and "
+                      "don't draw boxes or pairs.", summary + " (captions only)")
+    read = lambda pid, f: (figures.folder(pid) / figures.image_name("figure", f["number"])).read_bytes()
+    left, right = read(paper["id"], mine), read(other["id"], theirs)
+    pointing = capabilities.allows("pointing")
+    if pointing:
+        left, right = figures.with_grid(left) or left, figures.with_grid(right) or right
+    image = _side_by_side(left, right)
+    if not image:
+        return Result(about + "\n\nThe images couldn't be shown together: compare in words.", summary + " (in words)")
+    if not pointing:
+        return Result(about + "\n\nCompare them in words; don't draw boxes.", summary, image=image)
+    return Result(about + COMPARING.format(left=mine["number"], right=theirs["number"], title=other["title"].replace('"', "'"),
+                                           paper=other["id"]), summary, image=image)
+
+
+def compared(steps: list[dict]) -> set[tuple[int, int, str]]:
+    """(this figure, other figure, other paper's title) for every comparison the model really looked at."""
+    found = set()
+    for s in steps:
+        m = re.match(r"Compared Figure (\d+) with Figure (\d+) of “(.+)”$", s.get("summary") or "")
+        if m and s.get("name") == "compare_with_figure":
+            found.add((int(m.group(1)), int(m.group(2)), m.group(3)))
+    return found
+
+
 def search_library(paper: dict, idea: str) -> Result:
     found = [c for c in index.candidates(idea, limit=6) if c["id"] != paper["id"]]
     if not found:
@@ -299,6 +409,14 @@ TOOLS = {
         "fn": look_at_figure, "label": "Looking at a figure",
         "description": "See one of the paper's figures or tables (the image, its caption and where the text mentions it).",
         "schema": _schema({"number": {"type": "integer"}, "kind": {"type": "string", "enum": ["figure", "table"]}}, ["number", "kind"]),
+    },
+    "compare_with_figure": {
+        "fn": compare_with_figure, "label": "Comparing two figures",
+        "description": "Put one of this paper's figures next to a figure of another paper in the reader's library, to "
+                       "show what they have in common (for example the same architecture drawn two ways). Figures only, "
+                       "not tables. Give the other paper's title as the reader's library has it.",
+        "schema": _schema({"own_figure": {"type": "integer"}, "other_paper": {"type": "string"},
+                           "other_figure": {"type": "integer"}}, ["own_figure", "other_paper", "other_figure"]),
     },
     "search_library": {
         "fn": search_library, "label": "Searching your library",
