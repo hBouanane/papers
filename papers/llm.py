@@ -97,19 +97,34 @@ def extract_references(section: str) -> list[dict]:
     return [r.model_dump() for r in ai.parse(prompt, References, effort="low").references]
 
 
+class KeyIdea(BaseModel):
+    title: str  # 2 to 5 words
+    text: str  # one or two sentences
+
+
+class KeyNumber(BaseModel):
+    value: str  # "85%", "1.3B vs 175B"
+    what: str  # what it means, in a short sentence
+
+
+class KeyFigure(BaseModel):
+    number: int  # 0 when no figure helps
+    why: str
+
+
 class Skim(BaseModel):
+    """The overview: what a reader sees before reading. Short and enjoyable, not a summary of every section; the
+    in-depth guide (TASKS["guide"]) is where the full lesson goes."""
     tldr: str
     problem: str
     key_idea: str
-    contributions: list[str]
-    method: str
-    results: list[str]
-    limitations: list[str]
-    figures: list[str]
-    questions: list[str]
-    reading_plan: list[str]
-    relevance: str
+    picture: str  # Mermaid flowchart of how it works
+    ideas: list[KeyIdea]
+    numbers: list[KeyNumber]
+    figure: KeyFigure
+    caveats: list[str]
     verdict: str
+    relevance: str
 
 
 class Word(BaseModel):
@@ -155,31 +170,32 @@ def define(paper: dict, term: str, context: str, language: str = "") -> dict:
 
 
 def skim(paper: dict, goal: str = "") -> dict:
-    """A first pass the way Andrew Ng teaches it: title, abstract and figures, then introduction,
-    conclusion and section headings, skipping related work and dense math. Written for a reader
-    whose first language may not be English, and shaped by what they are working on."""
+    """The overview a reader sees before reading: a great teacher's two-minute introduction, short and enjoyable.
+    Written for a reader whose first language may not be English, and shaped by what they are working on."""
+    from papers import figures
     prompt = (
-        f"{_paper_context(paper)}\n\n"
+        f"{_paper_context(paper)}\n\n{_figures_list(figures.known(paper['id']))}\n\n"
         + (f"<my_goal>{goal}</my_goal>\n\n" if goal else "")
-        + "Give me the first pass on this paper, as Andrew Ng recommends doing it: look at the title, "
-        "abstract and figures first, then the introduction, conclusion and section headings; skip related "
-        "work and dense math. I may not be a native English speaker, so write in plain, simple English: short "
-        "sentences, everyday words, technical terms only when needed (and say what they mean).\n\n"
+        + "Write the overview I see before reading this paper: what a great teacher says in the first two minutes, so I "
+        "get the point, see why it matters and want to read on. Short and enjoyable, never a list of everything. I may "
+        "not be a native English speaker: plain, simple English, short sentences, everyday words; a technical term only "
+        "when needed, and then say what it means.\n\n"
         "Fill in:\n"
-        "- tldr: what the paper does and why it matters, in two or three sentences a newcomer understands.\n"
-        "- problem: the problem it tackles and why earlier work falls short.\n"
+        "- tldr: two sentences: what the paper does and why it matters, for a newcomer.\n"
+        "- problem: two or three sentences on the problem, with one concrete everyday example that makes it felt "
+        "(for a training method: what a model did wrong before it).\n"
         "- key_idea: the one idea that makes it work, in one sentence.\n"
-        "- contributions: what is new, one sentence each.\n"
-        "- method: how it works, in a few sentences, with an intuition rather than equations.\n"
-        "- results: the main results, with the actual numbers and what they are compared against.\n"
-        "- limitations: weaknesses the authors admit, plus obvious ones they don't.\n"
-        "- figures: the figures and tables worth looking at first, each as 'Figure N: what it shows'.\n"
-        "- questions: 3 to 5 questions to keep in mind while reading, which the paper answers.\n"
-        "- reading_plan: the sections to read, in order, each as 'Section: why, about N minutes'; mark the "
-        "ones to read closely and the ones to skip.\n"
+        "- picture: how it works, as Mermaid flowchart code: 'flowchart LR', then 3 to 6 steps or parts, each label 2 "
+        "to 5 words in double quotes, joined by arrows; no styling, no subgraphs.\n"
+        "- ideas: the 3 to 5 key ideas to leave with, each a short title and one or two sentences of intuition, no "
+        "equations.\n"
+        "- numbers: up to 4 headline results from the paper, each a short value (\"85%\", \"1.3B vs 175B\") and what "
+        "it means in one short sentence; only numbers the paper reports; none if it has no results.\n"
+        "- figure: the one figure in <figures> to look at first and why, in one sentence; number 0 if none helps.\n"
+        "- caveats: one to three short things to keep in mind (limits the authors admit, or obvious ones).\n"
         "- relevance: " + ("how this paper helps with my goal, concretely; say so plainly if it doesn't."
                            if goal else "leave empty.") + "\n"
-        "- verdict: one line on whether to read it fully, skim it, or skip it, and why."
+        "- verdict: one line: read it fully, skim it, or skip it, and why."
     )
     return ai.parse(prompt, Skim).model_dump()
 
@@ -368,6 +384,33 @@ English in parentheses after its translation, and formulas as they are (in LaTeX
 {language} on what it means in this paper. No visuals.""",
     "ask": """Answer the question. Start with the direct answer in one or two sentences, then explain as much as the
 question needs, using the paper.""",
+    "guide": """Write the in-depth guide to this paper: the full lesson a patient expert teacher would give someone
+who wants to truly understand it, read in a reader of its own with a table of contents. Take the space it needs
+(this is the one place for length), but every paragraph must teach something: no filler, no repetition.
+Start directly with "## The problem": no title, no introduction, and don't narrate what you're about to look at.
+Use these "##" sections, in this order, leaving out one only when it truly doesn't apply (never number them; never add
+a vocabulary section, the reader has one already):
+## The problem
+Why the paper exists: the gap it closes, made concrete with an everyday example; what goes wrong without it.
+## What you need first
+Only the background this paper truly builds on, each piece briefly, with a tiny example. Skip what a newcomer to the
+field already knows.
+## The key insight
+The central idea and why it works, before any detail. A small diagram if it shows the structure.
+Then one "##" section per main part of the method, named after it (for a training pipeline, one per stage): what it
+is for, how it works step by step, each important formula as a ```math visual whose terms explain every symbol, then
+a worked example with small, real numbers, and why it's designed that way. Point at the paper's own figure where it
+shows what you explain (look at it first, then box exactly that part). A ```widget when playing with a number
+teaches it (for example how a loss changes with a score).
+## Experiments and results
+What they tested, against what, and the actual numbers (a small table or a ```chart), and what each result means.
+## What it shows, and what it doesn't
+The limits, honestly: a table "Claim | What the evidence supports" separating what is shown from what is not.
+## Since then
+Only what you are sure of: how later work built on it. Say clearly this is outside the paper.
+## Takeaways
+The ideas to remember, one line each, and the key formulas in a small table.
+Visuals: use them wherever they teach (about one per section), not only three. Cite the paper as you go.""",
 }
 FOLLOWUPS = ("After your answer, add a fenced block ```followups with two or three short questions (one per line, "
              "under 10 words each) the reader might want to ask next. Nothing after that block.")
@@ -399,7 +442,7 @@ def _turn(m: dict, language: str, last: bool) -> str:
             parts.append(task.format(language=language or "the reader's language") if kind == "translate" else task)
         else:
             parts.append(TASKS["ask"])
-        if kind != "translate":
+        if kind not in ("translate", "guide"):  # a guide is read in its own reader, without follow-ups
             parts.append(FOLLOWUPS)
     elif kind in ("explain", "simplify", "translate") and not m.get("content"):
         parts.append(f"({kind.capitalize()} this.)")

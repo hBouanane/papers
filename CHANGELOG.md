@@ -2,6 +2,19 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- **A new overview: the paper in two minutes**: instead of lists (reading plan, questions, contributions), a paper's
+  overview is now what a great teacher says first: two sentences on what it does and why it matters, the problem
+  with an everyday example, the one idea that makes it work drawn as steps, 3 to 5 key ideas, the headline numbers,
+  the one figure to look at first, and what to keep in mind. Papers prepared before keep their key points until
+  you Regenerate them.
+- **The in-depth guide**: "Explain it in depth" writes the full lesson on a paper: the problem, the background you
+  need, each part of the method with its formulas explained symbol by symbol and worked through with real numbers,
+  the paper's figures with the parts marked, the experiments, and what the results do and don't show. It opens in a
+  reader of its own: a contents list that follows you, a progress bar, "Next" at the end of each section, and ← →
+  to move between sections. Guides are kept with the paper, and any long answer in the chat can be opened there too.
+
 ## 0.4.0
 
 - **Explanations point at the figure**: when the passage you ask to explain refers to a figure ("shown in

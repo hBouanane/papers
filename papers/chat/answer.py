@@ -142,6 +142,11 @@ def only_seen_boxes(text: str, seen: set[tuple[str, int]]) -> str:
 FIGURE_NAMED = re.compile(r"\b(fig(?:ure)?|tab(?:le)?)\.?\s*(\d+)\b", re.I)
 
 
+def _can_use_tools() -> bool:
+    from papers.ai import capabilities
+    return capabilities.allows("tools")
+
+
 def about_a_figure(asked: dict, known: list[dict]) -> bool:
     """Whether the question is about one of the paper's figures or tables: the reader names it ("in Figure 1",
     "Fig. 2"), points at it, or asks to explain a passage that refers to it ("as shown in Figure 2"). Answering that
@@ -202,7 +207,8 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
     known = figures.known(paper["id"])
     model = providers.describe()  # shown under the answer: "Written by ..."
     # Deep mode: the agent uses tools while it answers. A question about a figure goes there too, to see it.
-    deep = asked["meta"].get("depth") == "deep" or about_a_figure(asked, known)
+    deep = asked["meta"].get("depth") == "deep" or about_a_figure(asked, known) or (
+        asked["kind"] == "guide" and providers.backend() != "codex" and _can_use_tools())
     steps: list[dict] = []
     actions: list[dict] = []
     if deep:

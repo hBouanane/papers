@@ -75,6 +75,12 @@ def notes(p: dict, goal: str | None, explanations: list[dict], parent: dict | No
                              ("Why it matters to me", "relevance"), ("Verdict", "verdict")):
             if s.get(key) and not (key == "verdict" and not s.get("tldr")):
                 lines += [f"**{heading}.** {s[key]}", ""]
+        if s.get("ideas"):
+            lines += ["**Key ideas**", *[f"- **{i['title']}.** {i['text']}" for i in s["ideas"]], ""]
+        if s.get("numbers"):
+            lines += ["**What it showed**", *[f"- **{n['value']}**: {n['what']}" for n in s["numbers"]], ""]
+        if s.get("caveats"):
+            lines += ["**Keep in mind**", *[f"- {c}" for c in s["caveats"]], ""]
         for heading, key in (("Contributions", "contributions"), ("Results", "results"), ("Limitations", "limitations"),
                              ("Figures to look at", "figures"), ("Questions to keep in mind", "questions"),
                              ("Reading plan", "reading_plan"), ("Read closely", "read_closely")):

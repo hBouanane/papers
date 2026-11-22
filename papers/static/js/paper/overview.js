@@ -169,6 +169,75 @@ export async function paperPage(id, stale, tab = "overview") {
 const preparingNote = (what) => `<div class="preparing"><span class="dot-pulse" aria-hidden="true"></span>
   <p>The AI is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
 
+// The overview: a great teacher's first two minutes, short and enjoyable (llm.skim). The full lesson is the in-depth
+// guide, read in its own reader (paper/guide.js). Older key points, written before this, keep the older layout.
+function renderStory(box, p, settings, s, redo, abstractFold) {
+  const guideCard = `<section class="ov-guide" id="ov-guide">
+      <div><h3>The full lesson</h3>
+        <p>The problem, the background you need, every step of the method with its formulas explained and worked
+          through with real numbers, the experiments, and what they do and don't show. In a reader of its own.</p></div>
+      <div class="ov-guide-actions" id="ov-guide-actions">${loading()}</div></section>`;
+  box.innerHTML = `<article class="ov">
+    ${s.tldr ? `<p class="ov-hook">${esc(s.tldr)}</p>` : ""}
+    <div class="ov-verdict">
+      <span class="ov-chip">${esc(s.verdict)}</span>
+      ${s.relevance ? `<p><strong>For your goal:</strong> ${esc(s.relevance)}</p>` : ""}
+    </div>
+    ${s.problem ? `<section class="ov-block"><h3>The problem</h3><p>${linkFigures(esc(s.problem))}</p></section>` : ""}
+    ${s.key_idea ? `<section class="ov-block ov-idea"><h3>The idea</h3><p class="ov-idea-text">${linkFigures(esc(s.key_idea))}</p>
+      ${s.picture ? `<div class="ov-picture" id="ov-picture"></div>` : ""}</section>` : ""}
+    ${s.ideas?.length ? `<section class="ov-block"><h3>Key ideas</h3><ol class="ov-ideas">${s.ideas.map((i, n) =>
+      `<li style="--i:${n}"><span class="ov-n num" aria-hidden="true">${n + 1}</span><div><strong>${esc(i.title)}</strong>
+        <p>${linkFigures(esc(i.text))}</p></div></li>`).join("")}</ol></section>` : ""}
+    ${s.numbers?.length ? `<section class="ov-block"><h3>What it showed</h3><div class="ov-numbers">${s.numbers.map((n) =>
+      `<div class="ov-number"><span class="ov-value">${esc(n.value)}</span><span>${esc(n.what)}</span></div>`).join("")}</div></section>` : ""}
+    ${s.figure?.number ? `<section class="ov-block ov-figure" id="ov-figure" data-n="${s.figure.number}"><h3>Look at this first</h3>
+      <div class="ov-figure-body"><span class="ov-figure-img">${loading()}</span>
+        <p><strong>Figure ${s.figure.number}.</strong> ${esc(s.figure.why)}</p></div></section>` : ""}
+    ${s.caveats?.length ? `<section class="ov-block ov-caveats"><h3>Keep in mind</h3><ul>${s.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}
+    ${p.text ? guideCard : ""}
+    ${abstractFold}
+    ${redo}
+  </article>`;
+  box.querySelector("#regenerate")?.addEventListener("click", (e) => box.dispatchEvent(new CustomEvent("regenerate", { detail: e.currentTarget })));
+  // The picture: how it works, step by step. A plain chain of steps (the usual case) is drawn as cards with arrows that
+  // wrap on a narrow page, so the words stay readable; anything with branches as a diagram, like the ones in answers.
+  const spot = box.querySelector("#ov-picture");
+  const code = s.picture || "";
+  const steps = [...code.matchAll(/\w+\s*\[\s*"([^"]+)"\s*\]/g)].map((m) => m[1].trim()).filter(Boolean);
+  const arrows = (code.match(/-->/g) || []).length;
+  if (spot && steps.length >= 2 && steps.length <= 8 && arrows === steps.length - 1 && !/subgraph/.test(code)) {
+    spot.classList.add("ov-steps");
+    spot.innerHTML = steps.map((t, i) => `<span class="ov-step" style="--i:${i}"><span class="num">${i + 1}</span>${esc(t)}</span>`)
+      .join(`<span class="ov-arrow" aria-hidden="true">→</span>`);
+  } else if (spot) import("../chat/render.js").then(async ({ renderAnswer, drawVisuals }) => {
+    spot.innerHTML = renderAnswer("```diagram\n" + code + "\n```");
+    await drawVisuals(spot).catch(() => {});
+    if (spot.querySelector(".visual-failed")) spot.remove(); // a diagram the model got wrong: the words are enough
+  });
+  // The figure to look at first: its picture, opening large on a click.
+  const figBox = box.querySelector("#ov-figure");
+  if (figBox) api(`/papers/${p.id}/figures`).then((list) => {
+    const f = list.find((x) => x.kind === "figure" && x.number === Number(figBox.dataset.n));
+    const img = figBox.querySelector(".ov-figure-img");
+    if (!f) { figBox.remove(); return; }
+    img.innerHTML = `<button type="button" class="ov-figure-open" title="Open it large"><img src="${f.url}" alt="${esc(f.caption)}"></button>`;
+    img.querySelector("button").onclick = () => showFigure(p, f);
+  }).catch(() => figBox.remove());
+  // The in-depth guide: open the last one, or write one.
+  const actions = box.querySelector("#ov-guide-actions");
+  if (actions) api(`/papers/${p.id}/guides`).then((guides) => {
+    const last = guides[0];
+    const canWrite = settings.ai_ready;
+    actions.innerHTML = last
+      ? `<a class="button" href="#/papers/${p.id}/guide/${last.id}">Open the guide</a>
+         <span class="hint">${Math.max(1, Math.round(last.words / 220))} min read${canWrite ? ` · <a href="#/papers/${p.id}/guide/new">Write a new one</a>` : ""}</span>`
+      : canWrite ? `<a class="button" href="#/papers/${p.id}/guide/new">Explain it in depth</a>
+         <span class="hint">Written by ${esc(settings.ai_name)}; takes a few minutes.</span>`
+      : `<span class="hint">Choose an AI model in <a href="#/settings">Settings</a> to get it.</span>`;
+  }).catch(() => actions.remove());
+}
+
 function renderOverview(box, p, settings, regenerate) {
   const s = p.skim;
   const abstractFirst = p.paper_abstract ? `<section class="abstract-first">
@@ -189,8 +258,9 @@ function renderOverview(box, p, settings, regenerate) {
   const abstract = "";
   if (!s) {
     box.innerHTML = p.preparing ? `${abstractFirst}${preparingNote("its key points")}`
-      : settings.ai_ready && p.text ? `${abstractFirst}<h2>Key points</h2><p class="hint">A first pass on the paper in plain English, before you read it.</p>
-          <button class="button" id="skim-btn">Get key points</button>${abstract}`
+      : settings.ai_ready && p.text ? `${abstractFirst}<h2>Overview</h2><p class="hint">The paper in two minutes: the problem, the idea, the
+          key ideas and what it showed, in plain English, before you read it.</p>
+          <button class="button" id="skim-btn">Get the overview</button>${abstract}`
       : `<p class="hint">${p.text ? `Choose an AI model in <a href="#/settings">Settings</a> to get key points, words and questions.`
           : "Upload the PDF to get key points."}</p>${abstractFirst}`;
     box.querySelector("#skim-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Reading the paper…", async () => {
@@ -199,8 +269,25 @@ function renderOverview(box, p, settings, regenerate) {
     }));
     return;
   }
-  // Older key points have fewer fields; show what's there.
+  if (s.ideas) { // the overview as it's written now
+    const abstractFold = p.paper_abstract ? `<details class="fold ov-abstract"><summary>The paper's abstract</summary>
+      <p class="fold-text">${esc(p.paper_abstract)}</p></details>` : "";
+    renderStory(box, p, settings, s, redo, abstractFold);
+    box.addEventListener("regenerate", (e) => regenerate(e.detail));
+    box.addEventListener("click", async (e) => {
+      const link = e.target.closest(".fig-link");
+      if (!link) return;
+      const items = await busy(link, "", () => api(`/papers/${p.id}/figures`));
+      const item = items?.find((f) => f.kind === link.dataset.kind && f.number === Number(link.dataset.n));
+      if (item) showFigure(p, item);
+      else toast(`${link.textContent} couldn't be cut out of the PDF; it's in the paper itself.`);
+    });
+    return;
+  }
+  // Older key points have fewer fields; show what's there, and say how to get the new overview.
   box.innerHTML = `${abstractFirst}<h2 class="key-points-head">Key points</h2>
+    ${settings.ai_ready && p.text ? `<p class="hint">Written before the new overview. <strong>Regenerate</strong> below for the
+      short version with its key ideas, and the in-depth guide.</p>` : ""}
     ${s.tldr ? `<p class="tldr">${esc(s.tldr)}</p>` : ""}
     <div class="callouts">
       <div class="callout"><span class="callout-label">Verdict</span><p>${esc(s.verdict)}</p></div>

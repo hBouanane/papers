@@ -91,6 +91,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       <div class="thinking-text">${esc(m.thinking)}</div></details>` : "");
   const actionsHtml = (m, last) => `<div class="msg-actions">
       ${iconButton("copy", "Copy", { attrs: 'data-act="copy"' })}
+      ${m.kind === "guide" || (m.content || "").length > 2500 ? iconButton("expand", "Read it in the guide view", { attrs: 'data-act="guide"' }) : ""}
       ${last ? iconButton("retry", "Try again", { attrs: 'data-act="retry"' }) : ""}
       ${iconButton("note", "Save as a note", { attrs: 'data-act="note"' })}
       ${canSpeak() ? iconButton("listen", "Listen", { attrs: 'data-act="listen"' }) : ""}
@@ -313,6 +314,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     if (act === "deeper") return send("ask", DEEPER, [], "deep");
     if (!m) return;
     if (act === "copy") { await navigator.clipboard?.writeText(m.content).catch(() => {}); return toast("Copied."); }
+    if (act === "guide") { location.hash = `#/papers/${paperId}/guide/${m.id}`; return; }
     if (act === "listen") return speaking() ? stopSpeaking() : speak(m.content.replace(/```[\s\S]*?```/g, ""));
     if (act === "note") {
       const asked = current.messages[current.messages.indexOf(m) - 1];

@@ -1,0 +1,98 @@
+/* The overview (paper/overview.js renderStory) and the in-depth guide's reader (paper/guide.js). */
+
+/* ---------- The overview: short and enjoyable ---------- */
+.ov { display: grid; gap: 26px; }
+.ov-hook { font-family: var(--paper); font-size: 23px; line-height: 1.5; color: var(--heading); text-wrap: pretty; margin: 0; }
+.ov-verdict { display: grid; gap: 8px; justify-items: start; }
+.ov-chip { display: inline-block; padding: 6px 14px; border-radius: 999px; background: var(--ink-tint); color: var(--ink);
+  font-weight: 700; font-size: 14px; line-height: 1.4; }
+.ov-verdict p { margin: 0; color: var(--graphite); }
+.ov-block h3 { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); margin: 0 0 10px; }
+.ov-block > p { font-family: var(--paper); font-size: 17px; line-height: 1.65; color: var(--graphite); margin: 0; max-width: 70ch; }
+.ov-idea { padding: 18px 20px; border-radius: 14px; background: var(--ink-tint); }
+.ov-idea h3 { color: var(--ink); }
+.ov-idea-text { font-family: var(--paper); font-size: 20px !important; line-height: 1.5; color: var(--heading) !important; margin: 0; }
+.ov-picture { margin-top: 14px; padding: 10px; border-radius: 10px; background: var(--sheet); overflow-x: auto; }
+.ov-picture .visual { margin: 0; }
+.ov-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; padding: 14px; }
+.ov-step { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--ink);
+  background: var(--raised); color: var(--heading); font-family: Virgil, var(--ui); font-size: 16px; line-height: 1.3;
+  animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * .07s); }
+.ov-step .num { font-family: var(--ui); font-size: 12px; font-weight: 800; color: var(--ink); }
+.ov-arrow { color: var(--ink); font-size: 20px; font-weight: 700; }
+.ov-ideas { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.ov-ideas li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 14px 16px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--sheet); animation: rise-in .5s cubic-bezier(.2, .8, .2, 1) both;
+  animation-delay: calc(var(--i) * .06s); }
+.ov-ideas strong { color: var(--heading); }
+.ov-ideas p { margin: 4px 0 0; color: var(--graphite); font-size: 15px; line-height: 1.55; }
+.ov-n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--ink-fill); color: var(--on-ink);
+  font-weight: 800; font-size: 14px; }
+.ov-numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.ov-number { display: grid; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--sheet); }
+.ov-value { font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+.ov-number span:last-child { color: var(--graphite); font-size: 14px; line-height: 1.45; }
+.ov-figure-body { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px; align-items: center; }
+.ov-figure-body p { margin: 0; color: var(--graphite); line-height: 1.55; }
+.ov-figure-open { display: block; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; cursor: zoom-in; }
+.ov-figure-open img { display: block; width: 100%; }
+.ov-caveats ul { margin: 0; padding-left: 20px; color: var(--graphite); display: grid; gap: 4px; }
+.ov-guide { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; padding: 20px 22px;
+  border-radius: 14px; background: var(--ink-fill); color: var(--on-ink); }
+.ov-guide h3 { margin: 0 0 4px; font-size: 19px; color: var(--on-ink); }
+.ov-guide p { margin: 0; max-width: 58ch; opacity: .9; line-height: 1.5; }
+.ov-guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ov-guide .button { background: #fff; color: #1d3fbb; }
+.ov-guide .button:hover { background: #eef2ff; color: #16309a; }
+.ov-guide .hint, .ov-guide .hint a { color: var(--on-ink); opacity: .85; }
+.ov-guide .loading { color: var(--on-ink); }
+@media (max-width: 640px) { .ov-figure-body { grid-template-columns: 1fr; } .ov-hook { font-size: 20px; } }
+
+/* ---------- The guide's reader ---------- */
+.guide-progress { position: fixed; top: 56px; left: 0; right: 0; height: 3px; z-index: 30; background: transparent; }
+.guide-progress span { display: block; height: 100%; width: 0; background: var(--ink); transition: width .15s linear; }
+.guide-page { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 48px; align-items: start; padding-top: 28px; padding-bottom: 80px; }
+.guide-side { position: sticky; top: 76px; display: grid; gap: 10px; max-height: calc(100vh - 96px); overflow: auto; padding-right: 4px; }
+.guide-kicker { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+.guide-paper { font-family: var(--paper); font-size: 17px; line-height: 1.35; color: var(--heading); text-decoration: none; }
+.guide-paper:hover { color: var(--ink); }
+.guide-meta { margin: 0; }
+.guide-toc ol { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 2px; border-left: 2px solid var(--line); }
+.guide-toc a { display: grid; grid-template-columns: 22px 1fr; gap: 6px; padding: 6px 10px; margin-left: -2px; border-left: 2px solid transparent;
+  color: var(--pencil); text-decoration: none; font-size: 14px; line-height: 1.35; transition: color .15s, border-color .15s; }
+.guide-toc a:hover { color: var(--heading); }
+.guide-toc a.is-here { color: var(--ink); border-left-color: var(--ink); font-weight: 700; }
+.guide-toc .num { opacity: .7; }
+.guide-side-actions { display: grid; gap: 6px; justify-items: start; margin-top: 8px; }
+.guide-doc { max-width: 74ch; font-family: var(--paper); font-size: 18px; line-height: 1.75; color: var(--graphite); min-width: 0; }
+.guide-doc h2 { font-family: var(--ui); font-size: 28px; line-height: 1.25; color: var(--heading); margin: 64px 0 18px; scroll-margin-top: 80px;
+  padding-top: 26px; border-top: 1px solid var(--line); }
+.guide-doc h2::before { content: attr(data-n); display: block; font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--ink); margin-bottom: 4px; }
+.guide-doc h2:first-of-type { margin-top: 0; border-top: 0; padding-top: 0; }
+.guide-doc h3 { font-family: var(--ui); font-size: 20px; color: var(--heading); margin: 34px 0 10px; }
+.guide-doc p, .guide-doc li { text-wrap: pretty; }
+.guide-doc table { font-family: var(--ui); font-size: 15px; }
+.guide-doc .visual { margin: 22px 0; font-family: var(--ui); }
+.guide-next { margin: 34px 0 0; font-family: var(--ui); }
+.guide-next-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--sheet); color: var(--heading); font: 600 15px/1.3 var(--ui); cursor: pointer; transition: border-color .15s, color .15s; }
+.guide-next-btn:hover { border-color: var(--ink); color: var(--ink); }
+.guide-writing { display: grid; gap: 8px; justify-items: start; padding: 24px; border-radius: 14px; background: var(--sheet); font-family: var(--ui); }
+.guide-writing p { margin: 0; }
+@media (max-width: 900px) {
+  .guide-page { grid-template-columns: 1fr; gap: 16px; }
+  .guide-side { position: static; max-height: none; }
+  .guide-keys { display: none; }
+  .guide-doc { font-size: 17px; }
+}
+
+/* The contents list: always open beside the guide; on a phone, folded under "Contents" so the guide starts at once. */
+.guide-toc-fold > summary { display: none; }
+@media (max-width: 900px) {
+  .guide-toc-fold > summary { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--sheet); font-weight: 700; color: var(--heading); cursor: pointer; list-style: none; }
+  .guide-toc-fold > summary::-webkit-details-marker { display: none; }
+  .guide-toc-fold > summary::after { content: "▾"; color: var(--pencil); }
+  .guide-toc-fold[open] > summary::after { content: "▴"; }
+  .guide-toc-fold .guide-toc { margin-top: 8px; }
+}

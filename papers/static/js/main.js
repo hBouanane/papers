@@ -4,6 +4,7 @@ import { libraryPage } from "./pages/library.js";
 import { mapPage } from "./pages/map.js";
 import { recallPage } from "./pages/recall.js";
 import { settingsPage } from "./pages/settings.js";
+import { guidePage } from "./paper/guide.js";
 import { paperPage } from "./paper/overview.js";
 import { readerPage } from "./paper/reader.js";
 import { quizPage } from "./paper/review.js";
@@ -16,6 +17,7 @@ const routes = [
   [/^\/papers\/(\d+)$/, paperPage, "library"],
   [/^\/papers\/(\d+)\/read$/, readerPage, "library"],
   [/^\/papers\/(\d+)\/quiz$/, quizPage, "library"],
+  [/^\/papers\/(\d+)\/guide\/(\d+|new)$/, guidePage, "library"],
   [/^\/recall$/, recallPage, "recall"],
   [/^\/map$/, mapPage, "map"],
   [/^\/settings$/, settingsPage, "settings"],

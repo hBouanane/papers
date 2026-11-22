@@ -21,7 +21,7 @@ class Attachment(BaseModel):
 
 
 class MessageIn(BaseModel):
-    kind: Literal["ask", "explain", "simplify", "translate"] = "ask"
+    kind: Literal["ask", "explain", "simplify", "translate", "guide"] = "ask"
     depth: Literal["quick", "deep"] = "quick"  # deep: the agent uses tools while it answers
     content: str = Field("", max_length=8000)
     attachments: list[Attachment] = []
@@ -70,6 +70,22 @@ def list_conversations(paper_id: int, limit: int = 1000, offset: int = 0):
     """History, newest first; `limit` and `offset` page through it."""
     get_paper(paper_id)
     return store.list_for(paper_id, limit=min(max(limit, 1), 1000), offset=max(offset, 0))
+
+
+@router.get("/papers/{paper_id}/guides")
+def list_guides(paper_id: int):
+    """The paper's in-depth guides, newest first."""
+    get_paper(paper_id)
+    return store.guides_for(paper_id)
+
+
+@router.get("/papers/{paper_id}/messages/{message_id}")
+def read_message(paper_id: int, message_id: int):
+    """One answer, to show in the guide reader (an in-depth guide, or any long answer opened there)."""
+    m = store.get_message(message_id)
+    if not m or m["role"] != "assistant" or store.paper_of(message_id) != paper_id:
+        raise HTTPException(404, "That answer isn't on this paper.")
+    return m
 
 
 @router.post("/papers/{paper_id}/conversations/start")
