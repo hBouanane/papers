@@ -5,7 +5,7 @@ from papers import ai, figures
 from papers.agent import loop as agent
 
 ANSWER = ('```figure\n{"figure": 1, "boxes": [{"from": "B5", "to": "E8", "label": "the encoder"}, '
-          '{"from": "F3", "to": "I8", "label": "the decoder"}, {"from": "A1", "to": "J10", "label": "everything"}]}\n```')
+          '{"from": "F3", "to": "I8", "label": "the decoder"}, {"from": "A1", "to": "T20", "label": "everything"}]}\n```')
 
 
 @pytest.fixture

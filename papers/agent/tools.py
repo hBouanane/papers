@@ -162,12 +162,13 @@ def look_at_figure(paper: dict, number: int, kind: str = "figure") -> Result:
 
 POINTING = """
 
-The image has a grid drawn over it, for you only (the reader sees the figure without it): columns A to J from left to
-right, rows 1 to 10 from top to bottom, each cell named in its corner. To point at a part of the figure, name the
-cells it covers in a ```figure block: "from" is the cell at its top-left corner, "to" the cell at its bottom-right
-corner, for example {"figure": 1, "boxes": [{"from": "B3", "to": "E5", "label": "the encoder stack"}]}. Read the cell
-names off the image; cover the whole part and nothing else. If you can't tell exactly where a part is, leave the
-box out."""
+The image has a grid drawn over it like a chessboard, for you only (the reader sees the figure without it): columns
+A to T, lettered along the top and bottom edges; rows 1 to 20, numbered down the left and right edges; every fifth
+line is darker. A cell is its column and row, like C7. To point at a part of the figure, name the cells it covers in a
+```figure block: "from" is the cell at its top-left corner, "to" the cell at its bottom-right corner, for example
+{"figure": 1, "boxes": [{"from": "C5", "to": "H11", "label": "the encoder stack"}]}. Read the letter above or below
+the part and the number beside it from the edges; cover the whole part and nothing else. If you can't tell exactly
+where a part is, leave the box out."""
 
 
 def can_see() -> bool:
@@ -189,10 +190,11 @@ def seen(steps: list[dict]) -> set[tuple[str, int]]:
 COMPARING = """
 
 The image shows both figures side by side: LEFT is Figure {left} of this paper, RIGHT is Figure {right} of "{title}".
-Each has its own grid (columns A to J, rows 1 to 10). To show what they have in common, write a ```compare block:
+Each has its own chessboard grid: columns A to T lettered along its top and bottom edges, rows 1 to 20 numbered down
+its sides, every fifth line darker; a cell is its column and row, like C7. To show what they share, write:
 ```compare
-{{"left": {{"figure": {left}, "boxes": [{{"from": "B3", "to": "D6", "label": "the encoder"}}]}},
- "right": {{"paper": {paper}, "figure": {right}, "boxes": [{{"from": "C2", "to": "F5", "label": "the RNN encoder"}}]}},
+{{"left": {{"figure": {left}, "boxes": [{{"from": "C5", "to": "H11", "label": "the encoder"}}]}},
+ "right": {{"paper": {paper}, "figure": {right}, "boxes": [{{"from": "B3", "to": "K9", "label": "the RNN encoder"}}]}},
  "pairs": [{{"left": 1, "right": 1, "same": "turns the input into vectors"}}]}}
 ```
 Boxes are numbered from 1 on each side; a pair joins a left box and a right box that do the same job. Rules: box
@@ -412,9 +414,10 @@ TOOLS = {
     },
     "compare_with_figure": {
         "fn": compare_with_figure, "label": "Comparing two figures",
-        "description": "Put one of this paper's figures next to a figure of another paper in the reader's library, to "
-                       "show what they have in common (for example the same architecture drawn two ways). Figures only, "
-                       "not tables. Give the other paper's title as the reader's library has it.",
+        "description": "Only when the reader asks to compare: put one of this paper's figures next to a figure of "
+                       "another paper in the reader's library, to show what they have in common (for example the same "
+                       "architecture drawn two ways). Figures only, not tables. Give the other paper's title as the "
+                       "reader's library has it.",
         "schema": _schema({"own_figure": {"type": "integer"}, "other_paper": {"type": "string"},
                            "other_figure": {"type": "integer"}}, ["own_figure", "other_paper", "other_figure"]),
     },

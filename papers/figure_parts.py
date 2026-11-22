@@ -1,6 +1,6 @@
 """What's where in a figure, for the figure quiz in Recall.
 
-`parts(paper, kind, number)`: the figure's main parts as boxes on its 10 x 10 grid ({label, from, to}). The Deep
+`parts(paper, kind, number)`: the figure's main parts as boxes on the pointing grid ({label, from, to, grid}). The Deep
 agent is asked to look at the figure and box them, the same way it does in an answer, so it works with every model
 that can use tools and see images. Found once per figure, then kept.
 """
@@ -57,7 +57,7 @@ def parts(paper_id: int, kind: str, number: int) -> list[dict]:
             continue
         if isinstance(spec, dict) and int(spec.get(kind) or 0) == number:
             boxes = tidy_boxes(spec.get("boxes"))
-    found = [{"label": str(b.get("label") or "").strip()[:60], "from": b["from"], "to": b.get("to") or b["from"]}
+    found = [{"label": str(b.get("label") or "").strip()[:60], "from": b["from"], "to": b.get("to") or b["from"], "grid": figures.GRID}
              for b in boxes if str(b.get("label") or "").strip()]
     if len(found) < 2:
         raise NoParts(f"The model couldn't name enough parts of {name}.")

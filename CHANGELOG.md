@@ -4,6 +4,11 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Explanations point at the figure**: when the passage you ask to explain refers to a figure ("shown in
+  Figure 1"), the AI looks at that figure and marks the part the passage is about, right in the explanation.
+- **Sharper boxes on figures**: the grid the AI points with is now like a chessboard, with names only along the
+  edges and squares twice as fine, so boxes fit the part they mark much more closely. Older answers keep their boxes.
+- **Comparing figures only when you ask**: the AI no longer offers comparisons on its own.
 - **Compare figures across papers, in Deep mode**: ask "compare Figure 1 with Figure 1 of <another paper>" and the AI
   looks at both side by side, then shows them next to each other with the parts that do the same job in the same
   colour. It works on figures only (not tables), asks which paper you mean when the title is unclear, and a

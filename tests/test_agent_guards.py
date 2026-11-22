@@ -11,8 +11,8 @@ from papers.chat import answer
 
 
 def test_boxes_must_point_at_a_part():
-    boxes = [{"from": "B5", "to": "E8", "label": "encoder"}, {"from": "A1", "to": "J10", "label": "everything"},
-             {"from": "E8", "to": "B5", "label": "encoder again"}, {"from": "K12", "to": "L2", "label": "off the grid"},
+    boxes = [{"from": "B5", "to": "E8", "label": "encoder"}, {"from": "A1", "to": "T20", "label": "everything"},
+             {"from": "E8", "to": "B5", "label": "encoder again"}, {"from": "U21", "to": "L2", "label": "off the grid"},
              {"from": "F3", "to": "I8", "label": "decoder"}, *[{"from": f"{c}1", "to": f"{c}1"} for c in "ABCDEFGH"]]
     kept = answer.tidy_boxes(boxes)
     assert [b.get("label") for b in kept[:2]] == ["encoder", "decoder"] and len(kept) == answer.MOST_BOXES
@@ -54,7 +54,7 @@ def test_the_pointing_check(server, monkeypatch):
     server["handle"] = lambda body: says("C4 to D5")
     assert capabilities.points_at()["ok"] is True
     picks = iter([2, 3, 2])
-    server["handle"] = lambda body: says("A1 to J10")
+    server["handle"] = lambda body: says("A1 to T20")
     assert capabilities.points_at()["ok"] is False
 
 
@@ -89,3 +89,28 @@ def test_reading_times_stay_believable(client, monkeypatch):
     monkeypatch.setattr(roadmap, "plan_with_ai", lambda goal, found: plan)
     goal = client.post("/api/topics", json={"goal": "g"}).json()["id"]
     assert client.post(f"/api/topics/{goal}/roadmap").json()["stages"][0]["items"][0]["minutes"] == 240
+
+
+def test_the_grid_is_a_chessboard():
+    """Names only along the edges, so the squares can be small; cells read with the grid a box was made on."""
+    import io
+
+    from PIL import Image
+
+    from papers import figures
+    out = io.BytesIO()
+    Image.new("RGB", (400, 300), "white").save(out, "PNG")
+    sheet = Image.open(io.BytesIO(figures.with_grid(out.getvalue())))
+    assert sheet.width > 1000  # enlarged so 20 columns stay apart, with room for the names on all four edges
+    assert figures.cell("T20") == (19, 19) and figures.cell("U1") is None and figures.cell("J10", 10) == (9, 9)
+    assert figures.cell("K12", 10) is None  # an old 10 x 10 answer has no K12
+
+
+def test_a_passage_that_refers_to_a_figure_is_explained_with_it(monkeypatch):
+    from papers.ai import providers
+    monkeypatch.setattr(providers, "backend", lambda: "openai")
+    known = [{"kind": "figure", "number": 2}]
+    asked = {"content": "", "meta": {"attachments": [{"label": "§3.2", "text": "The encoder, as shown in Figure 2, stacks six layers."}]}}
+    assert answer.about_a_figure(asked, known)  # Deep, so the answer can box the part of Figure 2 it explains
+    plain = {"content": "", "meta": {"attachments": [{"label": "§3.2", "text": "The encoder stacks six layers."}]}}
+    assert not answer.about_a_figure(plain, known)

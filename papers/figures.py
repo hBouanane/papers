@@ -230,43 +230,55 @@ def image_name(kind: str, number: int) -> str:
 
 
 # ---------- A grid for the model to point with ----------
+# Like a chessboard: columns lettered along the top and bottom edges, rows numbered down both sides, and nothing
+# written inside the squares, so the figure stays readable and the squares can be small. Every fifth line is darker,
+# like graph paper, so the model can count along. A cell is its column and row: "C7". Older answers were made on a
+# 10 x 10 grid with every cell named; boxes say which grid they used ("grid"), and those without say 10.
+GRID = 20  # columns A–T, rows 1–20
+COLUMNS = "ABCDEFGHIJKLMNOPQRST"
+OLD_GRID = 10
 
-GRID = 10  # columns A–J, rows 1–10
-COLUMNS = "ABCDEFGHIJ"
+
+def cell(name: str, grid: int = GRID) -> tuple[int, int] | None:
+    """A cell's (column, row), counted from 0, or None if it isn't a cell of this grid ("K12" on a 10 x 10 grid)."""
+    import re
+    m = re.fullmatch(r"\s*([A-Za-z])(\d{1,2})\s*", str(name or ""))
+    if not m:
+        return None
+    col, row = ord(m.group(1).upper()) - 65, int(m.group(2)) - 1
+    return (col, row) if 0 <= col < grid and 0 <= row < grid else None
 
 
 def with_grid(png: bytes) -> bytes | None:
-    """The figure with a lettered grid drawn over it, for the model only: it names cells ("C4") to point at a part,
-    which it does far better than guessing coordinates. None if the image can't be drawn on."""
+    """The figure with a chessboard grid over it, for the model only: it names cells ("C7") to point at a part, which
+    it does far better than guessing coordinates. None if the image can't be drawn on."""
     try:
         from PIL import Image, ImageDraw, ImageFont
         picture = Image.open(io.BytesIO(png)).convert("RGB")
-        if picture.width < 700:  # small cut-outs: enlarge so the cell names stay readable
-            scale = 700 / picture.width
-            picture = picture.resize((700, max(1, round(picture.height * scale))))
+        if picture.width < 1000:  # small cut-outs: enlarge so 20 columns stay wide enough to tell apart
+            scale = 1000 / picture.width
+            picture = picture.resize((1000, max(1, round(picture.height * scale))))
         w, h = picture.size
-        left, top = 34, 28
-        sheet = Image.new("RGB", (w + left, h + top), "white")
-        sheet.paste(picture, (left, top))
+        side, edge = 34, 28  # room for the row numbers (left, right) and the column letters (top, bottom)
+        sheet = Image.new("RGB", (w + 2 * side, h + 2 * edge), "white")
+        sheet.paste(picture, (side, edge))
         ink = ImageDraw.Draw(sheet, "RGBA")
         try:
-            big, small = ImageFont.load_default(size=18), ImageFont.load_default(size=12)
+            font = ImageFont.load_default(size=17)
         except TypeError:  # an older Pillow: one fixed size
-            big = small = ImageFont.load_default()
-        line, name = (220, 0, 120, 110), (200, 0, 110, 255)
+            font = ImageFont.load_default()
+        thin, thick, name = (220, 0, 120, 70), (220, 0, 120, 170), (200, 0, 110, 255)
         for i in range(GRID + 1):
-            x, y = left + round(w * i / GRID), top + round(h * i / GRID)
-            ink.line([(x, top), (x, top + h)], fill=line, width=1)
-            ink.line([(left, y), (left + w, y)], fill=line, width=1)
+            x, y = side + round(w * i / GRID), edge + round(h * i / GRID)
+            colour, width = (thick, 2) if i % 5 == 0 else (thin, 1)
+            ink.line([(x, edge), (x, edge + h)], fill=colour, width=width)
+            ink.line([(side, y), (side + w, y)], fill=colour, width=width)
         for i in range(GRID):
-            ink.text((left + w * (i + .5) / GRID - 5, 4), COLUMNS[i], fill=name, font=big)
-            ink.text((6 if i < 9 else 2, top + h * (i + .5) / GRID - 10), str(i + 1), fill=name, font=big)
-        for r in range(GRID):
-            for c in range(GRID):
-                x, y = left + w * c / GRID + 3, top + h * r / GRID + 2
-                label = f"{COLUMNS[c]}{r + 1}"
-                ink.rectangle([x - 1, y, x + 7 * len(label) + 1, y + 13], fill=(255, 255, 255, 170))
-                ink.text((x, y), label, fill=(200, 0, 110, 200), font=small)
+            cx, cy = side + w * (i + .5) / GRID, edge + h * (i + .5) / GRID
+            for y in (5, edge + h + 5):  # the letters above and below
+                ink.text((cx - 5, y), COLUMNS[i], fill=name, font=font)
+            for x in (4, side + w + 4):  # the numbers on both sides
+                ink.text((x + (5 if i < 9 else 0), cy - 9), str(i + 1), fill=name, font=font)
         out = io.BytesIO()
         sheet.save(out, "PNG")
         return out.getvalue()
