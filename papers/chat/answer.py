@@ -32,36 +32,34 @@ def split_followups(text: str) -> tuple[str, list[str]]:
 FIGURE = re.compile(r"```figure[ \t]*\n(.*?)```", re.S)
 
 
-CELL = re.compile(r"^([A-Ja-j])(10|[1-9])$")
 MOST_BOXES = 6
 
 
-def _area(box: dict) -> tuple[int, int, int, int] | None:
-    """A box's cells as (col0, row0, col1, row1), or None when it names no real cell."""
-    a, z = CELL.match(str(box.get("from", "")).strip()), CELL.match(str(box.get("to") or box.get("from", "")).strip())
+def _area(box: dict, grid: int = figures.GRID) -> tuple[int, int, int, int] | None:
+    """A box's cells as (col0, row0, col1, row1), or None when it names no real cell of the grid."""
+    a, z = figures.cell(box.get("from"), grid), figures.cell(box.get("to") or box.get("from"), grid)
     if not (a and z):
         return None
-    cols = sorted(ord(m.group(1).upper()) - 65 for m in (a, z))
-    rows = sorted(int(m.group(2)) - 1 for m in (a, z))
+    cols, rows = sorted((a[0], z[0])), sorted((a[1], z[1]))
     return cols[0], rows[0], cols[1], rows[1]
 
 
-def tidy_boxes(boxes: list) -> list:
+def tidy_boxes(boxes: list, grid: int = figures.GRID) -> list:
     """Boxes that point at something: real cells, not most of the figure, no near-duplicates, at most six. A weak
     model draws one box around everything, or the same part three times."""
-    return [b for _, b in _tidy_numbered(boxes)]
+    return [b for _, b in _tidy_numbered(boxes, grid)]
 
 
-def _tidy_numbered(boxes: list) -> list[tuple[int, dict]]:
+def _tidy_numbered(boxes: list, grid: int = figures.GRID) -> list[tuple[int, dict]]:
     """tidy_boxes, keeping each kept box's position in the model's list (pairs refer to boxes by number)."""
     kept, areas = [], []
     for i, b in enumerate(boxes if isinstance(boxes, list) else []):
-        area = _area(b) if isinstance(b, dict) else None
+        area = _area(b, grid) if isinstance(b, dict) else None
         if not area:
             continue
         c0, r0, c1, r1 = area
         size = (c1 - c0 + 1) * (r1 - r0 + 1)
-        if size > 70:  # more than 70 of the 100 cells: that's the whole figure, not a part of it
+        if size > .7 * grid * grid:  # more than 70% of the figure: that's the whole of it, not a part
             continue
         same = any(max(0, min(c1, d1) - max(c0, d0) + 1) * max(0, min(r1, e1) - max(r0, e0) + 1) / max(size, (d1 - d0 + 1) * (e1 - e0 + 1)) > .8
                    for d0, e0, d1, e1 in areas)
@@ -112,7 +110,7 @@ def checked_compares(text: str, compared: set[tuple[int, int, str]]) -> str:
                 pairs.append({"left": a, "right": b, "same": str(p.get("same") or "").strip()[:80]})
         out = {"left": {"figure": key[0], "boxes": [b for _, b in lefts]},
                "right": {"paper": int(right["paper"]), "figure": key[1], "boxes": [b for _, b in rights]},
-               "pairs": pairs[:MOST_PAIRS]}
+               "pairs": pairs[:MOST_PAIRS], "grid": figures.GRID}
         return "```compare\n" + json.dumps(out) + "\n```"
     return COMPARE.sub(check, text)
 
@@ -134,6 +132,7 @@ def only_seen_boxes(text: str, seen: set[tuple[str, int]]) -> str:
             number = -1
         if (kind, number) in seen:
             spec["boxes"] = tidy_boxes(spec["boxes"])
+            spec["grid"] = figures.GRID  # the grid it saw: a later change of grid can't move these boxes
         else:
             spec.pop("boxes")
         return "```figure\n" + json.dumps(spec) + "\n```"
@@ -144,13 +143,17 @@ FIGURE_NAMED = re.compile(r"\b(fig(?:ure)?|tab(?:le)?)\.?\s*(\d+)\b", re.I)
 
 
 def about_a_figure(asked: dict, known: list[dict]) -> bool:
-    """Whether the reader asks about one of the paper's figures or tables ("in Figure 1", "Fig. 2", a pointed-at
-    figure). Answering that well needs the image, which only Deep mode's look_at_figure gives the model, so such
-    a question is answered in Deep mode even when Quick was chosen. Not for Codex, which has no tools."""
+    """Whether the question is about one of the paper's figures or tables: the reader names it ("in Figure 1",
+    "Fig. 2"), points at it, or asks to explain a passage that refers to it ("as shown in Figure 2"). Answering that
+    well needs the image, which only Deep mode's look_at_figure gives the model, so such a question is answered in
+    Deep mode even when Quick was chosen: then the answer can point at the part of the figure the passage is about.
+    Not for Codex, which has no tools."""
     from papers.ai import capabilities
     if providers.backend() == "codex" or not capabilities.allows("tools"):
         return False
-    words = " ".join([asked.get("content") or "", *[a.get("label") or "" for a in asked["meta"].get("attachments", [])]])
+    attached = asked["meta"].get("attachments", [])
+    words = " ".join([asked.get("content") or "", *[a.get("label") or "" for a in attached],
+                      *[(a.get("text") or "")[:4000] for a in attached]])  # the passage being explained
     have = {(f["kind"], int(f["number"])) for f in known}
     return any(("table" if m.group(1).lower().startswith("tab") else "figure", int(m.group(2))) in have
                for m in FIGURE_NAMED.finditer(words))

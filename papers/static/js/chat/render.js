@@ -185,15 +185,20 @@ function drawMath(stage, spec) {
     ${m.example ? `<p class="math-example">${esc(m.example)}</p>` : ""}`;
 }
 
-// A box on a figure: the model names grid cells ("from": "B3", "to": "E5": columns A–J, rows 1–10, the grid it was
-// shown over the image); fractions x, y, w, h (older answers) still work. Returns fractions, or null if it's nonsense.
-const CELL = /^([A-Ja-j])(10|[1-9])$/;
-export function boxArea(b) {
-  const a = CELL.exec(String(b.from || "").trim()), z = CELL.exec(String(b.to || b.from || "").trim());
+// A box on a figure: the model names grid cells ("from": "C5", "to": "H11"), read off a chessboard grid drawn over the
+// image for it (columns A-T, rows 1-20 since the grid became finer; answers made before say nothing, and used 10 x 10).
+// Fractions x, y, w, h (the oldest answers) still work. Returns fractions, or null if it's nonsense.
+export function cellOf(name, grid = 10) {
+  const m = /^([A-Za-z])(\d{1,2})$/.exec(String(name || "").trim());
+  if (!m) return null;
+  const col = m[1].toUpperCase().charCodeAt(0) - 65, row = Number(m[2]) - 1;
+  return col >= 0 && col < grid && row >= 0 && row < grid ? [col, row] : null;
+}
+export function boxArea(b, grid = 10) {
+  const a = cellOf(b.from, grid), z = cellOf(b.to || b.from, grid);
   if (a && z) {
-    const col = (m) => m[1].toUpperCase().charCodeAt(0) - 65, row = (m) => Number(m[2]) - 1;
-    const c0 = Math.min(col(a), col(z)), c1 = Math.max(col(a), col(z)), r0 = Math.min(row(a), row(z)), r1 = Math.max(row(a), row(z));
-    return { x: c0 / 10, y: r0 / 10, w: (c1 - c0 + 1) / 10, h: (r1 - r0 + 1) / 10 };
+    const c0 = Math.min(a[0], z[0]), c1 = Math.max(a[0], z[0]), r0 = Math.min(a[1], z[1]), r1 = Math.max(a[1], z[1]);
+    return { x: c0 / grid, y: r0 / grid, w: (c1 - c0 + 1) / grid, h: (r1 - r0 + 1) / grid };
   }
   const n = ["x", "y", "w", "h"].map((k) => Number(b[k]));
   if (n.some((v) => !Number.isFinite(v)) || n[2] <= 0 || n[3] <= 0) return null;
@@ -207,7 +212,7 @@ async function drawFigure(stage, spec, ctx) {
   const number = f.table || f.figure;
   const fig = (await ctx.figures?.())?.find((x) => x.kind === kind && x.number === Number(number));
   if (!fig) { stage.innerHTML = `<p class="faint">${kind === "table" ? "Table" : "Figure"} ${esc(String(number))} isn't available (the PDF's figures are cut out from their captions).</p>`; return; }
-  const boxes = (Array.isArray(f.boxes) ? f.boxes : []).map((b) => ({ ...boxArea(b || {}), label: b?.label })).filter((b) => b.w).slice(0, 6);
+  const boxes = (Array.isArray(f.boxes) ? f.boxes : []).map((b) => ({ ...boxArea(b || {}, f.grid || 10), label: b?.label })).filter((b) => b.w).slice(0, 6);
   const pct = (v) => `${Math.round(v * 1000) / 10}%`;
   const name = `${kind === "table" ? "Table" : "Figure"} ${number}`;
   const asking = !!ctx.askAbout;
@@ -294,7 +299,7 @@ async function drawCompare(stage, spec, ctx) {
   (c.pairs || []).forEach((p, i) => { colour[0][p.left - 1] = i; colour[1][p.right - 1] = i; });
   const pct = (v) => `${Math.round(v * 1000) / 10}%`;
   const side = (s, k) => {
-    const boxes = (s.boxes || []).map((b) => ({ ...boxArea(b || {}), label: b?.label })).filter((b) => b.w);
+    const boxes = (s.boxes || []).map((b) => ({ ...boxArea(b || {}, c.grid || 10), label: b?.label })).filter((b) => b.w);
     return `<figure class="cmp-side">
       <div class="cmp-frame"><img src="${s.fig.url}" alt="${esc(s.fig.caption)}">
         ${boxes.map((b, j) => { const i = colour[k][j];

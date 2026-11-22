@@ -1,16 +1,21 @@
 // The figure quiz (Recall): where are a figure's parts?
-// The parts of a figure come from the AI looking at it once (papers/figure_parts.py); boxes are grid cells,
-// columns A–J and rows 1–10, as everywhere else.
+// The parts of a figure come from the AI looking at it once (papers/figure_parts.py); boxes are grid cells, as
+// everywhere else.
 import { api, esc, loading } from "./core.js";
 
-const CELL = /^([A-Ja-j])(10|[1-9])$/;
-// A part's box as fractions of the figure {x, y, w, h}, or null.
+// A part's box as fractions of the figure {x, y, w, h}, or null. Parts found before the grid became finer used 10 x 10.
 export function area(part) {
-  const a = CELL.exec(String(part.from || "").trim()), z = CELL.exec(String(part.to || part.from || "").trim());
+  const grid = part.grid || 10;
+  const cell = (name) => {
+    const m = /^([A-Za-z])(\d{1,2})$/.exec(String(name || "").trim());
+    if (!m) return null;
+    const col = m[1].toUpperCase().charCodeAt(0) - 65, row = Number(m[2]) - 1;
+    return col >= 0 && col < grid && row >= 0 && row < grid ? [col, row] : null;
+  };
+  const a = cell(part.from), z = cell(part.to || part.from);
   if (!a || !z) return null;
-  const col = (m) => m[1].toUpperCase().charCodeAt(0) - 65, row = (m) => Number(m[2]) - 1;
-  const c0 = Math.min(col(a), col(z)), c1 = Math.max(col(a), col(z)), r0 = Math.min(row(a), row(z)), r1 = Math.max(row(a), row(z));
-  return { x: c0 / 10, y: r0 / 10, w: (c1 - c0 + 1) / 10, h: (r1 - r0 + 1) / 10 };
+  const c0 = Math.min(a[0], z[0]), c1 = Math.max(a[0], z[0]), r0 = Math.min(a[1], z[1]), r1 = Math.max(a[1], z[1]);
+  return { x: c0 / grid, y: r0 / grid, w: (c1 - c0 + 1) / grid, h: (r1 - r0 + 1) / grid };
 }
 const pct = (v) => `${Math.round(v * 1000) / 10}%`;
 const boxStyle = (b) => `left:${pct(b.x)};top:${pct(b.y)};width:${pct(b.w)};height:${pct(b.h)}`;

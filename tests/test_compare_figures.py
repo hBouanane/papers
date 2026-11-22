@@ -68,7 +68,7 @@ def test_a_comparison_needs_the_tool(client, two_papers):
 def test_pairs_follow_the_boxes_that_survive(client, two_papers):
     _, b = two_papers
     seen = {(1, 1, "Neural Machine Translation by Jointly Learning to Align and Translate")}
-    boxes = [{"from": "A1", "to": "J10", "label": "everything"}, {"from": "F2", "to": "H5", "label": "decoder"}]
+    boxes = [{"from": "A1", "to": "T20", "label": "everything"}, {"from": "F2", "to": "H5", "label": "decoder"}]
     pairs = [{"left": 1, "right": 1, "same": "whole"}, {"left": 2, "right": 2, "same": "writes the output"},
              {"left": 2, "right": 1, "same": "twice"}, {"left": 9, "right": 1, "same": "no such box"}]
     kept = json.loads(checked_compares(compare_block(b, pairs, boxes), seen).split("```compare\n")[1].split("```")[0])

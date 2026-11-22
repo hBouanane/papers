@@ -94,7 +94,7 @@ def writes_json() -> dict:
 def points_at() -> dict:
     """Figure boxes: show a gridded picture with one coloured square and ask which cells it covers."""
     from papers import figures
-    size, (c0, r0), span = 400, (random.randint(1, 5), random.randint(1, 5)), random.randint(2, 3)
+    size, (c0, r0), span = 600, (random.randint(2, figures.GRID - 8), random.randint(2, figures.GRID - 8)), random.randint(3, 5)
     try:
         from PIL import Image, ImageDraw
     except ImportError:
@@ -110,13 +110,14 @@ def points_at() -> dict:
         return {"ok": None, "note": "Couldn't check pointing."}
     try:
         data = openai_compat.send({"messages": [{"role": "user", "content": [
-            {"type": "text", "text": "The picture has a grid: columns A to J, rows 1 to 10. Which cells does the blue square "
-                                     "cover? Answer only as FROM to TO, the top-left cell and the bottom-right cell, like B3 to D5."},
+            {"type": "text", "text": "The picture has a grid like a chessboard: columns A to T lettered along the top and bottom "
+                                     "edges, rows 1 to 20 numbered down the sides. Which cells does the blue square cover? Answer "
+                                     "only as FROM to TO, the top-left cell and the bottom-right cell, like C7 to F10."},
             {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(grid).decode()}}]}]})
     except AIError as e:
         return {"ok": None, "note": f"Couldn't check pointing: {e}"}
     import re
-    cells = re.findall(r"\b([A-J])(10|[1-9])\b", _text(data).upper())
+    cells = re.findall(r"\b([A-T])(1\d|20|[1-9])\b", _text(data).upper())
     want = [(chr(65 + c0), r0 + 1), (chr(65 + c0 + span - 1), r0 + span)]
     got = [(c, int(r)) for c, r in cells[:2]]
     close = len(got) == 2 and all(abs(ord(g[0]) - ord(w[0])) <= 1 and abs(g[1] - w[1]) <= 1 for g, w in zip(got, want))
