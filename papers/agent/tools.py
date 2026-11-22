@@ -414,10 +414,10 @@ TOOLS = {
     },
     "compare_with_figure": {
         "fn": compare_with_figure, "label": "Comparing two figures",
-        "description": "Only when the reader asks to compare: put one of this paper's figures next to a figure of "
-                       "another paper in the reader's library, to show what they have in common (for example the same "
-                       "architecture drawn two ways). Figures only, not tables. Give the other paper's title as the "
-                       "reader's library has it.",
+        "description": "Put one of this paper's figures next to a figure of another paper in the reader's library, to "
+                       "show the same thing in both (for example the same architecture drawn two ways). Use it when the "
+                       "reader asks to compare, or when the explanation is clearer by seeing both; not otherwise. "
+                       "Figures only, not tables. Give the other paper's title as the reader's library has it.",
         "schema": _schema({"own_figure": {"type": "integer"}, "other_paper": {"type": "string"},
                            "other_figure": {"type": "integer"}}, ["own_figure", "other_paper", "other_figure"]),
     },
