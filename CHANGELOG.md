@@ -2,7 +2,7 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.4.0
 
 - **Explanations point at the figure**: when the passage you ask to explain refers to a figure ("shown in
   Figure 1"), the AI looks at that figure and marks the part the passage is about, right in the explanation.
