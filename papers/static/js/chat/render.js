@@ -4,6 +4,7 @@
 //   ```diagram  a Mermaid diagram (flowchart, sequence, ...)
 //   ```math     {"tex": ..., "terms": [{"class": "t1", "symbol": ..., "meaning": ...}]}: a formula with its parts coloured and explained
 //   ```figure   {"figure": 1} or {"table": 2}, with optional "boxes" [{x, y, w, h, label}] (fractions of the image)
+//   ```compare  {"left": {figure, boxes}, "right": {paper, figure, boxes}, "pairs": [{left, right, same}]}: two figures
 //   ```widget   an interactive visual (widgets.js)
 // No code from the model runs: specs are data, drawn by these libraries. HTML is sanitised (DOMPurify).
 //
@@ -23,9 +24,9 @@ if (katex && !document.querySelector("link[data-katex]")) {
 }
 const marked = Marked ? new Marked({ gfm: true, breaks: false }) : null;
 
-export const VISUALS = ["chart", "diagram", "math", "figure", "widget", "page"];
+export const VISUALS = ["chart", "diagram", "math", "figure", "compare", "widget", "page"];
 const FENCE = new RegExp("```(" + VISUALS.join("|") + "|followups)[^\\n]*\\n([\\s\\S]*?)(```|$)", "g");
-const KIND = { chart: "Chart", diagram: "Diagram", math: "Formula", figure: "Figure", widget: "Interactive", page: "Interactive page" };
+const KIND = { chart: "Chart", diagram: "Diagram", math: "Formula", figure: "Figure", compare: "Comparison", widget: "Interactive", page: "Interactive page" };
 
 // Formulas: KaTeX, with \htmlClass{t1}{...} allowed so a formula's parts can be coloured to match their meanings.
 const tex = (src, display) => {
@@ -278,7 +279,45 @@ function drawPage(stage, html, ctx) {
   addEventListener("message", resize);
 }
 
-const DRAW = { diagram: drawDiagram, chart: drawChart, math: drawMath, figure: drawFigure };
+// Two figures side by side (```compare, made with the compare_with_figure tool and checked on the server): the parts
+// that do the same job share a colour; parts with no counterpart are grey and dashed. Pointing at a pair lights both.
+const PAIR = ["#3d5fd6", "#e07a2e", "#8a5cd6", "#d14b6a", "#9a6b3c", "#c9a227"]; // no green: it means "done" elsewhere
+
+async function drawCompare(stage, spec, ctx) {
+  const c = typeof spec === "string" ? looseJSON(spec) : spec;
+  const figuresOf = async (paper) => paper ? (await fetch(`/api/papers/${Number(paper)}/figures`)).json() : (await ctx.figures?.()) || [];
+  const [mine, theirs] = await Promise.all([figuresOf(null), figuresOf(c.right?.paper)]);
+  const find = (list, n) => list.find((f) => f.kind === "figure" && f.number === Number(n));
+  const sides = [{ ...c.left, fig: find(mine, c.left?.figure) }, { ...c.right, fig: find(theirs, c.right?.figure) }];
+  if (sides.some((s) => !s.fig)) throw new Error("One of the two figures isn't available.");
+  const colour = [{}, {}];
+  (c.pairs || []).forEach((p, i) => { colour[0][p.left - 1] = i; colour[1][p.right - 1] = i; });
+  const pct = (v) => `${Math.round(v * 1000) / 10}%`;
+  const side = (s, k) => {
+    const boxes = (s.boxes || []).map((b) => ({ ...boxArea(b || {}), label: b?.label })).filter((b) => b.w);
+    return `<figure class="cmp-side">
+      <div class="cmp-frame"><img src="${s.fig.url}" alt="${esc(s.fig.caption)}">
+        ${boxes.map((b, j) => { const i = colour[k][j];
+          return `<span class="cmp-box${i == null ? " is-alone" : ""}" ${i == null ? "" : `data-pair="${i}"`}
+            style="${i == null ? "" : `--pair:${PAIR[i % PAIR.length]};`}left:${pct(b.x)};top:${pct(b.y)};width:${pct(b.w)};height:${pct(b.h)}"
+            title="${esc(b.label || "")}"></span>`; }).join("")}</div>
+      <figcaption>${k ? "Other paper" : "This paper"} · Figure ${s.fig.number}, page ${s.fig.page}</figcaption></figure>`;
+  };
+  const label = (k, n) => (sides[k].boxes || [])[n - 1]?.label || "";
+  stage.innerHTML = `<div class="cmp-sides">${sides.map(side).join("")}</div>
+    ${(c.pairs || []).length ? `<ul class="cmp-pairs">${c.pairs.map((p, i) => `<li data-pair="${i}" style="--pair:${PAIR[i % PAIR.length]}">
+      <i aria-hidden="true"></i><strong>${esc(p.same || "The same part")}</strong>
+      <span class="faint">${esc(label(0, p.left))} ↔ ${esc(label(1, p.right))}</span></li>`).join("")}</ul>`
+      : `<p class="faint">No parts were matched with confidence.</p>`}`;
+  const light = (i) => {
+    stage.querySelectorAll("[data-pair]").forEach((el) => el.classList.toggle("is-lit", i != null && el.dataset.pair === i));
+    stage.classList.toggle("has-lit", i != null);
+  };
+  stage.onmouseover = (e) => light(e.target.closest("[data-pair]")?.dataset.pair ?? null);
+  stage.onmouseout = () => light(null);
+}
+
+const DRAW = { diagram: drawDiagram, chart: drawChart, math: drawMath, figure: drawFigure, compare: drawCompare };
 
 export async function drawVisuals(root, ctx = {}) {
   root.querySelectorAll(".cite").forEach((b) => { b.onclick = () => ctx.onCite?.(b.dataset.cite, b.dataset.ref, ctx); });

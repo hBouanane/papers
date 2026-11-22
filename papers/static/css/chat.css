@@ -173,6 +173,21 @@ dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { backgr
 .figure-box-note { padding: 2px 4px; border-radius: 6px; cursor: default; }
 .figure-box-note.is-lit { background: var(--raised); }
 .figure-box[role="button"] { cursor: pointer; }
+/* Two figures side by side; the parts that do the same job share a colour */
+.cmp-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.cmp-side { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.cmp-side figcaption { font-size: 13px; color: var(--pencil); }
+.cmp-frame { position: relative; background: #fff; border-radius: 6px; overflow: hidden; }
+.cmp-frame img { display: block; width: 100%; }
+.cmp-box { position: absolute; box-sizing: border-box; border: 3px solid var(--pair); border-radius: 8px;
+  background: color-mix(in srgb, var(--pair) 12%, transparent); transition: opacity .2s; }
+.cmp-box.is-alone { border: 2px dashed #8a8f98; background: none; }
+.cmp-pairs { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+.cmp-pairs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 4px 8px; border-radius: 6px; font-size: 14px; }
+.cmp-pairs i { width: 11px; height: 11px; border-radius: 3px; background: var(--pair); align-self: center; }
+.has-lit [data-pair]:not(.is-lit), .has-lit .cmp-box.is-alone { opacity: .25; }
+.cmp-pairs li.is-lit { background: var(--raised); }
+@media (max-width: 560px) { .cmp-sides { grid-template-columns: 1fr; } }
 .figure-box[role="button"]:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .figure-tour { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; font-size: 14px; color: var(--pencil); }
 .figure-tour .link-button { font-size: 20px; line-height: 1; padding: 0 6px; }

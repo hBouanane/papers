@@ -4,6 +4,10 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 
 ## Unreleased
 
+- **Compare figures across papers, in Deep mode**: ask "compare Figure 1 with Figure 1 of <another paper>" and the AI
+  looks at both side by side, then shows them next to each other with the parts that do the same job in the same
+  colour. It works on figures only (not tables), asks which paper you mean when the title is unclear, and a
+  comparison is shown only if the AI really looked at both figures; pairs whose boxes don't hold up are dropped.
 - **Diagrams look hand-drawn**: flowcharts and the other diagrams in answers are now sketched like a whiteboard
   drawing (Excalidraw's look), with Excalidraw's handwriting for the labels. Mind maps get soft colours that
   read in both themes.

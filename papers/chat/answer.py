@@ -49,8 +49,13 @@ def _area(box: dict) -> tuple[int, int, int, int] | None:
 def tidy_boxes(boxes: list) -> list:
     """Boxes that point at something: real cells, not most of the figure, no near-duplicates, at most six. A weak
     model draws one box around everything, or the same part three times."""
+    return [b for _, b in _tidy_numbered(boxes)]
+
+
+def _tidy_numbered(boxes: list) -> list[tuple[int, dict]]:
+    """tidy_boxes, keeping each kept box's position in the model's list (pairs refer to boxes by number)."""
     kept, areas = [], []
-    for b in boxes if isinstance(boxes, list) else []:
+    for i, b in enumerate(boxes if isinstance(boxes, list) else []):
         area = _area(b) if isinstance(b, dict) else None
         if not area:
             continue
@@ -62,9 +67,54 @@ def tidy_boxes(boxes: list) -> list:
                    for d0, e0, d1, e1 in areas)
         if same:
             continue
-        kept.append(b)
+        kept.append((i, b))
         areas.append(area)
     return kept[:MOST_BOXES]
+
+
+COMPARE = re.compile(r"```compare[ \t]*\n(.*?)```", re.S)
+MOST_PAIRS = 6
+
+
+def checked_compares(text: str, compared: set[tuple[int, int, str]]) -> str:
+    """Keep a ```compare visual only when the model really put those two figures side by side with the tool in this
+    answer; then tidy its boxes and keep only pairs whose two boxes survived, each box in one pair at most. Anything
+    else is dropped: two figures matched from memory are worse than none."""
+    def title_of(paper_id) -> str:
+        try:
+            with db.connect() as conn:
+                row = conn.execute("select title from papers where id = ?", (int(paper_id),)).fetchone()
+        except (TypeError, ValueError):
+            return ""
+        return row["title"] if row else ""
+
+    def check(m: re.Match) -> str:
+        try:
+            spec = json.loads(m.group(1))
+            left, right = spec["left"], spec["right"]
+            key = (int(left["figure"]), int(right["figure"]), title_of(right.get("paper")))
+        except (ValueError, KeyError, TypeError):
+            return ""
+        if key not in compared:
+            return ""
+        lefts, rights = _tidy_numbered(left.get("boxes")), _tidy_numbered(right.get("boxes"))
+        new_left = {old + 1: new + 1 for new, (old, _) in enumerate(lefts)}
+        new_right = {old + 1: new + 1 for new, (old, _) in enumerate(rights)}
+        pairs, used_left, used_right = [], set(), set()
+        for p in spec.get("pairs") or []:
+            try:
+                a, b = new_left.get(int(p["left"])), new_right.get(int(p["right"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if a and b and a not in used_left and b not in used_right:
+                used_left.add(a)
+                used_right.add(b)
+                pairs.append({"left": a, "right": b, "same": str(p.get("same") or "").strip()[:80]})
+        out = {"left": {"figure": key[0], "boxes": [b for _, b in lefts]},
+               "right": {"paper": int(right["paper"]), "figure": key[1], "boxes": [b for _, b in rights]},
+               "pairs": pairs[:MOST_PAIRS]}
+        return "```compare\n" + json.dumps(out) + "\n```"
+    return COMPARE.sub(check, text)
 
 
 def only_seen_boxes(text: str, seen: set[tuple[str, int]]) -> str:
@@ -180,6 +230,7 @@ def reply(conversation_id: int, paper: dict) -> Iterator[str]:
         stream.close()
         content, followups = split_followups("".join(parts))
         content = only_seen_boxes(content, tools.seen(steps))
+        content = checked_compares(content, tools.compared(steps))
         if deep:
             content, had_tool_text = strip_tool_text(content)
         else:
