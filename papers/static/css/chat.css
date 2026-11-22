@@ -143,6 +143,10 @@
 .visual-failed pre { max-height: 160px; overflow: auto; font-size: 12px; }
 .visual-chart .vega-embed { width: 100%; }
 .visual-diagram .visual-stage { display: grid; justify-items: center; }
+/* Every visual fits on the screen: nobody should scroll to see one whole. */
+.visual-diagram .visual-stage svg { max-height: min(60vh, 520px); }
+.visual-figure .figure-frame img { max-height: min(62vh, 560px); width: auto; }
+.visual-figure .visual-stage { display: grid; justify-items: center; }
 /* A mind map's centre: the app's blue with light writing (Mermaid's own is dark text on mid blue). */
 .visual-diagram .section-root :is(circle, path, rect) { fill: var(--ink-fill) !important; }
 .visual-diagram .section-root text { fill: var(--on-ink) !important; text-anchor: middle; }
@@ -177,8 +181,8 @@ dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { backgr
 .cmp-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .cmp-side { margin: 0; display: grid; gap: 4px; min-width: 0; }
 .cmp-side figcaption { font-size: 13px; color: var(--pencil); }
-.cmp-frame { position: relative; background: #fff; border-radius: 6px; overflow: hidden; }
-.cmp-frame img { display: block; width: 100%; }
+.cmp-frame { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; background: #fff; border-radius: 6px; overflow: hidden; }
+.cmp-frame img { display: block; max-width: 100%; max-height: min(52vh, 460px); }
 .cmp-box { position: absolute; box-sizing: border-box; border: 3px solid var(--pair); border-radius: 8px;
   background: color-mix(in srgb, var(--pair) 12%, transparent); transition: opacity .2s; }
 .cmp-box.is-alone { border: 2px dashed #8a8f98; background: none; }
@@ -187,7 +191,6 @@ dt.t1 { background: #1d3fbb18; } dt.t2 { background: #b4530918; } dt.t3 { backgr
 .cmp-pairs i { width: 11px; height: 11px; border-radius: 3px; background: var(--pair); align-self: center; }
 .has-lit [data-pair]:not(.is-lit), .has-lit .cmp-box.is-alone { opacity: .25; }
 .cmp-pairs li.is-lit { background: var(--raised); }
-@media (max-width: 560px) { .cmp-sides { grid-template-columns: 1fr; } }
 .figure-box[role="button"]:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .figure-tour { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; font-size: 14px; color: var(--pencil); }
 .figure-tour .link-button { font-size: 20px; line-height: 1; padding: 0 6px; }
@@ -301,3 +304,4 @@ body:not(.notes-open) .chat-canvas { right: 16px; }
 
 /* Which model wrote an answer, at the end of its buttons */
 .msg-model { margin-inline-start: auto; font-size: 12px; color: var(--pencil); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visual-figure figcaption { justify-self: stretch; }

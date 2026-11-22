@@ -1,5 +1,5 @@
 // Figures & tables: cut out of the PDF on the server; the key points link to them.
-import { api, esc, loading } from "../core.js";
+import { api, esc, go, loading } from "../core.js";
 import { iconButton } from "../icons.js";
 
 // ---------- Figures ----------
@@ -41,18 +41,19 @@ export function showFigure(p, f) {
       <img src="${f.url}" alt="">
       <p class="lightbox-caption">${esc(f.caption)}</p>
       <div class="lightbox-actions"><button class="button" data-open>Open at page ${f.page}</button></div></div>`;
-  const close = () => { view.remove(); removeEventListener("keydown", onKey); removeEventListener("hashchange", close); };
+  const close = () => { view.remove(); removeEventListener("keydown", onKey); removeEventListener("route", close); removeEventListener("popstate", close); };
   const onKey = (e) => e.key === "Escape" && close();
   view.onclick = (e) => {
     if (e.target === view || e.target.closest("[data-close]")) close();
     if (e.target.closest("[data-open]")) {
       try { sessionStorage.setItem(`papers.page.${p.id}`, f.page); } catch { /* opens at the last place */ }
       close();
-      location.hash = `#/papers/${p.id}/read`;
+      go(`/papers/${p.id}/read`);
     }
   };
   addEventListener("keydown", onKey);
-  addEventListener("hashchange", close); // leaving the page closes it
+  addEventListener("route", close); // leaving the page closes it
+  addEventListener("popstate", close);
   document.body.append(view);
 }
 

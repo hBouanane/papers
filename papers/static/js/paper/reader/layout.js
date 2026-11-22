@@ -10,9 +10,9 @@ const named = (c) => c[0].toUpperCase() + c.slice(1);
 export const readerHtml = (p, id, language) => `
     <div class="reader-bar" id="bar">
       <div class="reader-bar-inner">
-        <a href="#/papers/${id}" class="reader-back" title="Back to ${esc(p.title)}" aria-label="Back to the paper's page"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="reader-back-label">Paper</span></a>
-        ${p.has_pdf && p.text ? `<div class="segmented small" role="group" aria-label="View" id="views">
-          <button data-view="pdf">Original</button><button data-view="text">Text</button></div>` : ""}
+        <a href="/papers/${id}" class="reader-back" title="Back to ${esc(p.title)}" aria-label="Back to the paper's page"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="reader-back-label">Paper</span></a>
+        <div class="segmented small" role="group" aria-label="View" id="views">
+          ${p.has_pdf ? `<button data-view="pdf">Original</button>` : ""}${p.text ? `<button data-view="text">Text</button>` : ""}<button data-view="guide" title="The in-depth guide: the whole paper explained">Guide</button></div>
         <select id="jump" class="jump" aria-label="Go to a section or page"><option value="">Go to…</option></select>
         <div class="zoom" id="zoom" role="group" aria-label="Zoom" hidden>
           <button class="button quiet small" data-zoom="out" title="Zoom out (−)">−</button>
@@ -34,6 +34,10 @@ export const readerHtml = (p, id, language) => `
       <div class="strip" id="strip" title="Parts you've read. Click to jump."><span class="strip-view" id="strip-view"></span></div>
     </div>
     <div class="reader-scroll" id="scroller"></div>
+    <div class="reader-scroll guide-scroll" id="guide-scroll" hidden>
+      <div class="guide-wrap"><header class="guide-head" id="guide-head"></header><article class="guide-doc answer answer-body" id="guide-doc"></article></div></div>
+    <nav class="guide-rail" id="guide-rail" aria-label="The guide's sections" hidden>
+      <span class="rail-track"></span><span class="rail-thumb"></span><div class="rail-marks"></div><span class="rail-label" aria-live="polite"></span></nav>
     <nav class="reader-route" id="route" aria-label="Where you are"></nav>
     <aside class="notes" id="notes" aria-label="Ask, words and notes">
       <div class="panel-resize" id="panel-resize" title="Drag to resize" aria-hidden="true"></div>

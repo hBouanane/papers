@@ -41,7 +41,7 @@ export function setupFinish(r, { flush }) {
     $("#pct").textContent = "100% read";
     card.innerHTML = `<p class="finish-q">Nice work, that's another paper read.</p>
       <p class="hint">${done.quiz?.length ? "A few review questions are ready whenever you want to check what stuck." : "It's marked as read."}</p>
-      <div class="finish-actions">${done.quiz?.length ? `<a class="button" href="#/papers/${id}/quiz">Test yourself</a>` : ""}
+      <div class="finish-actions">${done.quiz?.length ? `<a class="button" href="/papers/${id}/quiz">Test yourself</a>` : ""}
       <button class="button quiet" id="keep-reading">Keep reading</button></div>`;
     card.hidden = false;
     card.querySelector("#keep-reading").onclick = () => (card.hidden = true);

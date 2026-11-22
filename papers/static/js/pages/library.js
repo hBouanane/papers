@@ -12,7 +12,7 @@ export async function libraryPage(stale) {
   const names = goalNames(goals);
   const folderTip = settings.library_dir ? "" : `<div class="sheet desk-box">
     <h2>Library folder</h2><p class="hint">Keep your PDFs and notes in a folder on your computer too.</p>
-    <a class="button quiet small desk-link" href="#/settings">Choose a folder</a></div>`;
+    <a class="button quiet small desk-link" href="/settings">Choose a folder</a></div>`;
   const count = (s) => papers.filter((p) => p.status === s).length;
 
   if (!papers.length) {
@@ -28,14 +28,14 @@ export async function libraryPage(stale) {
   const [current, ...others] = reading;
   const goalOf = (p) => (names[p.topic_id] ? `<span class="card-goal">${esc(names[p.topic_id])}</span>` : "");
   const continueCard = (p) => `<div class="continue sheet">
-      <a class="cover-link" href="#/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
+      <a class="cover-link" href="/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
       <div class="continue-text">
         ${goalOf(p)}
-        <a class="continue-title paper-name" href="#/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
+        <a class="continue-title paper-name" href="/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
         <span class="card-cite">${cite(p)}</span>
         ${p.resume_text ? `<span class="card-quote">“${esc(p.resume_text)}”</span>` : ""}
         <span class="card-foot">${progressBar(p)}<span class="num">${pct(p.progress)} read</span></span>
-        <a class="button continue-go" href="#/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="button continue-go" href="/papers/${p.id}/read">Continue reading <span class="arrow" aria-hidden="true">→</span></a>
       </div>
     </div>`;
   // Nothing in progress: put the next paper on the desk, ready to start (a goal's paper first, then the newest).
@@ -43,32 +43,32 @@ export async function libraryPage(stale) {
   const waiting = papers.filter((p) => p.status === "new" || p.status === "skimmed");
   const next = waiting.find((p) => names[p.topic_id]) || waiting[0];
   const startCard = (p) => `<div class="continue sheet start-card">
-      <a class="cover-link" href="#/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
+      <a class="cover-link" href="/papers/${p.id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>
       <div class="continue-text">
         ${goalOf(p)}
-        <a class="continue-title paper-name" href="#/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
+        <a class="continue-title paper-name" href="/papers/${p.id}"><span class="ul">${esc(p.title)}</span></a>
         <span class="card-cite">${cite(p)}</span>
         ${p.abstract ? `<span class="card-quote">${esc(shorten(p.abstract, 260))}</span>` : ""}
         <span class="start-foot">
-          <a class="button continue-go" href="#/papers/${p.id}/read">Start reading <span class="arrow" aria-hidden="true">→</span></a>
-          <a class="button quiet" href="#/papers/${p.id}">Overview first</a>
+          <a class="button continue-go" href="/papers/${p.id}/read">Start reading <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="button quiet" href="/papers/${p.id}">Overview first</a>
         </span>
         ${waiting.length > 1 ? `<span class="start-more">Or start with
-          ${waiting.filter((o) => o !== p).slice(0, 2).map((o) => `<a class="paper-name" href="#/papers/${o.id}">${esc(shorten(o.title, 60))}</a>`).join(" or ")}</span>` : ""}
+          ${waiting.filter((o) => o !== p).slice(0, 2).map((o) => `<a class="paper-name" href="/papers/${o.id}">${esc(shorten(o.title, 60))}</a>`).join(" or ")}</span>` : ""}
       </div>
     </div>`;
   const doneCard = () => `<div class="sheet desk-done">
       ${coverFan(papers.filter((p) => p.status === "read"))}
       <div><h3>You've finished everything here</h3>
         <p class="hint">${plural(count("read"), "paper")} read. Find the next ones, or check what stayed with you.</p>
-        <span class="start-foot"><a class="button" href="#/goals">Find papers for a goal</a>
-          <a class="button quiet" href="#/recall">Recall what you read</a></span></div>
+        <span class="start-foot"><a class="button" href="/goals">Find papers for a goal</a>
+          <a class="button quiet" href="/recall">Recall what you read</a></span></div>
     </div>`;
   const shelfItem = (p) => paperCard(p);
   const goalLine = (g) => {
     const mine = papers.filter((p) => p.topic_id === g.id);
     const done = mine.filter((p) => p.status === "read").length;
-    return `<a class="desk-item" href="#/goals/${g.id}"><span class="desk-item-title">${esc(g.goal)}</span>
+    return `<a class="desk-item" href="/goals/${g.id}"><span class="desk-item-title">${esc(g.goal)}</span>
       <span class="faint num">${done}/${mine.length}</span></a>`;
   };
   const dueLine = due.length ? ` ${due.length === 1 ? "One paper is" : `${due.length} papers are`} due for review.` : "";
@@ -92,13 +92,13 @@ export async function libraryPage(stale) {
       <aside class="desk-side">
         ${due.length ? `<div class="sheet desk-box">
           <h2>Due for review</h2>
-          ${due.map((d) => `<a class="desk-item" href="#/papers/${d.id}/quiz"><span class="desk-item-title paper-name">${esc(d.title)}</span>
+          ${due.map((d) => `<a class="desk-item" href="/papers/${d.id}/quiz"><span class="desk-item-title paper-name">${esc(d.title)}</span>
             <span class="faint num">${d.questions} cards</span></a>`).join("")}
         </div>` : ""}
         <div class="sheet desk-box">
           <h2>Goals</h2>
           ${goals.length ? goals.map(goalLine).join("") : `<p class="hint">Group papers around what you're working on.</p>`}
-          <a class="button quiet small desk-link" href="#/goals">${goals.length ? "All goals" : "Set a goal"}</a>
+          <a class="button quiet small desk-link" href="/goals">${goals.length ? "All goals" : "Set a goal"}</a>
         </div>
         ${folderTip}
       </aside>
@@ -122,7 +122,7 @@ export async function libraryPage(stale) {
   drawCovers(app.querySelector(".desk"));
   const rows = app.querySelector("#rows");
   // Archiving or deleting from the list refreshes the counts.
-  bindRows(rows, () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  bindRows(rows, () => window.dispatchEvent(new Event("route")));
   let filter = "all";
   let limit = PAGE; // rows shown; "Show more" adds a page, a new filter or search starts again
   let hits = null; // search results, or null when the search box is empty

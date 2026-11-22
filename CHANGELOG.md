@@ -12,8 +12,18 @@ What changed in each release. Versions follow [semantic versioning](https://semv
 - **The in-depth guide**: "Explain it in depth" writes the full lesson on a paper: the problem, the background you
   need, each part of the method with its formulas explained symbol by symbol and worked through with real numbers,
   the paper's figures with the parts marked, the experiments, and what the results do and don't show. It opens in a
-  reader of its own: a contents list that follows you, a progress bar, "Next" at the end of each section, and ← →
-  to move between sections. Guides are kept with the paper, and any long answer in the chat can be opened there too.
+  reader as a third view next to Original and Text, with Ask, Words and Notes beside it: switch between the paper
+  and the guide like between the PDF and the text. A thin rail on the right replaces the scrollbar: it marks each
+  section, shows where you are and the section's name as you move, and takes you anywhere with a click; ← → move
+  between sections. Guides are kept with the paper, and any long answer in the chat can be opened there too.
+- **Plain addresses**: pages have addresses like `papers.localhost:8000/papers/3/read` (no `#`, and a name of its
+  own instead of "localhost"). Old bookmarks still work.
+- **An icon, and Papers as a desktop app**: Papers has its own icon. `papers --app` opens it in a window of its
+  own, and `papers shortcut` puts an icon on the desktop that starts Papers (when it isn't running) and opens that
+  window. In Edge or Chrome you can also install it from the address bar.
+- **Calmer visuals**: diagrams are drawn in the app's own font with clean shapes (no more handwriting), two things
+  compared sit side by side, tables have borders, and every diagram, figure and chart fits on the screen: bar
+  charts keep a modest height and never spill below their axis.
 
 ## 0.4.0
 

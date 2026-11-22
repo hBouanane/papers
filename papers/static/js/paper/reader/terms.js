@@ -11,7 +11,7 @@ const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // Where a new "once per section" scope starts while walking the Text view.
 const SECTION_START = "h2, h3";
 // Text that never gets marks: headings, equations, the reference list, the end-of-paper box.
-const SKIP = "h1, h2, h3, .math, .refs-list, .article-end, abbr.term";
+const SKIP = "h1, h2, h3, .math, .refs-list, .article-end, abbr.term, .visual, .katex, pre, code, svg, .guide-end";
 
 function pattern(words) {
   const terms = words.map((w) => w.term.trim()).filter(Boolean).sort((a, b) => b.length - a.length).map(reEscape);

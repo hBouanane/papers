@@ -1,6 +1,6 @@
 // What you see before there are any papers: the Library's welcome, and stand-in papers for the other pages'
 // backdrops. The stand-ins are drawn, not real: a title, a byline, grey lines for text and a small figure.
-import { addFromLink, addPaperControl, app, busy } from "../core.js";
+import { addFromLink, addPaperControl, app, busy, go } from "../core.js";
 
 const SAMPLES = [
   { title: "The paper you've been meaning to read", by: "You, and everyone you cite" },
@@ -40,7 +40,7 @@ export const sampleBackdrop = () => `<div class="recall-backdrop sample-backdrop
 // "Add your first paper", for the pages that need papers before they can do anything.
 export const firstPaper = (title, text) => `<div class="sheet first-paper">
     <div><h2>${title}</h2><p class="hint">${text}</p></div>
-    <a class="button" href="#/">Add your first paper</a></div>`;
+    <a class="button" href="/">Add your first paper</a></div>`;
 
 const STEPS = [
   ["Add a paper or set a goal", "Paste an arXiv link or a DOI, or drop a PDF. Or say what you want to understand, and Papers finds the papers for you."],
@@ -58,7 +58,7 @@ export function welcome(settings) {
         <p class="welcome-kicker">Welcome to Papers</p>
         <h1 class="page-title">Read papers.<br>Understand them.<br><em>Remember them.</em></h1>
         <p class="lede">Say what you want to understand and Papers finds the papers for you. Read them with an AI that knows the whole paper, then check what stayed with you.</p>
-        <div class="welcome-actions">${addPaperControl()}<a class="button secondary" href="#/goals">Find papers for a goal</a></div>
+        <div class="welcome-actions">${addPaperControl()}<a class="button secondary" href="/goals">Find papers for a goal</a></div>
         <p class="hint welcome-try">No paper at hand? <button type="button" class="link-button" id="try-sample">Try it with "Attention Is All You Need"</button></p>
         <p class="hint" id="welcome-status" role="status"></p>
       </div>
@@ -75,7 +75,7 @@ export function welcome(settings) {
       <span class="step-n num" aria-hidden="true">${i + 1}</span><h2>${name}</h2><p class="hint">${text}</p></li>`).join("")}</ol>
     ${settings.ai_ready ? "" : `<div class="sheet first-paper welcome-ai">
       <div><h2>Connect an AI model</h2><p class="hint">Explanations, chat and questions need one: a Claude or ChatGPT subscription, an API key, or a free model on this computer. Reading, highlights and notes work without it.</p></div>
-      <a class="button secondary" href="#/settings">Set it up</a></div>`}
+      <a class="button secondary" href="/settings">Set it up</a></div>`}
   </div>`;
 }
 
@@ -85,7 +85,7 @@ export function bindWelcome() {
   app.querySelector("#try-sample").onclick = (e) => busy(e.currentTarget, "Adding…", async () => {
     status.classList.remove("error");
     status.textContent = "Finding the paper and downloading its PDF…";
-    try { location.hash = `#/papers/${(await addFromLink(SAMPLE_LINK)).id}`; }
+    try { go(`/papers/${(await addFromLink(SAMPLE_LINK)).id}`); }
     catch (err) { status.textContent = err.message; status.classList.add("error"); }
   });
 }

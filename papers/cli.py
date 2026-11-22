@@ -1,6 +1,8 @@
 """The `papers` command: start the app and open it in your browser.
 
-    papers                     start on http://localhost:8000 and open the browser (the first time, a short setup)
+    papers                     start on http://papers.localhost:8000 and open the browser (the first time, a short setup)
+    papers --app               the same, in a window of its own (Edge or Chrome's app window)
+    papers shortcut            put a Papers icon on the desktop that opens it in its own window
     papers setup               the setup again: where your library is kept, which AI to use
     papers --no-setup          skip the setup (it's also skipped outside a terminal and with --data)
     papers --port 9000         another port
@@ -20,7 +22,7 @@ import urllib.request
 import webbrowser
 from contextlib import contextmanager
 
-from papers import __version__
+from papers import __version__, desktop
 
 
 def port_free(host: str, port: int) -> bool:
@@ -100,9 +102,21 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--data", help="folder for the database, PDFs and figures")
     parser.add_argument("--no-browser", action="store_true", help="don't open the browser")
     parser.add_argument("--no-setup", action="store_true", help="don't ask the first-run questions")
-    parser.add_argument("command", nargs="?", choices=["setup"], help="setup: ask where to keep things and which AI to use")
+    parser.add_argument("--app", action="store_true", help="open Papers in a window of its own")
+    parser.add_argument("command", nargs="?", choices=["setup", "shortcut"],
+                        help="setup: ask where to keep things and which AI to use; shortcut: a Papers icon on the desktop")
     parser.add_argument("--version", action="version", version=f"papers {__version__}")
     args = parser.parse_args(argv)
+    if args.command == "shortcut":
+        try:
+            made = desktop.create_shortcut(args.port, parser.get_default("port"))
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f"Couldn't make the shortcut: {e}")
+            raise SystemExit(1)
+        print(f"Made {', '.join(str(m) for m in made)}.")
+        print("Double-click it to open Papers in its own window "
+              "(it starts Papers first when it isn't running).")
+        return
 
     if args.data:
         os.environ["PAPERS_DATA"] = os.path.abspath(os.path.expanduser(args.data))
@@ -123,8 +137,11 @@ def main(argv: list[str] | None = None) -> None:
     elif not args.no_setup and setup.needed():
         setup.run()
 
-    url = f"http://localhost:{args.port}"
+    url = desktop.address(args.host, args.port)
     if not port_free(args.host, args.port):
+        if args.app and wait_until_up(args.host, args.port, patience=3):  # already running: just open its window
+            desktop.open_window(url)
+            return
         print(f"Port {args.port} is in use. Is Papers already running? Open {url}, or start with --port 8001.")
         raise SystemExit(1)
     def announce() -> None:
@@ -139,7 +156,9 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Open {url} (Ctrl+C to stop)", flush=True)
         if not ready:
             print("  It is taking long to start. If the page doesn't open yet, wait a moment and reload it.")
-        if not args.no_browser:
+        if args.app:
+            desktop.open_window(url)
+        elif not args.no_browser:
             webbrowser.open(url)
     threading.Thread(target=announce, daemon=True).start()
 

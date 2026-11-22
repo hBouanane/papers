@@ -1,5 +1,5 @@
 // Goals: what you're working on, each with its papers; and one goal's page.
-import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, esc, loading, moreButton, PAGE, paperRow, setBar, tableHead, toast } from "../core.js";
+import { addPaperControl, api, app, bindAddPaper, bindRows, busy, cite, esc, go, loading, moreButton, PAGE, paperRow, setBar, tableHead, toast } from "../core.js";
 import { cover, drawCovers } from "../covers.js";
 import { coverFan, looseCard, paperCard, plural, shorten } from "./shared.js";
 import { sampleCover } from "./welcome.js";
@@ -29,7 +29,7 @@ const standing = (p) => p.landmark ? `<span class="rm-tag rm-tag-classic" title=
 const nothingFound = (what, again = "roadmap", why = "") => `<div class="sheet rm-start rm-nothing">
     <div class="rm-start-text"><span class="chain-label">${what}</span>
       <h3>${why ? "The paper databases are busy" : "No papers came back"}</h3>
-      <p class="hint">${why ? `${esc(why)} <a href="#/settings">Search keys are in Settings.</a>`
+      <p class="hint">${why ? `${esc(why)} <a href="/settings">Search keys are in Settings.</a>`
         : `The paper databases may be busy right now (they limit how often they can be asked), or the goal's
         words matched nothing. Try again in a minute, or say the goal with the field's usual terms.`}</p>
       <div class="rm-start-actions"><button class="button" data-go="${again}">Try again</button>
@@ -61,7 +61,7 @@ export async function goalsPage(stale) {
     const ps = papers.filter((p) => p.topic_id === g.id);
     const read = ps.filter((p) => p.status === "read").length;
     const share = ps.length ? read / ps.length : 0;
-    return `<a class="goal-card sheet" href="#/goals/${g.id}">
+    return `<a class="goal-card sheet" href="/goals/${g.id}">
       ${coverFan([...ps].sort((a, b) => (b.status === "reading") - (a.status === "reading")))}
       <span class="goal-card-text">
         <span class="goal-card-title">${esc(g.goal)}</span>
@@ -128,7 +128,7 @@ export async function goalsPage(stale) {
       try {
         const g = await api("/topics", { method: "POST", json: { goal: app.querySelector("#goal").value.trim() } });
         try { if (search) sessionStorage.setItem("roadmap-for", String(g.id)); } catch { /* the button is there anyway */ }
-        location.hash = `#/goals/${g.id}`;
+        go(`/goals/${g.id}`);
       } finally { app.querySelector("#backdrop")?.classList.remove("searching"); }
     });
   };
@@ -141,7 +141,7 @@ export async function goalPage(id, stale) {
   if (stale()) return;
   const goal = goals.find((g) => g.id === id);
   if (!goal) throw new Error("This goal doesn't exist. It may have been removed.");
-  setBar({ back: { href: "#/goals", label: "Goals" }, title: goal.goal });
+  setBar({ back: { href: "/goals", label: "Goals" }, title: goal.goal });
 
   const byId = new Map(all.map((p) => [p.id, p]));
   let mineShown = PAGE;
@@ -156,7 +156,7 @@ export async function goalPage(id, stale) {
     const withLine = list.filter((p) => p.tldr || p.key_idea);
     return withLine.length ? `<section class="page-section"><h2>What these papers say</h2>
       <p class="hint">One line from each paper's key points.</p>
-      <div class="sheet says">${withLine.map((p) => `<a class="say" href="#/papers/${p.id}">
+      <div class="sheet says">${withLine.map((p) => `<a class="say" href="/papers/${p.id}">
         <span aria-hidden="true">${cover(p, "small")}</span>
         <span class="say-text"><span class="say-title">${esc(p.title)}</span><p class="say-line">${esc(p.tldr || p.key_idea)}</p></span></a>`).join("")}</div></section>` : "";
   };
@@ -221,7 +221,7 @@ export async function goalPage(id, stale) {
         const saved = await api(`/topics/${id}`, { method: "PATCH", json: { goal: form.querySelector("textarea").value.trim() } });
         goal.goal = saved.goal;
         title.textContent = saved.goal;
-        setBar({ back: { href: "#/goals", label: "Goals" }, title: saved.goal });
+        setBar({ back: { href: "/goals", label: "Goals" }, title: saved.goal });
         close();
         toast("Goal renamed. The roadmap was made for the old words; make a new one if the goal changed.");
       });
@@ -233,10 +233,10 @@ export async function goalPage(id, stale) {
     busy(e.target.closest("button"), "Deleting…", async () => {
       await api(`/topics/${id}`, { method: "DELETE" });
       toast("Goal deleted. Its papers are still in your library.");
-      location.hash = "#/goals";
+      go("/goals");
     });
   };
-  bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  bindRows(app.querySelector("#mine"), () => window.dispatchEvent(new Event("route")));
   app.querySelector(".as-list")?.addEventListener("toggle", () => drawCovers(app.querySelector("#mine")));
   app.querySelector("#mine").addEventListener("click", (e) => {
     if (!e.target.closest("[data-more]")) return;
@@ -419,7 +419,7 @@ function roadmapHtml(plan, byId = new Map(), enter = false) {
     const mark = i.paper_id
       ? `<span class="rm-status rm-${i.status || "unread"}" title="${state}" aria-label="${state}">${i.status === "read" ? "✓" : ""}</span>`
       : `<input type="checkbox" data-pick="${key}" ${other ? "data-other" : fresh ? "checked" : ""} aria-label="Add ${esc(i.title)}">`;
-    const title = i.paper_id ? `<a class="paper-name" href="#/papers/${i.paper_id}">${esc(i.title)}</a>` : `<span class="paper-name">${esc(i.title)}</span>`;
+    const title = i.paper_id ? `<a class="paper-name" href="/papers/${i.paper_id}">${esc(i.title)}</a>` : `<span class="paper-name">${esc(i.title)}</span>`;
     const Tag = i.paper_id ? "div" : "label";
     const page = cover({ id: i.paper_id || "", title: i.title, has_pdf: byId.get(i.paper_id)?.has_pdf }, "small");
     return `<li class="rm-item${i === next ? " is-next" : ""}" style="--n:${Math.min(n++, 14)}"><${Tag} class="rm-row">${mark}

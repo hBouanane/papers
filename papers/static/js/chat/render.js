@@ -145,22 +145,44 @@ function branches() {
   return vars;
 }
 
+// Two (or more) things compared, each in its own box with nothing linking them: put them side by side as columns.
+// Mermaid stacks unlinked boxes one under the other in a left-to-right chart, which made comparisons tall and tiny.
+export function sideBySide(code) {
+  const lines = code.split("\n");
+  const head = lines.findIndex((l) => l.trim() && !l.trim().startsWith("%%"));
+  if (head < 0 || !/^\s*(flowchart|graph)\s+(LR|RL|TB|TD|BT)?\s*$/i.test(lines[head])) return code;
+  let depth = 0, groups = 0, linked = false;
+  for (const line of lines.slice(head + 1)) {
+    const t = line.trim();
+    if (/^subgraph\b/.test(t)) { if (depth === 0) groups++; depth++; continue; }
+    if (t === "end") { depth = Math.max(0, depth - 1); continue; }
+    if (depth === 0 && /(--|==|-\.)/.test(t)) linked = true;
+  }
+  if (groups < 2 || linked) return code;
+  depth = 0;
+  return [...lines.slice(0, head), lines[head].replace(/(flowchart|graph)\s*\S*\s*$/i, "$1 TB"), ...lines.slice(head + 1).flatMap((line) => {
+    const t = line.trim();
+    if (/^direction\s/.test(t) && depth === 1) return [];
+    if (/^subgraph\b/.test(t)) return ++depth === 1 ? [line, "    direction TB"] : [line];
+    if (t === "end") depth = Math.max(0, depth - 1);
+    return [line];
+  })].join("\n");
+}
+
 async function drawDiagram(stage, code) {
   const mermaid = await loadMermaid();
   // Labels as SVG text, not HTML inside <foreignObject>: the sanitizer below removes foreignObject, which left
   // every box of a flowchart empty.
-  // Drawn by hand, like a sketch on a whiteboard (Excalidraw's look): wobbly lines and Excalidraw's own
-  // handwriting, Virgil. The same seed every time, so a diagram doesn't change shape when it's drawn again.
-  // Mind maps keep Mermaid's usual shapes: its hand-drawn mind map clips the centre's label.
-  const sketch = !code.split("\n").find((line) => line.trim() && !line.trim().startsWith("%%"))?.trim().startsWith("mindmap");
-  mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", look: sketch ? "handDrawn" : "classic", handDrawnSeed: 7,
-    fontFamily: `Virgil, ${css("--ui") || "sans-serif"}`,
-    htmlLabels: false, flowchart: { htmlLabels: false, curve: "basis", padding: 14 }, class: { htmlLabels: false }, state: { htmlLabels: false },
+  // Clean shapes in the app's own font, the size of the text around them, spaced so the boxes don't crowd.
+  const font = css("--ui") || "sans-serif";
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", look: "classic", fontFamily: font,
+    htmlLabels: false, class: { htmlLabels: false }, state: { htmlLabels: false },
+    flowchart: { htmlLabels: false, curve: "basis", padding: 12, nodeSpacing: 34, rankSpacing: 46, wrappingWidth: 170, useMaxWidth: true },
     themeVariables: { primaryColor: css("--ink-tint"), primaryTextColor: css("--heading"), primaryBorderColor: css("--ink"),
       lineColor: css("--graphite"), secondaryColor: css("--raised"), tertiaryColor: css("--sheet"), background: css("--sheet"),
-      fontFamily: `Virgil, ${css("--ui") || "sans-serif"}`, fontSize: "16px", darkMode: dark(), ...branches() } });
-  await document.fonts.load("16px Virgil").catch(() => {}); // labels are measured: the font must be ready first
-  const { svg } = await mermaid.render(`diagram-${++diagrams}`, code);
+      fontFamily: font, fontSize: "14px", darkMode: dark(), ...branches() } });
+  await document.fonts.ready; // labels are measured: the font must be ready first
+  const { svg } = await mermaid.render(`diagram-${++diagrams}`, sideBySide(code));
   stage.innerHTML = DOMPurify?.sanitize ? DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } }) : svg;
 }
 
@@ -169,9 +191,17 @@ async function drawChart(stage, spec) {
   const parsed = typeof spec === "string" ? looseJSON(spec) : spec;
   if (JSON.stringify(parsed).match(/"url"\s*:/)) throw new Error("Charts take their data inline.");
   const ink = css("--ink"), text = css("--graphite"), muted = css("--pencil"), line = css("--line");
+  // A chart fits on the screen: a modest height whatever the model asked for, and marks never spill out of the plot
+  // (bars under an axis that doesn't start at zero were drawn far below the chart).
+  const clip = (s) => {
+    if (s.mark) s.mark = typeof s.mark === "string" ? { type: s.mark, clip: true } : { ...s.mark, clip: true };
+    (s.layer || []).forEach(clip);
+  };
+  clip(parsed);
+  if (!["facet", "repeat", "concat", "hconcat", "vconcat"].some((k) => k in parsed)) parsed.height = Math.min(Number(parsed.height) || 240, 300);
   await embed(stage, { width: "container", ...parsed, $schema: undefined, background: null }, {
     actions: false, renderer: "svg", tooltip: true,
-    config: { background: null, font: css("--ui"), view: { stroke: null }, range: { category: [ink, "#e2a33b", "#3a9a6e", "#c0504d", "#8a6fd1", "#4fa3c7"] },
+    config: { background: null, font: css("--ui"), view: { stroke: null }, range: { category: [ink, "#e2a33b", "#c0504d", "#8a6fd1", "#4fa3c7", "#64748b"] },
       axis: { labelColor: muted, titleColor: text, gridColor: line, domainColor: line, tickColor: line, labelFontSize: 12, titleFontSize: 12 },
       legend: { labelColor: text, titleColor: text }, title: { color: text, fontSize: 14 }, mark: { color: ink } },
   });

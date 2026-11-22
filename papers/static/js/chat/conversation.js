@@ -5,7 +5,7 @@
 //
 //   const chat = conversationView(root, { paperId, onSaveNote, toast, visuals: { figures(), onCite(kind, ref) } });
 //   chat.start("explain", passage, label)   chat.attach(passage, label)   chat.open(id)   chat.newChat()
-import { api, esc, quote } from "../core.js";
+import { api, esc, go, quote } from "../core.js";
 import { icon, iconButton } from "../icons.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "../speech.js";
 import { answerView, checkedLabel } from "./answer.js";
@@ -99,7 +99,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       <button type="button" class="msg-chip" data-act="deeper" title="Go deeper, with the details (uses Deep mode)">Deeper</button>
       ${m.meta?.model ? `<span class="msg-model" title="The model that wrote this answer">${esc(m.meta.model.model)} · ${esc(m.meta.model.provider)}</span>` : ""}</div>
     ${m.meta?.shortened ? `<p class="msg-shortened hint">This model was sent only the beginning of the paper, so the answer may miss later
-      parts. <a href="#/settings">Settings › How much of a paper to send</a></p>` : ""}
+      parts. <a href="/settings">Settings › How much of a paper to send</a></p>` : ""}
     ${last && m.meta?.followups?.length ? `<div class="followups">${m.meta.followups.map((q) =>
       `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}`;
   const assistantHtml = (m, last) => {
@@ -314,7 +314,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     if (act === "deeper") return send("ask", DEEPER, [], "deep");
     if (!m) return;
     if (act === "copy") { await navigator.clipboard?.writeText(m.content).catch(() => {}); return toast("Copied."); }
-    if (act === "guide") { location.hash = `#/papers/${paperId}/guide/${m.id}`; return; }
+    // In the reader the guide opens as its view; elsewhere, the reader opens on it.
+    if (act === "guide") { if (dispatchEvent(new CustomEvent("open-guide", { detail: m.id, cancelable: true }))) go(`/papers/${paperId}/guide/${m.id}`); return; }
     if (act === "listen") return speaking() ? stopSpeaking() : speak(m.content.replace(/```[\s\S]*?```/g, ""));
     if (act === "note") {
       const asked = current.messages[current.messages.indexOf(m) - 1];

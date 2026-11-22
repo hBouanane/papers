@@ -43,7 +43,7 @@ export function figureQuiz(root) {
     shown = `${fig.paper_id}:${fig.number}`;
     const parts = shuffle(fig.parts.map((p) => ({ ...p, box: area(p) })).filter((p) => p.box));
     let at = 0, right = 0, answered = false;
-    stage.innerHTML = `<p class="fq-from">Figure ${fig.number} of <a class="paper-name" href="#/papers/${fig.paper_id}">${esc(fig.title)}</a></p>
+    stage.innerHTML = `<p class="fq-from">Figure ${fig.number} of <a class="paper-name" href="/papers/${fig.paper_id}">${esc(fig.title)}</a></p>
       <p class="fq-ask" aria-live="polite"></p>
       <div class="fq-frame"><img src="${fig.url}" alt="${esc(fig.caption)}"><div class="fq-marks"></div></div>
       <div class="fq-foot"><span class="fq-score hint"></span><button type="button" class="button secondary" data-fq="next" hidden>Next</button></div>`;

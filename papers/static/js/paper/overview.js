@@ -1,5 +1,5 @@
 // A paper's page: key points, figures, words, notes and references, with its details and chain.
-import { api, app, busy, cameFrom, cite, esc, loading, pct, progressBar, renderVocab, setBar, statusTag, toast } from "../core.js";
+import { api, app, busy, cameFrom, cite, esc, go, loading, pct, progressBar, renderVocab, setBar, statusTag, toast } from "../core.js";
 import { cover, drawCovers, forgetCover } from "../covers.js";
 import { bindNotesList, noteStore } from "../notes.js";
 import { linkFigures, renderFigures, showFigure } from "./figures.js";
@@ -21,22 +21,22 @@ export async function paperPage(id, stale, tab = "overview") {
   const from = cameFrom(`/papers/${id}`) || "/";
   const fromGoal = goals.find((g) => from === `/goals/${g.id}`);
   const SECTIONS = { "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
-  const back = fromGoal ? { href: `#${from}`, label: fromGoal.goal }
-    : SECTIONS[from] ? { href: `#${from}`, label: SECTIONS[from] }
-    : /^\/papers\/\d+$/.test(from) ? { href: `#${from}`, label: "the previous paper" }
-    : { href: "#/", label: "Library" };
+  const back = fromGoal ? { href: from, label: fromGoal.goal }
+    : SECTIONS[from] ? { href: from, label: SECTIONS[from] }
+    : /^\/papers\/\d+$/.test(from) ? { href: from, label: "the previous paper" }
+    : { href: "/", label: "Library" };
   setBar({ back, title: p.title });
 
   app.innerHTML = `<div class="container page">
     <header class="paper-header" id="header">
-      ${readable ? `<a class="cover-link" href="#/papers/${id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>` : cover(p, "large")}
+      ${readable ? `<a class="cover-link" href="/papers/${id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>` : cover(p, "large")}
       <div class="paper-header-text">
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
       <div class="actions">
-        ${readable ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>`
+        ${readable ? `<a class="button" href="/papers/${id}/read">${readLabel}</a>`
           : `<label class="button"><span>Upload the PDF</span><input type="file" class="pdf-input" accept="application/pdf,.pdf" hidden></label>`}
-        ${p.quiz?.length && p.status === "read" ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
+        ${p.quiz?.length && p.status === "read" ? `<a class="button secondary" href="/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
         <details class="menu">
           <summary class="button quiet">More</summary>
@@ -70,13 +70,13 @@ export async function paperPage(id, stale, tab = "overview") {
           <div class="fact-understood"><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span>
             <p class="fact-note">${p.understanding == null ? "Your score on this paper's questions, once you test yourself."
     : "Your score the last time you answered this paper's questions."}
-              ${p.quiz?.length || p.text ? `<a href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Test again"}</a>` : ""}</p></div>
+              ${p.quiz?.length || p.text ? `<a href="/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Test again"}</a>` : ""}</p></div>
           ${p.text ? `<div><span>Length</span><span>${minutes(p.text)} min</span></div>` : ""}
         </div>
         ${ancestors.length ? `<div class="sheet trail"><h3>Found through</h3>
-          ${ancestors.map((a) => `<a href="#/papers/${a.id}">${esc(a.title)}</a>`).join("")}</div>` : ""}
+          ${ancestors.map((a) => `<a href="/papers/${a.id}">${esc(a.title)}</a>`).join("")}</div>` : ""}
         ${chain.children.length ? `<div class="sheet trail"><h3>Led you to</h3>
-          ${chain.children.map((c) => `<a href="#/papers/${c.id}">${esc(c.title)}</a>`).join("")}</div>` : ""}
+          ${chain.children.map((c) => `<a href="/papers/${c.id}">${esc(c.title)}</a>`).join("")}</div>` : ""}
       </aside>
     </div></div>`;
 
@@ -102,7 +102,7 @@ export async function paperPage(id, stale, tab = "overview") {
         here: () => ({ position: p.position || 0 }),
         jump: (note) => {
           try { sessionStorage.setItem(`papers.jump.${id}`, note.id); } catch { /* opens at the last place instead */ }
-          location.hash = `#/papers/${id}/read`;
+          go(`/papers/${id}/read`);
         },
       });
       store.load().catch((e) => toast(e.message));
@@ -160,7 +160,7 @@ export async function paperPage(id, stale, tab = "overview") {
     busy(e.currentTarget, "Deleting…", async () => {
       await fetch(`/api/papers/${id}`, { method: "DELETE" });
       toast("Paper deleted.");
-      location.hash = goal ? `#/goals/${goal.id}` : "#/";
+      go(goal ? `/goals/${goal.id}` : "/");
     });
   };
   app.querySelectorAll(".pdf-input").forEach((input) => input.addEventListener("change", (e) => uploadPdf(id, e.target.files[0])));
@@ -230,11 +230,11 @@ function renderStory(box, p, settings, s, redo, abstractFold) {
     const last = guides[0];
     const canWrite = settings.ai_ready;
     actions.innerHTML = last
-      ? `<a class="button" href="#/papers/${p.id}/guide/${last.id}">Open the guide</a>
-         <span class="hint">${Math.max(1, Math.round(last.words / 220))} min read${canWrite ? ` · <a href="#/papers/${p.id}/guide/new">Write a new one</a>` : ""}</span>`
-      : canWrite ? `<a class="button" href="#/papers/${p.id}/guide/new">Explain it in depth</a>
+      ? `<a class="button" href="/papers/${p.id}/guide/${last.id}">Open the guide</a>
+         <span class="hint">${Math.max(1, Math.round(last.words / 220))} min read${canWrite ? ` · <a href="/papers/${p.id}/guide/new">Write a new one</a>` : ""}</span>`
+      : canWrite ? `<a class="button" href="/papers/${p.id}/guide/new">Explain it in depth</a>
          <span class="hint">Written by ${esc(settings.ai_name)}; takes a few minutes.</span>`
-      : `<span class="hint">Choose an AI model in <a href="#/settings">Settings</a> to get it.</span>`;
+      : `<span class="hint">Choose an AI model in <a href="/settings">Settings</a> to get it.</span>`;
   }).catch(() => actions.remove());
 }
 
@@ -252,7 +252,7 @@ function renderOverview(box, p, settings, regenerate) {
       <p class="hint">${writtenBy}</p>
       <button class="button secondary small" id="regenerate" title="Writes the key points, vocabulary and review questions again. Your notes and highlights stay.">Regenerate with ${esc(settings.ai_name)}</button></div>`
     : p.text ? `<div class="regenerate"><p class="hint">Written by an AI model. To write them again with another one, choose it in
-      <a href="#/settings">Settings</a>; a Regenerate button then appears here.</p></div>` : "";
+      <a href="/settings">Settings</a>; a Regenerate button then appears here.</p></div>` : "";
   const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
   const fold = (title, body, open = false) => body ? `<details class="fold"${open ? " open" : ""}><summary>${title}</summary>${body}</details>` : "";
   const abstract = "";
@@ -261,7 +261,7 @@ function renderOverview(box, p, settings, regenerate) {
       : settings.ai_ready && p.text ? `${abstractFirst}<h2>Overview</h2><p class="hint">The paper in two minutes: the problem, the idea, the
           key ideas and what it showed, in plain English, before you read it.</p>
           <button class="button" id="skim-btn">Get the overview</button>${abstract}`
-      : `<p class="hint">${p.text ? `Choose an AI model in <a href="#/settings">Settings</a> to get key points, words and questions.`
+      : `<p class="hint">${p.text ? `Choose an AI model in <a href="/settings">Settings</a> to get key points, words and questions.`
           : "Upload the PDF to get key points."}</p>${abstractFirst}`;
     box.querySelector("#skim-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Reading the paper…", async () => {
       p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
@@ -351,7 +351,7 @@ async function uploadPdf(id, file) {
   try {
     await api(`/papers/${id}/pdf`, { method: "POST", body: form });
     forgetCover(id);
-    location.hash = `#/papers/${id}/read`;
+    go(`/papers/${id}/read`);
   } catch (e) { toast(e.message); }
 }
 
@@ -368,14 +368,14 @@ async function loadRefs(box, p) {
   box.innerHTML = refs.length ? `<p class="hint">Pick one to read next; the map remembers which paper led you where.</p>
     <div class="list">${refs.map((r, i) => `<div class="ref">
       <span><span class="ref-title">${esc(r.title)}</span><span class="result-cite">${cite(r)}</span></span>
-      ${r.library_id ? `<a class="button quiet" href="#/papers/${r.library_id}">Open</a>`
+      ${r.library_id ? `<a class="button quiet" href="/papers/${r.library_id}">Open</a>`
         : `<button class="button secondary" data-ref="${i}">Read this</button>`}</div>`).join("")}</div>`
     : `<p class="faint">No references found.</p>`;
   box.onclick = (e) => {
     const b = e.target.closest("[data-ref]");
     if (b) busy(b, "Adding…", async () => {
       const added = await api("/papers", { method: "POST", json: { ...refs[b.dataset.ref], topic_id: p.topic_id, source_paper_id: p.id } });
-      location.hash = `#/papers/${added.id}`;
+      go(`/papers/${added.id}`);
     });
   };
 }

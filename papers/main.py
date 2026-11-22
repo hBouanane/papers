@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 from papers import ai, config, db, index, keys, library, scholar
 from papers.ai.errors import plain
@@ -96,4 +97,18 @@ for router in ROUTERS:
     app.include_router(router)
 
 mimetypes.add_type("text/javascript", ".js")  # the Windows registry can map .js to text/plain
-app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True), name="static")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+class Pages(StaticFiles):
+    """The web pages. Addresses are plain paths (/papers/3/read): one that isn't a file is a page of the app, so it
+    gets index.html and the app draws it. Missing files (a script, an image) and the API still say 404."""
+
+    async def get_response(self, path, scope):
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as e:
+            if e.status_code != 404 or path.startswith("api") or "." in path.rsplit("/", 1)[-1]:
+                raise
+            return await super().get_response("index.html", scope)
+
+
+app.mount("/", Pages(directory=config.STATIC_DIR, html=True), name="static")

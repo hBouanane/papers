@@ -272,7 +272,9 @@ never just for decoration):
   pipeline, an architecture, a pathway), sequenceDiagram (who sends what to whom: a protocol, a signalling cascade),
   stateDiagram-v2 (states and what moves between them), timeline (history, the phases of a study), mindmap (how
   ideas group), classDiagram or erDiagram (kinds of things and their relations), quadrantChart, gantt, sankey-beta
-  (flows of amounts). Keep labels short, quote labels that have symbols:
+  (flows of amounts). Keep labels short (a few words), quote labels that have symbols, and keep it small enough to
+  read at a glance (about 12 boxes at most). To compare two things, give each its own subgraph and draw no arrow
+  between them: they're shown side by side. Bar charts should start their axis at zero.
 ```diagram
 flowchart LR
   A["Sample"] --> B["Treatment"] --> D["Measure"]

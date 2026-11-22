@@ -8,7 +8,7 @@ export const shorten = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S
 
 // A paper as its first page (with a sheet tilted behind it), its title and how far you've read.
 // Hovering lifts the page, fans the sheet and turns "x% read" into "Continue →".
-export const paperCard = (p, note = "") => `<a class="shelf-card" href="#/papers/${p.id}">
+export const paperCard = (p, note = "") => `<a class="shelf-card" href="/papers/${p.id}">
     <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
     <span class="shelf-info">
       <span class="shelf-title paper-name"><span class="ul">${esc(p.title)}</span></span>
@@ -26,10 +26,10 @@ export const looseCard = (p, goals) => `<div class="shelf-card loose-card" data-
       <span class="shelf-stage" aria-hidden="true">${cover(p, "small")}</span>
       ${goals.length ? `<details class="menu loose-goal"><summary class="glass-add" title="Add to a goal"><span class="glass-plus">${PLUS}</span><span>Add to a goal</span></summary>
         <div class="menu-list sheet" role="menu">${goals.map((g) => `<button role="menuitem" data-goal="${g.id}">${esc(shorten(g.goal, 60))}</button>`).join("")}</div></details>`
-        : `<a class="glass-add" href="#/goals" title="Create a goal first"><span class="glass-plus">${PLUS}</span><span>Create a goal</span></a>`}
+        : `<a class="glass-add" href="/goals" title="Create a goal first"><span class="glass-plus">${PLUS}</span><span>Create a goal</span></a>`}
     </div>
-    <a class="loose-title shelf-title paper-name" href="#/papers/${p.id}">${esc(p.title)}</a>
-    <a class="shelf-foot loose-foot" href="#/papers/${p.id}${p.has_pdf ? "/read" : ""}">${progressBar(p)}<span class="foot-swap">
+    <a class="loose-title shelf-title paper-name" href="/papers/${p.id}">${esc(p.title)}</a>
+    <a class="shelf-foot loose-foot" href="/papers/${p.id}${p.has_pdf ? "/read" : ""}">${progressBar(p)}<span class="foot-swap">
       <span class="foot-pct num">${p.status === "read" ? "Read" : p.progress ? `${pct(p.progress)} read` : "Not started"}</span>
       <span class="foot-go" aria-hidden="true">${p.has_pdf ? "Read" : "Open"} <span class="arrow">→</span></span></span></a>
   </div>`;
