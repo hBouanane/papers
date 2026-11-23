@@ -92,7 +92,29 @@ export function createRail(rail, scroller, { items }) {
     }
     return getComputedStyle(document.body).backgroundColor;
   };
-  const openTags = () => { rail.style.setProperty("--rail-bg", backdrop()); placeTags(); paint(); rail.classList.add("is-open"); };
+  // Open, the names close as soon as the pointer is on neither the rail nor a name, the page scrolls under the pointer
+  // somewhere else, or Escape is pressed: whatever happens, they never stay in the way.
+  const over = (e) => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    return !!el && (el.closest(".rail-tag") || (rail.contains(el) && !el.closest(".rail-float")));
+  };
+  const close = () => {
+    rail.classList.remove("is-open");
+    removeEventListener("pointermove", watch, true);
+    removeEventListener("keydown", onEsc, true);
+    removeEventListener("wheel", watch, true);
+  };
+  const watch = (e) => { if (!over(e)) { clearTimeout(closeTimer); closeTimer = setTimeout(close, 120); } else clearTimeout(closeTimer); };
+  const onEsc = (e) => { if (e.key === "Escape") close(); };
+  const openTags = () => {
+    rail.style.setProperty("--rail-bg", backdrop());
+    placeTags();
+    paint();
+    rail.classList.add("is-open");
+    addEventListener("pointermove", watch, true);
+    addEventListener("wheel", watch, true);
+    addEventListener("keydown", onEsc, true);
+  };
   rail.addEventListener("pointerenter", (e) => {
     if (e.pointerType === "touch") return;
     clearTimeout(closeTimer);
@@ -100,7 +122,7 @@ export function createRail(rail, scroller, { items }) {
   });
   rail.addEventListener("pointerleave", () => {
     clearTimeout(openTimer);
-    closeTimer = setTimeout(() => rail.classList.remove("is-open"), 160);
+    closeTimer = setTimeout(close, 160);
   });
   rail.addEventListener("pointerover", (e) => { // pointing at a name lights its mark
     const i = e.target.closest?.("[data-rail]")?.dataset.rail;
@@ -108,7 +130,7 @@ export function createRail(rail, scroller, { items }) {
   });
   rail.addEventListener("pointerdown", (e) => {
     const pick = e.target.closest("[data-rail]");
-    if (pick) { e.preventDefault(); rail.classList.remove("is-open"); return go(Number(pick.dataset.rail)); }
+    if (pick) { e.preventDefault(); close(); return go(Number(pick.dataset.rail)); }
     if (e.target.closest(".rail-float")) return;
     const to = (ev) => {
       const b = rail.getBoundingClientRect();

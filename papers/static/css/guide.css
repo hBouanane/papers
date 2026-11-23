@@ -136,15 +136,23 @@ body.guide-view .reader-route { display: none; }
 .thread-wrap .thread::-webkit-scrollbar { display: none; }
 .chat-rail { position: absolute; top: 18px; bottom: 110px; right: 8px; }
 .chat .turn { width: 100%; max-width: 760px; margin: 0 auto; }
-.chat .msg-you { max-width: none; margin: 40px 0 0; padding: 30px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none;
-  color: var(--heading); font: 600 24px/1.3 var(--ui); letter-spacing: -.01em; }
+/* A question reads as a title, on the right: up to 85% of the width, its lines starting on the left; a long one is
+   smaller, and a very long one shows four lines, fading out, until you click it. */
+.chat .turn:has(.msg-you) { display: flex; justify-content: flex-end; margin-top: 34px; padding-top: 30px; border-top: 1px solid var(--line); }
+.chat :is(.chat-doc-head, .show-more) + .turn:has(.msg-you) { margin-top: 0; padding-top: 0; border-top: 0; }
+.chat .msg-you { max-width: 85%; margin: 0 0 18px; padding: 0; border: 0; border-radius: 0; background: none; text-align: start;
+  color: var(--heading); font: 650 24px/1.3 var(--ui); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.chat .msg-you.is-wordy { font-size: 19px; line-height: 1.4; }
+.chat .msg-you > p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.chat .msg-you.is-expanded > p { display: block; }
+.chat .msg-you.is-long { cursor: pointer; }
+.chat .msg-you.is-long > p { -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.chat .msg-you.is-long::after { content: "Show all"; display: block; margin-top: 4px; font: 600 13px var(--ui); color: var(--ink); }
+.chat .msg-you.is-expanded::after { content: "Show less"; display: block; margin-top: 4px; font: 600 13px var(--ui); color: var(--ink); cursor: pointer; }
+.chat .msg-you .msg-attachment { -webkit-line-clamp: 3; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .chat :is(.chat-doc-head, .show-more) + .turn .msg-you { margin-top: 0; border-top: 0; padding-top: 0; }
 .chat-doc-head { width: 100%; max-width: 760px; margin: 0 auto 26px; }
 .chat-doc-head .guide-title { font-size: 28px; }
-/* Under each question, its answer, marked like a tab ("Answer") as in Perplexity. */
-.chat .msg-claude::before { content: "✦  Answer"; display: block; width: max-content; margin: 14px 0 16px; padding: 0 2px 8px; border-bottom: 2px solid var(--ink);
-  font: 700 14px/1 var(--ui); color: var(--heading); white-space: pre; }
-.chat .turn:has(.msg-claude) { background: linear-gradient(var(--line), var(--line)) 0 46px / 100% 1px no-repeat; }
 .chat .msg-you p { margin: 0; }
 .chat .msg-you .msg-action { display: inline-block; margin-bottom: 6px; font-size: 12px; }
 .chat .msg-you .msg-attachment { margin: 8px 0 0; font: 400 15px/1.6 var(--paper); color: var(--graphite); }
@@ -173,34 +181,49 @@ body.guide-view #pop .sel-colors, body.guide-view #pop [data-sel="note"], body.g
 .chat-rail .rail-float { width: min(360px, calc(var(--panel-w, 420px) - 80px)); }
 .chat-rail .rail-label { display: none; }
 
-/* ---------- The panel as a second page beside the first: no hard line between them; its tabs, the conversation's
-   name and the box to ask all float over it. ---------- */
-.notes { background: var(--desk); border-left: 0; transform: translateX(32px); opacity: 0;
+/* ---------- The panel: a second page beside the first, raised above it. Its bar is level with the reader's bar (the
+   text never runs under it): the conversation's name on the left, the tabs on the right. ---------- */
+.notes { overflow: hidden; background: var(--sheet); border-left: 0; transform: translateX(32px); opacity: 0;
   transition: transform .38s cubic-bezier(.2, .8, .2, 1), opacity .25s ease, visibility 0s .38s; }
-body.notes-open .notes { transform: none; opacity: 1; transition: transform .38s cubic-bezier(.2, .8, .2, 1), opacity .25s ease; }
+body.notes-open .notes { transform: none; opacity: 1; box-shadow: -18px 0 40px -12px rgb(0 0 0 / .18), -1px 0 0 var(--line);
+  transition: transform .38s cubic-bezier(.2, .8, .2, 1), opacity .25s ease; }
 .reader-scroll, .reader-bar, .guide-rail { transition: right .38s cubic-bezier(.2, .8, .2, 1); }
-@media (min-width: 1100px) {
-  body.notes-open .notes { box-shadow: none; }
-  /* the seam: a soft fading line, and a grip to drag in its middle */
-  .notes::before { content: ""; position: absolute; left: 0; top: 8%; bottom: 8%; width: 1px; background: linear-gradient(transparent, var(--line) 20%, var(--line) 80%, transparent); }
-  .panel-resize::after { opacity: .7; width: 4px; left: 2px; height: 44px; margin-top: -22px; background: var(--line); }
-}
-@media (max-width: 1099px) { body.notes-open .notes { box-shadow: var(--shadow-panel); background: var(--sheet); } }
-.panel-head { position: absolute; z-index: 6; top: 12px; right: 12px; padding: 4px; gap: 2px; border: 1px solid var(--line); border-radius: 999px;
-  background: color-mix(in srgb, var(--raised) 88%, transparent); backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgb(0 0 0 / .1); }
+.panel-resize::after { opacity: .6; width: 4px; left: 2px; height: 44px; margin-top: -22px; background: var(--line); }
+.panel-head { position: relative; flex: 0 0 auto; height: 56px; padding: 0 12px; gap: 6px; justify-content: flex-end; border-bottom: 1px solid var(--line); background: var(--header); }
+.panel-tabs { padding: 3px; border-radius: 999px; background: var(--raised); }
 .panel-tabs [role=tab] { padding: 6px 12px; margin: 0; border: 0; border-radius: 999px; font-size: 14px; transition: background .15s, color .15s; }
-.panel-tabs [role=tab][aria-selected=true] { background: var(--ink-tint); color: var(--ink); }
-.panel-head-tools { padding: 0 0 0 4px; margin-left: 2px; border-left: 1px solid var(--line); }
-.panel-head-tools .icon-button { border-radius: 50%; }
-.pane { padding-top: 68px; }
-.pane:not([hidden]) { animation: rise-in .3s cubic-bezier(.2, .8, .2, 1) both; }
-.pane-ask { padding-top: 0; }
-.thread-wrap .thread { padding-top: 74px; }
-.chat-rail { top: 70px; }
-/* the conversation's name, and the list of conversations, float at the top left */
-.pane-ask .chat-head { position: absolute; z-index: 5; top: 12px; left: 12px; max-width: calc(100% - 330px); min-width: 120px; padding: 3px 4px 3px 6px; gap: 2px;
-  border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--raised) 88%, transparent); backdrop-filter: blur(10px);
-  box-shadow: 0 6px 20px rgb(0 0 0 / .1); }
-.pane-ask .chat-title-btn { padding: 5px 8px; border-radius: 999px; font-size: 14px; }
-.pane-ask .chat-history { position: absolute; z-index: 7; top: 58px; left: 12px; width: min(380px, calc(100% - 24px)); max-height: 60%; border: 1px solid var(--line);
+.panel-tabs [role=tab][aria-selected=true] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.panel-head-tools { padding: 0; }
+.pane { padding-top: 18px; }
+/* a fade only: a transform would make the pane the frame for the bar items placed in it */
+.pane:not([hidden]) { animation: pane-in .25s ease; }
+@keyframes pane-in { from { opacity: 0; } }
+.pane-ask { position: static; padding-top: 0; }
+.thread-wrap .thread { padding-top: 30px; }
+.chat-rail { top: 24px; }
+/* in the bar, on the left: the conversation's name (click: all conversations) and + for a new one */
+.pane-ask .chat-head { position: absolute; z-index: 5; top: 9px; left: 12px; max-width: calc(100% - 300px); min-width: 110px; padding: 2px 2px 2px 4px; gap: 0;
+  border: 0; border-radius: 999px; background: none; }
+.pane-ask .chat-title-btn { padding: 7px 10px; border-radius: 999px; font-size: 14px; }
+.pane-ask .chat-history { position: absolute; z-index: 7; top: 60px; left: 12px; width: min(380px, calc(100% - 24px)); max-height: 60%; border: 1px solid var(--line);
   border-radius: 14px; box-shadow: 0 18px 48px rgb(0 0 0 / .18); animation: rise-in .25s cubic-bezier(.2, .8, .2, 1) both; }
+/* The box to ask: as simple as the one over the guide. One line that grows as you write (rounder corners then),
+   the way it answers as one chip (Quick or Deep: click to switch), and send. */
+.pane-ask .composer { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(640px, calc(100% - 48px)); padding: 0; background: none; z-index: 3; }
+.pane-ask .composer::before { content: ""; position: absolute; inset: -36px -40px -16px; background: linear-gradient(transparent, var(--sheet) 55%); z-index: -1; pointer-events: none; }
+.pane-ask .composer-box { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 18px; border-radius: 24px; background: var(--raised);
+  box-shadow: 0 10px 30px rgb(0 0 0 / .14); transition: border-color .15s; }
+.pane-ask .composer-box:focus-within { border-color: var(--ink); }
+.pane-ask .composer-chips { flex: 0 0 100%; }
+.pane-ask .composer-chips[hidden] { display: none; }
+.pane-ask .composer textarea { flex: 1; min-width: 0; min-height: 22px; max-height: 180px; padding: 8px 0; font-size: 15px; line-height: 1.45; background: none; }
+.pane-ask .composer-foot { gap: 6px; }
+.pane-ask .composer-hint { display: none; }
+.pane-ask .depth { padding: 0; border: 0; background: none; }
+.pane-ask .depth button:not(.active) { display: none; }
+.pane-ask .depth button.active { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--sheet); color: var(--graphite);
+  font: 600 12.5px var(--ui); box-shadow: none; cursor: pointer; }
+.pane-ask .depth button.active[data-depth="deep"] { border-color: var(--ink); background: var(--ink-tint); color: var(--ink); }
+.pane-ask .composer-send { width: 36px; height: 36px; }
+@media (max-width: 1099px) { body.notes-open .notes { box-shadow: var(--shadow-panel); } }
+

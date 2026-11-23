@@ -46,8 +46,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
         <textarea rows="1" placeholder="Ask about this paper…" aria-label="Your message"></textarea>
         <div class="composer-foot">
           <div class="segmented small depth" role="group" aria-label="How to answer">
-            <button type="button" data-depth="quick" title="Answer straight from the paper (fast)">Quick</button>
-            <button type="button" data-depth="deep" title="Deep: the AI reads sections, looks at figures and checks your notes before it answers (slower, more thorough)">Deep</button></div>
+            <button type="button" data-depth="quick" title="Quick: straight from the paper, fast. Click for Deep">Quick</button>
+            <button type="button" data-depth="deep" title="Deep: reads sections, looks at figures and checks your notes first (slower, more thorough). Click for Quick">Deep</button></div>
           <span class="composer-hint">Enter to send</span>
           <button class="composer-send" title="Send (Enter)" aria-label="Send">${icon("send", 18)}</button></div>
       </div>
@@ -95,7 +95,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       questions and the answers appear here, beside it.</p></div>`;
   const attachmentsHtml = (list) => list.map((a) => `<div class="msg-attachment">${a.label ? `<span class="attachment-label">${esc(a.label)}</span>` : ""}
       ${quote(a.text)}</div>`).join("");
-  const userHtml = (m) => `<div class="msg msg-you">
+  // A question reads as a title; a long one is smaller, and a very long one is cut to a few lines until clicked.
+  const userHtml = (m) => `<div class="msg msg-you${(m.content || "").length > 140 ? " is-wordy" : ""}">
       ${ACTION[m.kind] ? `<span class="msg-action">${ACTION[m.kind]}</span>` : ""}
       ${attachmentsHtml(m.meta?.attachments || [])}
       ${m.content ? `<p>${esc(m.content)}</p>` : ""}</div>`;
@@ -157,7 +158,11 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     draw(thread);
     thread.scrollTop = thread.scrollHeight;
     rail.refresh();
+    clampLong();
   };
+  const clampLong = () => requestAnimationFrame(() => thread.querySelectorAll(".msg-you:not(.is-expanded) > p").forEach((q) => {
+    q.parentElement.classList.toggle("is-long", q.scrollHeight > q.clientHeight + 4);
+  }));
   const setTitle = () => { $(".chat-title").textContent = current?.title || "New conversation"; };
   const drawChips = () => {
     chipsEl.innerHTML = pending.map((a, i) => `<span class="chip-attachment" title="${esc(a.text.slice(0, 400))}">
@@ -241,6 +246,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     thread.querySelector(".thread-empty")?.remove();
     turnEl(userHtml({ kind, content, meta: { attachments } }));
     rail.refresh();
+    clampLong();
     const path = current ? `/conversations/${current.id}/messages` : `/papers/${paperId}/conversations/start`;
     return stream((signal, on) => streamEvents(path, message, on, { signal }));
   };
@@ -271,7 +277,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   root.querySelector(".depth").addEventListener("click", (e) => {
     const b = e.target.closest("[data-depth]");
     if (!b) return;
-    depth = b.dataset.depth;
+    // One chip shows the way it answers; clicking it switches between Quick and Deep.
+    depth = b.dataset.depth === depth ? (depth === "quick" ? "deep" : "quick") : b.dataset.depth;
     try { localStorage.setItem(DEPTH_KEY, depth); } catch { /* not remembered */ }
     drawDepth();
   });
@@ -324,6 +331,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       thread.scrollTop = thread.scrollHeight - height;
       return;
     }
+    const long = e.target.closest(".msg-you.is-long, .msg-you.is-expanded");
+    if (long && !getSelection().toString()) { long.classList.toggle("is-expanded"); long.classList.toggle("is-long"); return; }
     const f = e.target.closest("[data-followup]");
     if (f) return send("ask", f.dataset.followup, []);
     const act = e.target.closest("[data-act]")?.dataset.act;
