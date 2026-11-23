@@ -1,7 +1,0 @@
-Virgil (Virgil-Regular.woff2)
-
-The handwriting font of Excalidraw, by Ellinor Rapp. Taken unchanged from the @excalidraw/excalidraw npm package
-(version 0.18.0, dist/prod/fonts/Virgil). Source: https://github.com/excalidraw/virgil
-
-Licensed under the SIL Open Font License, Version 1.1: https://openfontlicense.org
-The font may be used, bundled and redistributed with software; it may not be sold by itself.

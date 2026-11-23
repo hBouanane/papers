@@ -32,7 +32,7 @@ create table if not exists messages (
 create index if not exists messages_by_conversation on messages(conversation_id, id);
 """
 
-KINDS = ("ask", "explain", "simplify", "translate")
+KINDS = ("ask", "explain", "simplify", "translate", "guide")
 ACTION = {"explain": "Explain", "simplify": "Simplify", "translate": "Translate"}
 
 
@@ -56,6 +56,8 @@ def init(conn) -> None:
 
 def title_for(question: str, attachments: list[dict], kind: str) -> str:
     """A short title from what was asked: the question, or the start of the passage."""
+    if kind == "guide":
+        return "In-depth guide"
     source = (question or "").strip() or next((a.get("text", "") for a in attachments if a.get("text")), "")
     words = re.sub(r"\s+", " ", source).strip()
     title = words if len(words) <= 60 else words[:60].rsplit(" ", 1)[0] + "…"
@@ -166,6 +168,24 @@ def get_message(message_id: int) -> dict | None:
     with db.connect() as conn:
         row = conn.execute("select * from messages where id = ?", (message_id,)).fetchone()
     return _message(row) if row else None
+
+
+def guides_for(paper_id: int) -> list[dict]:
+    """The paper's in-depth guides that were written in full, newest first: {id, conversation_id, created_at, words}."""
+    with db.connect() as conn:
+        rows = conn.execute(
+            "select m.id, m.conversation_id, m.created_at, m.content from messages m join conversations c"
+            " on c.id = m.conversation_id where c.paper_id = ? and m.role = 'assistant' and m.kind = 'guide'"
+            " and m.status = 'done' order by m.id desc", (paper_id,)).fetchall()
+    return [{"id": r["id"], "conversation_id": r["conversation_id"], "created_at": r["created_at"],
+             "words": len((r["content"] or "").split())} for r in rows]
+
+
+def paper_of(message_id: int) -> int | None:
+    with db.connect() as conn:
+        row = conn.execute("select c.paper_id from messages m join conversations c on c.id = m.conversation_id"
+                           " where m.id = ?", (message_id,)).fetchone()
+    return row["paper_id"] if row else None
 
 
 def set_meta(message_id: int, meta: dict) -> None:

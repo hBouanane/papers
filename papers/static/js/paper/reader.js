@@ -1,12 +1,13 @@
 // The reader: the PDF (or the paper's text), with selection tools (explain, translate, highlight, note),
 // reading progress, read-aloud and the bar on top. Each part lives in ./reader/; this file opens the paper
 // and wires the parts together. They share `r` (reader/state.js): the paper, the page's elements, the view.
-import { api, app, loading, toast } from "../core.js";
+import { api, app, go, loading, toast } from "../core.js";
 import { bindNotesList, noteStore } from "../notes.js";
 import { bindReadingPrefs } from "../readprefs.js";
 import { stopSpeaking } from "../speech.js";
 import { setupBar } from "./reader/bar.js";
 import { setupFinish } from "./reader/finish.js";
+import { setupGuide } from "./reader/guide.js";
 import { setupHighlighter } from "./reader/highlighter.js";
 import { bindKeys } from "./reader/keys.js";
 import { readerHtml } from "./reader/layout.js";
@@ -20,7 +21,10 @@ import { createViews } from "./reader/views.js";
 import { setupVocab } from "./reader/vocab.js";
 import { setupZoom } from "./reader/zoom.js";
 
-export async function readerPage(id, stale) {
+// /papers/:id/guide/:mid (or /guide/new): the reader, opened on the in-depth guide.
+export const guidePage = (id, mid, stale) => readerPage(id, stale, { guide: Number.isNaN(mid) ? "new" : mid });
+
+export async function readerPage(id, stale, { guide: openOnGuide = null } = {}) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   let p = await api(`/papers/${id}`);
   if (stale()) return;
@@ -30,7 +34,7 @@ export async function readerPage(id, stale) {
     catch (e) { toast(`Couldn't get the original PDF, showing the text instead. ${e.message}`); }
     if (stale()) return;
   }
-  if (!p.text && !p.has_pdf) { location.replace(`#/papers/${id}`); return; }
+  if (!p.text && !p.has_pdf) { go(`/papers/${id}`, true); return; }
   const { language, ai_pages: allowPages } = await api("/settings").catch(() => ({ language: "" }));
   if (stale()) return;
   document.body.classList.add("reading");
@@ -51,7 +55,7 @@ export async function readerPage(id, stale) {
   // Open the paper, then go back to where you stopped (or to the note you came to see).
   await views.show(r.view);
   if (stale()) { r.pdf?.close(); bar.cleanup(); vocab.cleanup(); return; }
-  const jumpTo = views.restore();
+  const jumpTo = views.restore({ quiet: !!openOnGuide });
   // Deep mode can change the library (a note, a highlight, a word): show it right away.
   const libraryChanged = async (kind) => {
     if (kind === "note" || kind === "highlight") return notes.load().catch(() => {});
@@ -60,7 +64,25 @@ export async function readerPage(id, stale) {
       if (fresh) { p.glossary = fresh.glossary; panel.renderWords(); vocab.refresh(); }
     }
   };
-  const panel = setupPanel(r, { notes, cite: citeHandler(r, views), allowPages, onLibraryChanged: (kind) => libraryChanged(kind) });
+  const cite = citeHandler(r, views);
+  let guide = null;
+  const panel = setupPanel(r, { notes, cite, allowPages, onLibraryChanged: (kind) => libraryChanged(kind), onScreen: () => guide?.shown() });
+  guide = setupGuide(r, {
+    cite, toPaper: () => views.toPaper(), onShown: () => { vocab.refresh(); views.refreshJump(); },
+    onChange: () => panel.chat.redraw(), // the guide on screen isn't repeated in the chat beside it
+  });
+  // Over the guide: a box to ask about it. The answer opens beside the guide, in the guide's own conversation.
+  r.$("#guide-ask").onsubmit = (e) => {
+    e.preventDefault();
+    const input = r.$("#guide-ask-text");
+    const text = input.value.trim();
+    if (!text) return input.focus();
+    input.value = "";
+    panel.setOpen(true, "ask");
+    panel.chat.askIn(guide.shown()?.conversation ?? null, text);
+  };
+  r.$("#guide-ask-new").onclick = () => { panel.setOpen(true, "ask"); panel.chat.newChat(); };
+  views.useGuide(guide);
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
     here: () => ({ position: r.positionNow(), page: r.pdf ? r.pdf.page : null }),
     jump: (note) => views.jumpToNote(note),
@@ -78,11 +100,18 @@ export async function readerPage(id, stale) {
   panel.renderWords();
   panel.onWordsChanged(vocab.refresh);
   const zoom = setupZoom(r);
-  const unbindKeys = bindKeys(r, { progress, panel, selection, highlighter, zoom, vocab });
+  const unbindKeys = bindKeys(r, { progress, panel, selection, highlighter, zoom, vocab, guide });
   bindReadingPrefs(r.$("#bar"));
+  if (openOnGuide) views.openGuide(openOnGuide);
+  // A long answer in the chat opens here as the guide view.
+  const onOpenGuide = (e) => { e.preventDefault(); panel.setOpen(false); views.openGuide(e.detail, { exact: true }); };
+  addEventListener("open-guide", onOpenGuide);
 
   return () => {
     stopSpeaking();
+    guide.cleanup();
+    removeEventListener("open-guide", onOpenGuide);
+    document.body.classList.remove("guide-view");
     unbindKeys();
     notesUi.destroy();
     highlighter.cleanup();

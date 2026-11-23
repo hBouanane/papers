@@ -1,11 +1,11 @@
-import { addFromLink, app, currentGoal, esc, looksLikePaperLink, noteVisit, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
+import { addFromLink, app, currentGoal, esc, go, looksLikePaperLink, noteVisit, setBar, showShortcuts, toast, uploadPdfs } from "./core.js";
 import { goalPage, goalsPage } from "./pages/goals.js";
 import { libraryPage } from "./pages/library.js";
 import { mapPage } from "./pages/map.js";
 import { recallPage } from "./pages/recall.js";
 import { settingsPage } from "./pages/settings.js";
 import { paperPage } from "./paper/overview.js";
-import { readerPage } from "./paper/reader.js";
+import { guidePage, readerPage } from "./paper/reader.js";
 import { quizPage } from "./paper/review.js";
 import "./theme.js";
 
@@ -16,6 +16,7 @@ const routes = [
   [/^\/papers\/(\d+)$/, paperPage, "library"],
   [/^\/papers\/(\d+)\/read$/, readerPage, "library"],
   [/^\/papers\/(\d+)\/quiz$/, quizPage, "library"],
+  [/^\/papers\/(\d+)\/guide\/(\d+|new)$/, guidePage, "library"],
   [/^\/recall$/, recallPage, "recall"],
   [/^\/map$/, mapPage, "map"],
   [/^\/settings$/, settingsPage, "settings"],
@@ -25,7 +26,7 @@ let cleanup = null;
 let renderId = 0;
 
 async function render() {
-  const path = location.hash.slice(1) || "/";
+  const path = location.pathname.replace(/\/+$/, "") || "/";
   noteVisit(path);
   const id = ++renderId;
   cleanup?.();
@@ -35,7 +36,7 @@ async function render() {
   const match = routes.find(([re]) => re.test(path));
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === match?.[2]));
   if (!match) {
-    app.innerHTML = `<div class="container page"><h1>Not found</h1><p><a href="#/">Back to your library</a></p></div>`;
+    app.innerHTML = `<div class="container page"><h1>Not found</h1><p><a href="/">Back to your library</a></p></div>`;
     return;
   }
   const [re, page] = match;
@@ -50,7 +51,21 @@ async function render() {
   }
 }
 
-window.addEventListener("hashchange", render);
+// Addresses are plain paths. Links inside the app open their page here instead of loading it again; old
+// addresses (/#/papers/3, from bookmarks made before) still work.
+if (location.hash.startsWith("#/")) history.replaceState(null, "", location.hash.slice(1));
+document.addEventListener("click", (e) => {
+  const a = e.target.closest?.("a[href]");
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  if (a.target && a.target !== "_self" || a.hasAttribute("download")) return;
+  const url = new URL(a.href, location.href);
+  if (url.origin !== location.origin || !routes.some(([re]) => re.test(url.pathname))) return;
+  e.preventDefault();
+  if (url.pathname + url.search !== location.pathname + location.search) go(url.pathname + url.search);
+  else if (url.hash) location.hash = url.hash;
+});
+window.addEventListener("popstate", render);
+window.addEventListener("route", render);
 render();
 
 // ---------- Capture from anywhere ----------
@@ -66,7 +81,7 @@ document.addEventListener("paste", async (e) => {
   toast(files.length ? "Adding the pasted PDF…" : "Adding the paper from that link…");
   try {
     const paper = files.length ? (await uploadPdfs(files, currentGoal())).added[0] : await addFromLink(text, currentGoal());
-    if (paper) location.hash = `#/papers/${paper.id}`;
+    if (paper) go(`/papers/${paper.id}`);
   } catch (err) { toast(err.message); }
 });
 
@@ -81,7 +96,7 @@ addEventListener("keydown", (e) => {
     e.preventDefault();
     const focusSearch = () => document.getElementById("q")?.focus();
     if (document.getElementById("q")) focusSearch();
-    else { location.hash = "#/"; setTimeout(focusSearch, 400); }
+    else { go("/"); setTimeout(focusSearch, 400); }
   } else if (e.key === "?" && !document.body.classList.contains("reading")) {
     showShortcuts();
   }
@@ -103,7 +118,7 @@ addEventListener("drop", async (e) => {
   if (!pdfs.length) return toast("Only PDF files can be added.");
   const { added, errors } = await uploadPdfs(pdfs, currentGoal(), toast);
   if (errors.length) toast(errors.join(" "));
-  else if (added.length === 1) location.hash = `#/papers/${added[0].id}`;
+  else if (added.length === 1) go(`/papers/${added[0].id}`);
   else { toast(`Added ${added.length} papers.`); render(); }
 });
 

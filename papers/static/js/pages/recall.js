@@ -67,7 +67,7 @@ export async function recallPage() {
       try {
         const found = await api("/recall", { method: "POST", json: { idea: input.value.trim() } });
         box.innerHTML = found.length ? `<div class="recall-results">${found.map((m) => `
-          <a class="match match-card sheet" href="#/papers/${m.paper.id}">
+          <a class="match match-card sheet" href="/papers/${m.paper.id}">
             <span class="match-cover" aria-hidden="true">${cover(m.paper, "small")}</span>
             <span class="match-text"><span class="paper-name">${esc(m.paper.title)}</span>
             <span class="result-cite">${cite(m.paper)}</span>

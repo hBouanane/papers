@@ -88,7 +88,7 @@ export function paperRow(p, goals = {}, snippet = "") {
   return `<div class="row paper" data-id="${p.id}" data-title="${esc(p.title)}">
     <span class="row-thumb" aria-hidden="true">${cover(p, "small")}</span>
     <span class="row-main">
-      <a class="row-title" href="#/papers/${p.id}">${esc(p.title)}</a>
+      <a class="row-title" href="/papers/${p.id}">${esc(p.title)}</a>
       <span class="row-meta">${cite(p) ? `<span>${cite(p)}</span>` : ""}${goal ? `<span class="row-goal">${esc(goal)}</span>` : ""}</span>
       ${snippet ? `<span class="row-snippet">${snippetHtml(snippet)}</span>` : ""}
     </span>
@@ -106,7 +106,7 @@ export function bindRows(container, onChange) {
     if (!row) return;
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (!act) {
-      if (!e.target.closest("a")) location.hash = `#/papers/${row.dataset.id}`;
+      if (!e.target.closest("a")) go(`/papers/${row.dataset.id}`);
       return;
     }
     const id = row.dataset.id;
@@ -157,7 +157,14 @@ export async function uploadPdfs(files, topicId, onProgress = () => {}) {
 }
 
 // The goal of the page you're on, so captured papers land there.
-export const currentGoal = () => location.hash.match(/^#\/goals\/(\d+)/)?.[1] || "";
+export const currentGoal = () => location.pathname.match(/^\/goals\/(\d+)/)?.[1] || "";
+
+// Go to a page of the app (addresses are plain paths: /papers/3/read). The router (main.js) draws it.
+export function go(path, replace = false) {
+  if (replace) history.replaceState(null, "", path);
+  else history.pushState(null, "", path);
+  dispatchEvent(new Event("route"));
+}
 
 // "Add paper" control: paste a link or upload PDFs. Pair with bindAddPaper() after rendering.
 export const addPaperControl = (topicId = "", goals = []) => `<details class="add-paper" data-topic="${topicId}">
@@ -189,7 +196,7 @@ export function bindAddPaper() {
       const link = e.target.link.value;
       busy(e.submitter, "Adding…", async () => {
         status.textContent = "Finding the paper and downloading its PDF…";
-        try { location.hash = `#/papers/${(await addFromLink(link, topic())).id}`; }
+        try { go(`/papers/${(await addFromLink(link, topic())).id}`); }
         catch (err) { fail(err.message); }
       });
     };
@@ -199,8 +206,8 @@ export function bindAddPaper() {
       const { added, errors } = await uploadPdfs(e.target.files, topic(), (msg) => (status.textContent = msg));
       e.target.value = "";
       if (errors.length) return fail(errors.join(" "));
-      if (added.length === 1) location.hash = `#/papers/${added[0].id}`;
-      else { toast(`Added ${added.length} papers.`); window.dispatchEvent(new HashChangeEvent("hashchange")); }
+      if (added.length === 1) go(`/papers/${added[0].id}`);
+      else { toast(`Added ${added.length} papers.`); window.dispatchEvent(new Event("route")); }
     };
   });
 }
@@ -358,7 +365,7 @@ export function setBar({ back, title } = {}) {
   const start = document.getElementById("bar-start");
   start.innerHTML = back
     ? `<a href="${back.href}" class="reader-back" title="Back to ${esc(back.label)}">${BACK_ICON}<span>${esc(back.label)}</span></a>`
-    : `<a href="#/" class="wordmark">Papers</a>`;
+    : `<a href="/" class="wordmark">Papers</a>`;
 }
 
 // Long lists show a page at a time: the first PAGE items, then "Show 50 more" (with how many are left).

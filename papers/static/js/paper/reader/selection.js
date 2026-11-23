@@ -20,7 +20,7 @@ const whereFrom = (range) => {
   const el = start.nodeType === Node.ELEMENT_NODE ? (start.childNodes[range.startOffset] || start) : start.parentElement;
   const page = el?.closest(".page[data-page-number]")?.dataset.pageNumber;
   if (page) return `Page ${page}`;
-  const article = el?.closest("#article");
+  const article = el?.closest("#article, #guide-doc");
   if (!article) return "";
   // the last heading before the selection
   const heading = [...article.querySelectorAll("h2, h3, h4")]
@@ -31,12 +31,14 @@ const whereFrom = (range) => {
 export function setupSelection(r, { highlighter, notesUi, panel, vocab }) {
   const { id, paper: p, language, $, scroller } = r;
   const pop = $("#pop");
+  const guideBox = $("#guide-scroll");
+  const inReading = (node) => scroller.contains(node) || guideBox.contains(node);
   let selection = null; // { text, range, sentence }
 
   const showSelectionBar = () => {
     const sel = getSelection();
     const text = sel.toString().trim();
-    if (text.length < 2 || !sel.rangeCount || !scroller.contains(sel.anchorNode)) { pop.hidden = true; selection = null; return; }
+    if (text.length < 2 || !sel.rangeCount || !inReading(sel.anchorNode)) { pop.hidden = true; selection = null; return; }
     const range = sel.getRangeAt(0);
     selection = { text, range: range.cloneRange(), sentence: sentenceAround(range) };
     pop.querySelector("[data-sel=word]").hidden = text.split(/\s+/).length > 4;
@@ -48,13 +50,18 @@ export function setupSelection(r, { highlighter, notesUi, panel, vocab }) {
     pop.style.left = `${Math.min(innerWidth - width - 8, Math.max(8, rect.left + rect.width / 2 - width / 2))}px`;
   };
   scroller.addEventListener("mouseup", () => setTimeout(() => (highlighter.tool.on ? highlighter.highlightSelection() : showSelectionBar())));
-  scroller.addEventListener("keyup", (e) => e.shiftKey && setTimeout(showSelectionBar));
-  scroller.addEventListener("scroll", () => (pop.hidden = true), { passive: true });
+  for (const el of [scroller, guideBox]) {
+    el.addEventListener("keyup", (e) => e.shiftKey && setTimeout(showSelectionBar));
+    el.addEventListener("scroll", () => (pop.hidden = true), { passive: true });
+  }
+  // The guide isn't the paper: its text can be explained or asked about, not highlighted or noted.
+  guideBox.addEventListener("mouseup", () => setTimeout(showSelectionBar));
+  guideBox.addEventListener("click", (e) => { if (!getSelection().toString().trim()) vocab.openAt(e); });
   pop.addEventListener("mousedown", (e) => e.preventDefault()); // keep the selection while clicking
 
   // Mark explained passages in the reflowed text; the PDF text layer is absolutely positioned, so leave it alone.
   const markExplained = (range) => {
-    if (r.view !== "text") return;
+    if (r.view !== "text" || r.guideOn) return;
     try {
       const mark = document.createElement("mark");
       mark.className = "explained";

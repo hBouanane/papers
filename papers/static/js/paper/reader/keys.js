@@ -5,12 +5,14 @@ import { toggleDarkPages } from "../../readprefs.js";
 const HELP = [
   ["s", "Skimming on or off (nothing counts while it's on)"], ["w", "Mark the hard words on or off"], ["d", "Dark PDF pages on or off"], ["n", "Open or close Ask, Words and Notes"],
   ["e", "Explain the selected text"], ["h", "Highlight the selected text, or turn the highlighter on and off"], ["l", "Listen to the selected text"],
-  ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"],
+  ["+ −", "Zoom the PDF (or Ctrl + mouse wheel, or pinch)"], ["← →", "In the guide: the previous or next section"],
 ];
 
-export function bindKeys(r, { progress, panel, selection, highlighter, zoom, vocab }) {
+export function bindKeys(r, { progress, panel, selection, highlighter, zoom, vocab, guide }) {
   const onKey = (e) => {
     if (e.target.closest?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (r.guideOn && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); return guide.step(e.key === "ArrowRight" ? 1 : -1); }
+    if (r.guideOn && ["s", "h", "d", "+", "=", "-"].includes(e.key)) return;
     if (e.key === "s") progress.toggleSkimming();
     else if (e.key === "w") vocab.toggle();
     else if (e.key === "n") panel.toggle();

@@ -97,19 +97,34 @@ def extract_references(section: str) -> list[dict]:
     return [r.model_dump() for r in ai.parse(prompt, References, effort="low").references]
 
 
+class KeyIdea(BaseModel):
+    title: str  # 2 to 5 words
+    text: str  # one or two sentences
+
+
+class KeyNumber(BaseModel):
+    value: str  # "85%", "1.3B vs 175B"
+    what: str  # what it means, in a short sentence
+
+
+class KeyFigure(BaseModel):
+    number: int  # 0 when no figure helps
+    why: str
+
+
 class Skim(BaseModel):
+    """The overview: what a reader sees before reading. Short and enjoyable, not a summary of every section; the
+    in-depth guide (TASKS["guide"]) is where the full lesson goes."""
     tldr: str
     problem: str
     key_idea: str
-    contributions: list[str]
-    method: str
-    results: list[str]
-    limitations: list[str]
-    figures: list[str]
-    questions: list[str]
-    reading_plan: list[str]
-    relevance: str
+    picture: str  # Mermaid flowchart of how it works
+    ideas: list[KeyIdea]
+    numbers: list[KeyNumber]
+    figure: KeyFigure
+    caveats: list[str]
     verdict: str
+    relevance: str
 
 
 class Word(BaseModel):
@@ -155,31 +170,32 @@ def define(paper: dict, term: str, context: str, language: str = "") -> dict:
 
 
 def skim(paper: dict, goal: str = "") -> dict:
-    """A first pass the way Andrew Ng teaches it: title, abstract and figures, then introduction,
-    conclusion and section headings, skipping related work and dense math. Written for a reader
-    whose first language may not be English, and shaped by what they are working on."""
+    """The overview a reader sees before reading: a great teacher's two-minute introduction, short and enjoyable.
+    Written for a reader whose first language may not be English, and shaped by what they are working on."""
+    from papers import figures
     prompt = (
-        f"{_paper_context(paper)}\n\n"
+        f"{_paper_context(paper)}\n\n{_figures_list(figures.known(paper['id']))}\n\n"
         + (f"<my_goal>{goal}</my_goal>\n\n" if goal else "")
-        + "Give me the first pass on this paper, as Andrew Ng recommends doing it: look at the title, "
-        "abstract and figures first, then the introduction, conclusion and section headings; skip related "
-        "work and dense math. I may not be a native English speaker, so write in plain, simple English: short "
-        "sentences, everyday words, technical terms only when needed (and say what they mean).\n\n"
+        + "Write the overview I see before reading this paper: what a great teacher says in the first two minutes, so I "
+        "get the point, see why it matters and want to read on. Short and enjoyable, never a list of everything. I may "
+        "not be a native English speaker: plain, simple English, short sentences, everyday words; a technical term only "
+        "when needed, and then say what it means.\n\n"
         "Fill in:\n"
-        "- tldr: what the paper does and why it matters, in two or three sentences a newcomer understands.\n"
-        "- problem: the problem it tackles and why earlier work falls short.\n"
+        "- tldr: two sentences: what the paper does and why it matters, for a newcomer.\n"
+        "- problem: two or three sentences on the problem, with one concrete everyday example that makes it felt "
+        "(for a training method: what a model did wrong before it).\n"
         "- key_idea: the one idea that makes it work, in one sentence.\n"
-        "- contributions: what is new, one sentence each.\n"
-        "- method: how it works, in a few sentences, with an intuition rather than equations.\n"
-        "- results: the main results, with the actual numbers and what they are compared against.\n"
-        "- limitations: weaknesses the authors admit, plus obvious ones they don't.\n"
-        "- figures: the figures and tables worth looking at first, each as 'Figure N: what it shows'.\n"
-        "- questions: 3 to 5 questions to keep in mind while reading, which the paper answers.\n"
-        "- reading_plan: the sections to read, in order, each as 'Section: why, about N minutes'; mark the "
-        "ones to read closely and the ones to skip.\n"
+        "- picture: how it works, as Mermaid flowchart code: 'flowchart LR', then 3 to 6 steps or parts, each label 2 "
+        "to 5 words in double quotes, joined by arrows; no styling, no subgraphs.\n"
+        "- ideas: the 3 to 5 key ideas to leave with, each a short title and one or two sentences of intuition, no "
+        "equations.\n"
+        "- numbers: up to 4 headline results from the paper, each a short value (\"85%\", \"1.3B vs 175B\") and what "
+        "it means in one short sentence; only numbers the paper reports; none if it has no results.\n"
+        "- figure: the one figure in <figures> to look at first and why, in one sentence; number 0 if none helps.\n"
+        "- caveats: one to three short things to keep in mind (limits the authors admit, or obvious ones).\n"
         "- relevance: " + ("how this paper helps with my goal, concretely; say so plainly if it doesn't."
                            if goal else "leave empty.") + "\n"
-        "- verdict: one line on whether to read it fully, skim it, or skip it, and why."
+        "- verdict: one line: read it fully, skim it, or skip it, and why."
     )
     return ai.parse(prompt, Skim).model_dump()
 
@@ -227,8 +243,8 @@ The reader may not be a native English speaker: write clear, simple English. Sho
 define each technical term the first time you use it.
 
 Format: Markdown. Short "##" headings only when an answer has several parts. Math in LaTeX: $...$ inline and $$...$$ on
-its own line; when text copied from a PDF lost superscripts or subscripts (like "100002i/dmodel"), write the formula
-correctly and say that the copy lost them. Cite the paper wherever it helps the reader check you: [§3.4] for a
+its own line. The paper's text was copied out of a PDF, so its formulas can be garbled (lost superscripts, like
+"100002i/dmodel"): always write them correctly, silently. Never mention the copy, the extraction or the PDF's text. Cite the paper wherever it helps the reader check you: [§3.4] for a
 section, [Fig. 1], [Table 2], [Eq. 3], [p. 5], one per bracket. Only cite things that exist in the paper.
 
 Visuals: when a picture explains better than words, add one or two visuals as fenced blocks (never more than three,
@@ -256,7 +272,9 @@ never just for decoration):
   pipeline, an architecture, a pathway), sequenceDiagram (who sends what to whom: a protocol, a signalling cascade),
   stateDiagram-v2 (states and what moves between them), timeline (history, the phases of a study), mindmap (how
   ideas group), classDiagram or erDiagram (kinds of things and their relations), quadrantChart, gantt, sankey-beta
-  (flows of amounts). Keep labels short, quote labels that have symbols:
+  (flows of amounts). Keep labels short (a few words), quote labels that have symbols, and keep it small enough to
+  read at a glance (about 12 boxes at most). To compare two things, give each its own subgraph and draw no arrow
+  between them: they're shown side by side. Bar charts should start their axis at zero.
 ```diagram
 flowchart LR
   A["Sample"] --> B["Treatment"] --> D["Measure"]
@@ -316,6 +334,8 @@ flowchart LR
   "steps": a walkthrough, one step at a time: {"steps": [{"title": "...", "text": "Markdown"}]}.
   The examples only show the format: build the widget for this paper's own idea, with its real quantities and
   units. One widget per answer is usually enough; a second only when it shows a different idea.
+  Never leave a visual unexplained: say before it how to read it (axes, colours, boxes), and for a widget what each
+  slider changes and what to try and look for; its "caption" says this too in a sentence or two.
 Only cite or show figures and tables listed in <figures> below. Write visual blocks directly in the Markdown, never
 inside HTML tags.
 
@@ -368,6 +388,83 @@ English in parentheses after its translation, and formulas as they are (in LaTeX
 {language} on what it means in this paper. No visuals.""",
     "ask": """Answer the question. Start with the direct answer in one or two sentences, then explain as much as the
 question needs, using the paper.""",
+    "guide": """Write the in-depth guide to this paper: the complete lesson that makes it understood.
+
+WHO IT'S FOR. Someone reading this paper for the first time, who may not know its central concepts yet. They are
+smart but new to this idea; they're not revisiting something they already know. The goal: when they finish, they can
+explain the paper's method, its equations, its design decisions and its results to someone else, and feel confident
+about it. A shallow summary fails them. So does a lesson that only makes sense to someone who already knows the topic.
+
+HOW TO TEACH (this matters more than anything else):
+- Teach from first principles. Never use a concept before you've taught it. When the paper builds on an idea (for
+  example a model it improves, a lab technique, a statistical test, a physical law), teach that idea from scratch:
+  what it is, why it exists, how it works, a tiny example, and its weakness that this paper addresses.
+- Intuition first, then the formal version. For every important concept: the intuition in plain words, then the
+  mathematics, then a worked example with small, real numbers, then why it's designed that way.
+- Never introduce an equation without saying first what it represents. Show it as a ```math visual whose terms define
+  every symbol, then walk through it step by step in words, then compute it once with small numbers.
+- Write in complete, connected paragraphs that flow like a good teacher talking: each step leads to the next, with
+  transitions ("So far... Now..."). No telegraphic notes, no lists of fragments, no jumping between ideas mid-thought,
+  no summarising where explaining is needed. Lists are fine for genuinely separate items.
+- Be technically rigorous without being complicated. Use natural, direct, simple English; short sentences; define
+  every hard word the first time it appears. Don't skip a technical detail to simplify: explain it instead.
+- Be concrete: the paper's real quantities, units and settings; everyday analogies only where they truly help.
+- It must work for any field (biology, medicine, physics, chemistry, economics, social science, engineering, computer
+  science...): teach whatever this paper's own foundations are.
+
+VISUALS. Use them wherever they teach, about one per section: ```math for formulas, ```diagram for how parts connect
+or the order of steps, ```chart for numbers, ```figure for the paper's own figures (look at a figure first, then box
+exactly the part you explain), ```widget when playing with a value teaches something. Every visual must be fully
+explained, because the reader sees it for the first time:
+- Before it: what it shows and how to read it (what each axis, colour, box, row or column means).
+- For a widget, after it: what each slider or button changes, and exactly what to try and what they'll see ("Drag
+  the base from 10,000 down to 100: the right-hand columns start to change from row to row, because..."). Give
+  its "caption" the same reading guide in one or two sentences.
+- After it: what to take away from it.
+A visual the reader can't read without help teaches nothing.
+
+STRUCTURE. Use "##" sections in this order (adapt the depth to the paper; leave one out only when it truly doesn't
+apply; never number them). Start directly with the first heading: no title, no introduction, and don't narrate what
+you're about to do.
+## The paper in brief
+What the paper is (who, when, the field), the problem it tackles and what it achieved, in a short paragraph, so the
+reader knows where the lesson is going.
+## What you need to know first
+The concepts the paper builds on and that a newcomer needs, each taught from scratch as described above, in the
+order they build on each other (a "###" heading per concept). This is the foundation of the whole guide: give it
+the space it needs. Teach the ideas central to the paper, including the earlier approaches it improves on and how
+they work, not only basic math.
+## Words you'll meet
+The hard technical terms of the paper as a table "Term | In plain words | What it means in this paper", and the
+distinctions between terms that are easy to confuse.
+## The key idea
+What problem the authors solve, why the existing approaches fall short (concretely: what goes wrong, with an
+example), the central insight, the proposed solution, and what makes it different. A high-level mental model before
+any equation; a small diagram of the overall idea.
+Then one "##" section per main part of the method, in the paper's order and named after it (for example each
+component of an architecture, each stage of a procedure, each step of an experiment design or derivation). In each:
+what it is for, the intuition, how it works step by step, its formulas (as described above), a worked example with
+numbers, how it connects to the other parts, and why it's designed that way rather than another way. Point at the
+paper's figure where it shows the part you explain.
+## Putting it together
+The complete method end to end: how information, material or data flows through it, in order, with a diagram; how it
+is trained, fitted, run or carried out; the costs (time, memory, samples, money) and the implementation choices
+that matter.
+## Experiments and results
+The data, benchmarks or samples; what it was compared against; the measures used and what they mean; the setup; the
+main results with their actual numbers (a table or a ```chart); the ablations or controls. Don't just repeat tables:
+explain what each result shows and what we can conclude from it.
+## What it shows, and what it doesn't
+A table "Claim | What the evidence supports" separating what the paper demonstrates from what the authors only
+suggest; the assumptions the approach depends on; its limitations and what could be improved.
+## Since then
+Only what you are sure of: how later work built on it, and where it is used now. Say clearly that this is outside
+the paper and separate it from the paper's own contribution.
+## Takeaways
+The ideas to remember, one sentence each, and the key formulas with what each means in a small table.
+
+Cite the paper as you go. Take the length it needs (this guide is meant to be long), but every paragraph must teach:
+no filler, no repetition.""",
 }
 FOLLOWUPS = ("After your answer, add a fenced block ```followups with two or three short questions (one per line, "
              "under 10 words each) the reader might want to ask next. Nothing after that block.")
@@ -399,7 +496,7 @@ def _turn(m: dict, language: str, last: bool) -> str:
             parts.append(task.format(language=language or "the reader's language") if kind == "translate" else task)
         else:
             parts.append(TASKS["ask"])
-        if kind != "translate":
+        if kind not in ("translate", "guide"):  # a guide is read in its own reader, without follow-ups
             parts.append(FOLLOWUPS)
     elif kind in ("explain", "simplify", "translate") and not m.get("content"):
         parts.append(f"({kind.capitalize()} this.)")

@@ -1,5 +1,5 @@
 // A paper's page: key points, figures, words, notes and references, with its details and chain.
-import { api, app, busy, cameFrom, cite, esc, loading, pct, progressBar, renderVocab, setBar, statusTag, toast } from "../core.js";
+import { api, app, busy, cameFrom, cite, esc, go, loading, pct, progressBar, renderVocab, setBar, statusTag, toast } from "../core.js";
 import { cover, drawCovers, forgetCover } from "../covers.js";
 import { bindNotesList, noteStore } from "../notes.js";
 import { linkFigures, renderFigures, showFigure } from "./figures.js";
@@ -21,22 +21,22 @@ export async function paperPage(id, stale, tab = "overview") {
   const from = cameFrom(`/papers/${id}`) || "/";
   const fromGoal = goals.find((g) => from === `/goals/${g.id}`);
   const SECTIONS = { "/goals": "Goals", "/recall": "Recall", "/map": "Map", "/settings": "Settings" };
-  const back = fromGoal ? { href: `#${from}`, label: fromGoal.goal }
-    : SECTIONS[from] ? { href: `#${from}`, label: SECTIONS[from] }
-    : /^\/papers\/\d+$/.test(from) ? { href: `#${from}`, label: "the previous paper" }
-    : { href: "#/", label: "Library" };
+  const back = fromGoal ? { href: from, label: fromGoal.goal }
+    : SECTIONS[from] ? { href: from, label: SECTIONS[from] }
+    : /^\/papers\/\d+$/.test(from) ? { href: from, label: "the previous paper" }
+    : { href: "/", label: "Library" };
   setBar({ back, title: p.title });
 
   app.innerHTML = `<div class="container page">
     <header class="paper-header" id="header">
-      ${readable ? `<a class="cover-link" href="#/papers/${id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>` : cover(p, "large")}
+      ${readable ? `<a class="cover-link" href="/papers/${id}/read" tabindex="-1" aria-hidden="true">${cover(p, "large")}</a>` : cover(p, "large")}
       <div class="paper-header-text">
       <h1 class="paper-name paper-h1">${esc(p.title)}</h1>
       ${p.authors || p.year ? `<p class="paper-cite">${esc(p.authors)}${p.year ? ` (${p.year})` : ""}</p>` : ""}
       <div class="actions">
-        ${readable ? `<a class="button" href="#/papers/${id}/read">${readLabel}</a>`
+        ${readable ? `<a class="button" href="/papers/${id}/read">${readLabel}</a>`
           : `<label class="button"><span>Upload the PDF</span><input type="file" class="pdf-input" accept="application/pdf,.pdf" hidden></label>`}
-        ${p.quiz?.length && p.status === "read" ? `<a class="button secondary" href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
+        ${p.quiz?.length && p.status === "read" ? `<a class="button secondary" href="/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Review"}</a>` : ""}
         ${p.url ? `<a class="button quiet" href="${esc(p.url)}" target="_blank" rel="noopener">Source</a>` : ""}
         <details class="menu">
           <summary class="button quiet">More</summary>
@@ -70,13 +70,13 @@ export async function paperPage(id, stale, tab = "overview") {
           <div class="fact-understood"><span>Understood</span><span class="num">${p.understanding == null ? `<span class="faint">Not tested</span>` : pct(p.understanding)}</span>
             <p class="fact-note">${p.understanding == null ? "Your score on this paper's questions, once you test yourself."
     : "Your score the last time you answered this paper's questions."}
-              ${p.quiz?.length || p.text ? `<a href="#/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Test again"}</a>` : ""}</p></div>
+              ${p.quiz?.length || p.text ? `<a href="/papers/${id}/quiz">${p.understanding == null ? "Test yourself" : "Test again"}</a>` : ""}</p></div>
           ${p.text ? `<div><span>Length</span><span>${minutes(p.text)} min</span></div>` : ""}
         </div>
         ${ancestors.length ? `<div class="sheet trail"><h3>Found through</h3>
-          ${ancestors.map((a) => `<a href="#/papers/${a.id}">${esc(a.title)}</a>`).join("")}</div>` : ""}
+          ${ancestors.map((a) => `<a href="/papers/${a.id}">${esc(a.title)}</a>`).join("")}</div>` : ""}
         ${chain.children.length ? `<div class="sheet trail"><h3>Led you to</h3>
-          ${chain.children.map((c) => `<a href="#/papers/${c.id}">${esc(c.title)}</a>`).join("")}</div>` : ""}
+          ${chain.children.map((c) => `<a href="/papers/${c.id}">${esc(c.title)}</a>`).join("")}</div>` : ""}
       </aside>
     </div></div>`;
 
@@ -102,7 +102,7 @@ export async function paperPage(id, stale, tab = "overview") {
         here: () => ({ position: p.position || 0 }),
         jump: (note) => {
           try { sessionStorage.setItem(`papers.jump.${id}`, note.id); } catch { /* opens at the last place instead */ }
-          location.hash = `#/papers/${id}/read`;
+          go(`/papers/${id}/read`);
         },
       });
       store.load().catch((e) => toast(e.message));
@@ -160,7 +160,7 @@ export async function paperPage(id, stale, tab = "overview") {
     busy(e.currentTarget, "Deleting…", async () => {
       await fetch(`/api/papers/${id}`, { method: "DELETE" });
       toast("Paper deleted.");
-      location.hash = goal ? `#/goals/${goal.id}` : "#/";
+      go(goal ? `/goals/${goal.id}` : "/");
     });
   };
   app.querySelectorAll(".pdf-input").forEach((input) => input.addEventListener("change", (e) => uploadPdf(id, e.target.files[0])));
@@ -168,6 +168,75 @@ export async function paperPage(id, stale, tab = "overview") {
 
 const preparingNote = (what) => `<div class="preparing"><span class="dot-pulse" aria-hidden="true"></span>
   <p>The AI is reading this paper and preparing ${what}. This takes a minute or two, once; you can start reading meanwhile.</p></div>`;
+
+// The overview: a great teacher's first two minutes, short and enjoyable (llm.skim). The full lesson is the in-depth
+// guide, read in its own reader (paper/guide.js). Older key points, written before this, keep the older layout.
+function renderStory(box, p, settings, s, redo, abstractFold) {
+  const guideCard = `<section class="ov-guide" id="ov-guide">
+      <div><h3>The full lesson</h3>
+        <p>The problem, the background you need, every step of the method with its formulas explained and worked
+          through with real numbers, the experiments, and what they do and don't show. In a reader of its own.</p></div>
+      <div class="ov-guide-actions" id="ov-guide-actions">${loading()}</div></section>`;
+  box.innerHTML = `<article class="ov">
+    ${s.tldr ? `<p class="ov-hook">${esc(s.tldr)}</p>` : ""}
+    <div class="ov-verdict">
+      <span class="ov-chip">${esc(s.verdict)}</span>
+      ${s.relevance ? `<p><strong>For your goal:</strong> ${esc(s.relevance)}</p>` : ""}
+    </div>
+    ${s.problem ? `<section class="ov-block"><h3>The problem</h3><p>${linkFigures(esc(s.problem))}</p></section>` : ""}
+    ${s.key_idea ? `<section class="ov-block ov-idea"><h3>The idea</h3><p class="ov-idea-text">${linkFigures(esc(s.key_idea))}</p>
+      ${s.picture ? `<div class="ov-picture" id="ov-picture"></div>` : ""}</section>` : ""}
+    ${s.ideas?.length ? `<section class="ov-block"><h3>Key ideas</h3><ol class="ov-ideas">${s.ideas.map((i, n) =>
+      `<li style="--i:${n}"><span class="ov-n num" aria-hidden="true">${n + 1}</span><div><strong>${esc(i.title)}</strong>
+        <p>${linkFigures(esc(i.text))}</p></div></li>`).join("")}</ol></section>` : ""}
+    ${s.numbers?.length ? `<section class="ov-block"><h3>What it showed</h3><div class="ov-numbers">${s.numbers.map((n) =>
+      `<div class="ov-number"><span class="ov-value">${esc(n.value)}</span><span>${esc(n.what)}</span></div>`).join("")}</div></section>` : ""}
+    ${s.figure?.number ? `<section class="ov-block ov-figure" id="ov-figure" data-n="${s.figure.number}"><h3>Look at this first</h3>
+      <div class="ov-figure-body"><span class="ov-figure-img">${loading()}</span>
+        <p><strong>Figure ${s.figure.number}.</strong> ${esc(s.figure.why)}</p></div></section>` : ""}
+    ${s.caveats?.length ? `<section class="ov-block ov-caveats"><h3>Keep in mind</h3><ul>${s.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}
+    ${p.text ? guideCard : ""}
+    ${abstractFold}
+    ${redo}
+  </article>`;
+  box.querySelector("#regenerate")?.addEventListener("click", (e) => box.dispatchEvent(new CustomEvent("regenerate", { detail: e.currentTarget })));
+  // The picture: how it works, step by step. A plain chain of steps (the usual case) is drawn as cards with arrows that
+  // wrap on a narrow page, so the words stay readable; anything with branches as a diagram, like the ones in answers.
+  const spot = box.querySelector("#ov-picture");
+  const code = s.picture || "";
+  const steps = [...code.matchAll(/\w+\s*\[\s*"([^"]+)"\s*\]/g)].map((m) => m[1].trim()).filter(Boolean);
+  const arrows = (code.match(/-->/g) || []).length;
+  if (spot && steps.length >= 2 && steps.length <= 8 && arrows === steps.length - 1 && !/subgraph/.test(code)) {
+    spot.classList.add("ov-steps");
+    spot.innerHTML = steps.map((t, i) => `<span class="ov-step" style="--i:${i}"><span class="num">${i + 1}</span>${esc(t)}</span>`)
+      .join(`<span class="ov-arrow" aria-hidden="true">→</span>`);
+  } else if (spot) import("../chat/render.js").then(async ({ renderAnswer, drawVisuals }) => {
+    spot.innerHTML = renderAnswer("```diagram\n" + code + "\n```");
+    await drawVisuals(spot).catch(() => {});
+    if (spot.querySelector(".visual-failed")) spot.remove(); // a diagram the model got wrong: the words are enough
+  });
+  // The figure to look at first: its picture, opening large on a click.
+  const figBox = box.querySelector("#ov-figure");
+  if (figBox) api(`/papers/${p.id}/figures`).then((list) => {
+    const f = list.find((x) => x.kind === "figure" && x.number === Number(figBox.dataset.n));
+    const img = figBox.querySelector(".ov-figure-img");
+    if (!f) { figBox.remove(); return; }
+    img.innerHTML = `<button type="button" class="ov-figure-open" title="Open it large"><img src="${f.url}" alt="${esc(f.caption)}"></button>`;
+    img.querySelector("button").onclick = () => showFigure(p, f);
+  }).catch(() => figBox.remove());
+  // The in-depth guide: open the last one, or write one.
+  const actions = box.querySelector("#ov-guide-actions");
+  if (actions) api(`/papers/${p.id}/guides`).then((guides) => {
+    const last = guides[0];
+    const canWrite = settings.ai_ready;
+    actions.innerHTML = last
+      ? `<a class="button" href="/papers/${p.id}/guide/${last.id}">Open the guide</a>
+         <span class="hint">${Math.max(1, Math.round(last.words / 220))} min read${canWrite ? ` · <a href="/papers/${p.id}/guide/new">Write a new one</a>` : ""}</span>`
+      : canWrite ? `<a class="button" href="/papers/${p.id}/guide/new">Explain it in depth</a>
+         <span class="hint">Written by ${esc(settings.ai_name)}; takes a few minutes.</span>`
+      : `<span class="hint">Choose an AI model in <a href="/settings">Settings</a> to get it.</span>`;
+  }).catch(() => actions.remove());
+}
 
 function renderOverview(box, p, settings, regenerate) {
   const s = p.skim;
@@ -183,15 +252,16 @@ function renderOverview(box, p, settings, regenerate) {
       <p class="hint">${writtenBy}</p>
       <button class="button secondary small" id="regenerate" title="Writes the key points, vocabulary and review questions again. Your notes and highlights stay.">Regenerate with ${esc(settings.ai_name)}</button></div>`
     : p.text ? `<div class="regenerate"><p class="hint">Written by an AI model. To write them again with another one, choose it in
-      <a href="#/settings">Settings</a>; a Regenerate button then appears here.</p></div>` : "";
+      <a href="/settings">Settings</a>; a Regenerate button then appears here.</p></div>` : "";
   const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
   const fold = (title, body, open = false) => body ? `<details class="fold"${open ? " open" : ""}><summary>${title}</summary>${body}</details>` : "";
   const abstract = "";
   if (!s) {
     box.innerHTML = p.preparing ? `${abstractFirst}${preparingNote("its key points")}`
-      : settings.ai_ready && p.text ? `${abstractFirst}<h2>Key points</h2><p class="hint">A first pass on the paper in plain English, before you read it.</p>
-          <button class="button" id="skim-btn">Get key points</button>${abstract}`
-      : `<p class="hint">${p.text ? `Choose an AI model in <a href="#/settings">Settings</a> to get key points, words and questions.`
+      : settings.ai_ready && p.text ? `${abstractFirst}<h2>Overview</h2><p class="hint">The paper in two minutes: the problem, the idea, the
+          key ideas and what it showed, in plain English, before you read it.</p>
+          <button class="button" id="skim-btn">Get the overview</button>${abstract}`
+      : `<p class="hint">${p.text ? `Choose an AI model in <a href="/settings">Settings</a> to get key points, words and questions.`
           : "Upload the PDF to get key points."}</p>${abstractFirst}`;
     box.querySelector("#skim-btn")?.addEventListener("click", (e) => busy(e.currentTarget, "Reading the paper…", async () => {
       p.skim = await api(`/papers/${p.id}/skim`, { method: "POST" });
@@ -199,8 +269,25 @@ function renderOverview(box, p, settings, regenerate) {
     }));
     return;
   }
-  // Older key points have fewer fields; show what's there.
+  if (s.ideas) { // the overview as it's written now
+    const abstractFold = p.paper_abstract ? `<details class="fold ov-abstract"><summary>The paper's abstract</summary>
+      <p class="fold-text">${esc(p.paper_abstract)}</p></details>` : "";
+    renderStory(box, p, settings, s, redo, abstractFold);
+    box.addEventListener("regenerate", (e) => regenerate(e.detail));
+    box.addEventListener("click", async (e) => {
+      const link = e.target.closest(".fig-link");
+      if (!link) return;
+      const items = await busy(link, "", () => api(`/papers/${p.id}/figures`));
+      const item = items?.find((f) => f.kind === link.dataset.kind && f.number === Number(link.dataset.n));
+      if (item) showFigure(p, item);
+      else toast(`${link.textContent} couldn't be cut out of the PDF; it's in the paper itself.`);
+    });
+    return;
+  }
+  // Older key points have fewer fields; show what's there, and say how to get the new overview.
   box.innerHTML = `${abstractFirst}<h2 class="key-points-head">Key points</h2>
+    ${settings.ai_ready && p.text ? `<p class="hint">Written before the new overview. <strong>Regenerate</strong> below for the
+      short version with its key ideas, and the in-depth guide.</p>` : ""}
     ${s.tldr ? `<p class="tldr">${esc(s.tldr)}</p>` : ""}
     <div class="callouts">
       <div class="callout"><span class="callout-label">Verdict</span><p>${esc(s.verdict)}</p></div>
@@ -264,7 +351,7 @@ async function uploadPdf(id, file) {
   try {
     await api(`/papers/${id}/pdf`, { method: "POST", body: form });
     forgetCover(id);
-    location.hash = `#/papers/${id}/read`;
+    go(`/papers/${id}/read`);
   } catch (e) { toast(e.message); }
 }
 
@@ -281,14 +368,14 @@ async function loadRefs(box, p) {
   box.innerHTML = refs.length ? `<p class="hint">Pick one to read next; the map remembers which paper led you where.</p>
     <div class="list">${refs.map((r, i) => `<div class="ref">
       <span><span class="ref-title">${esc(r.title)}</span><span class="result-cite">${cite(r)}</span></span>
-      ${r.library_id ? `<a class="button quiet" href="#/papers/${r.library_id}">Open</a>`
+      ${r.library_id ? `<a class="button quiet" href="/papers/${r.library_id}">Open</a>`
         : `<button class="button secondary" data-ref="${i}">Read this</button>`}</div>`).join("")}</div>`
     : `<p class="faint">No references found.</p>`;
   box.onclick = (e) => {
     const b = e.target.closest("[data-ref]");
     if (b) busy(b, "Adding…", async () => {
       const added = await api("/papers", { method: "POST", json: { ...refs[b.dataset.ref], topic_id: p.topic_id, source_paper_id: p.id } });
-      location.hash = `#/papers/${added.id}`;
+      go(`/papers/${added.id}`);
     });
   };
 }

@@ -7,10 +7,12 @@ import { icon } from "../../icons.js";
 const WIDTH_KEY = "papers.panelWidth";
 const MIN = 340;
 const maxWidth = () => Math.max(MIN, innerWidth - 320); // the paper keeps at least this much
-const savedWidth = () => { try { return Number(localStorage.getItem(WIDTH_KEY)) || 420; } catch { return 420; } };
+// At first, a split screen on a wide screen: the paper (or the guide) and the conversation side by side.
+const firstWidth = () => (innerWidth >= 1100 ? Math.round(innerWidth * 0.42) : 420);
+const savedWidth = () => { try { return Number(localStorage.getItem(WIDTH_KEY)) || firstWidth(); } catch { return firstWidth(); } };
 const saveWidth = (w) => { try { localStorage.setItem(WIDTH_KEY, String(Math.round(w))); } catch { /* not remembered */ } };
 
-export function setupPanel(r, { notes, cite, allowPages = false, onLibraryChanged } = {}) {
+export function setupPanel(r, { notes, cite, allowPages = false, onLibraryChanged, onScreen } = {}) {
   const { id, $ } = r;
   const panel = $("#notes");
   const isOpen = () => document.body.classList.contains("notes-open");
@@ -61,6 +63,7 @@ export function setupPanel(r, { notes, cite, allowPages = false, onLibraryChange
     paperId: id,
     toast,
     onLibraryChanged,
+    onScreen,
     // the paper's figures (cut out of the PDF the first time) for visuals; citations go where they point
     visuals: { figures: () => (figures ??= api(`/papers/${id}/figures`).catch(() => [])), onCite: cite, allowPages },
     onSaveNote: async (body, quote) => {
@@ -95,6 +98,7 @@ export function setupPanel(r, { notes, cite, allowPages = false, onLibraryChange
       chat.attach(passage, label);
     },
     renderWords,
+    chat,
     // A newly made vocabulary, or a word marked as known (or shown again), changes the marks in the page.
     onWordsChanged(refresh) {
       const vocab = $("#reader-vocab");

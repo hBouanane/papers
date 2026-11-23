@@ -8,7 +8,7 @@ export async function quizPage(id, stale) {
   app.innerHTML = `<div class="container page">${loading()}</div>`;
   const p = await api(`/papers/${id}`);
   if (stale()) return;
-  setBar({ back: { href: `#/papers/${id}`, label: p.title }, title: p.title });
+  setBar({ back: { href: `/papers/${id}`, label: p.title }, title: p.title });
   const crumbs = "";
 
   if (!p.quiz?.length) {
@@ -87,9 +87,9 @@ export async function quizPage(id, stale) {
           <p class="card-question">You knew ${ratings.filter((r) => r === 1).length} of ${ratings.length}${ratings.includes(0.5) ? `, partly ${ratings.filter((r) => r === 0.5).length} more` : ""}.</p>
           <p class="card-answer">Next review in ${days} day${days === 1 ? "" : "s"}. The Library will remind you.</p>
         </div>
-        <div class="card-actions"><a class="button" href="#/">Back to library</a>
+        <div class="card-actions"><a class="button" href="/">Back to library</a>
           <button class="button secondary" id="more">More questions</button>
-          <a class="button secondary" href="#/papers/${id}">Paper</a></div>
+          <a class="button secondary" href="/papers/${id}">Paper</a></div>
         <p class="card-alt">More questions are about parts of the paper these ones didn't cover.</p>
       </div>`;
       app.querySelector("#more").onclick = (e) => busy(e.currentTarget, "Writing questions…", async () => {

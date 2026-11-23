@@ -112,7 +112,8 @@ The first time, a short setup in the terminal asks two things:
 The app's own data (database, PDFs, figures) goes to the usual place for app data; setup shows where, and Settings
 can move it.
 
-Then `papers` opens http://localhost:8000 in your browser. Everything can be changed later in Settings, or with
+Then `papers` opens http://papers.localhost:8000 in your browser (`papers --app` opens it in a window of its own,
+and `papers shortcut` puts an icon for that on your desktop). Everything can be changed later in Settings, or with
 `papers setup`. Options: `--port 9000`, `--data D:\Papers` (use this data folder), `--no-browser`, `--no-setup`,
 `--host 0.0.0.0` (reach it from other devices on your network; there is no login, so only on networks you trust).
 

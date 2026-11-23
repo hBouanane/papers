@@ -13,7 +13,6 @@ is in `licenses/`.
 | `mermaid/` | mermaid | 11.12.1 | MIT | Diagrams, drawn in its hand-drawn look (browser build, global `mermaid`) |
 | `vega/` | vega, vega-lite, vega-embed | 5.33.1, 5.23.0, 6.26.0 | BSD-3-Clause | Charts (browser builds, global `vegaEmbed`) |
 | `mathjs/` | mathjs | 13.1.1 | Apache-2.0 | Expressions in widgets (browser build, global `math`) |
-| `fonts/Virgil-Regular.woff2` | @excalidraw/excalidraw 0.18.0 (its Virgil font) | — | SIL OFL 1.1 (font), MIT (package) | Handwritten labels in diagrams |
 | `fonts/` | @fontsource: Atkinson Hyperlegible Next, STIX Two Text, Noto Sans Arabic | latest at bundling | SIL OFL 1.1 | The page's fonts (woff2 only) |
 
 ## Updating one

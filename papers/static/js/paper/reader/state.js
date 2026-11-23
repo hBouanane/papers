@@ -10,6 +10,7 @@ export function readerState({ id, paper, language, view }) {
     id, paper, language,
     $, $$: (sel) => app.querySelectorAll(sel), scroller,
     view, // "pdf" or "text"
+    guideOn: false, // the in-depth guide is shown over the paper (reader/guide.js)
     pdf: null, // the open PDF (pdfview.js) in PDF view
     saved: paper.position, // where you stopped, as the server knows it
     settling: false, // true while a view (re)opens and the page is briefly short or empty

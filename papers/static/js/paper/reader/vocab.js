@@ -27,6 +27,8 @@ export function setupVocab(r) {
     const list = words();
     const keep = new Set(list.map((w) => w.term.toLowerCase()));
     unmarkWords(scroller, keep);
+    const guide = $("#guide-doc");
+    if (guide) { unmarkWords(guide, keep); markText(guide, list); }
     if (r.view === "text") {
       const article = scroller.querySelector("#article");
       if (article) markText(article, list);
