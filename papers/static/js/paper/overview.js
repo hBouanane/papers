@@ -50,7 +50,7 @@ export async function paperPage(id, stale, tab = "overview") {
           </div>
         </details>
       </div>
-      ${p.archived ? `<p class="hint">This paper is archived: it's hidden from your lists but still searchable.</p>` : ""}
+      <p class="hint" id="archived-note" ${p.archived ? "" : "hidden"}>This paper is archived: it's hidden from your lists but still searchable.</p>
       ${!readable ? `<p class="hint">The full text wasn't available online. Upload the PDF to read it here.</p>` : ""}
       ${p.has_pdf && !p.text ? `<p class="hint">This PDF has no selectable text, so it's probably a scan. You can read it,
         but key points, explanations and questions need text.</p>` : ""}
@@ -150,11 +150,19 @@ export async function paperPage(id, stale, tab = "overview") {
     try { await navigator.clipboard.writeText(bib); toast("BibTeX copied."); }
     catch { toast("Couldn't reach the clipboard. Use Export BibTeX on the Library page instead."); }
   };
-  app.querySelector("#archive").onclick = (e) => busy(e.currentTarget, "Saving…", async () => {
-    await api(`/papers/${id}`, { method: "PATCH", json: { archived: !p.archived } });
-    toast(p.archived ? "Restored to your library." : "Archived. Find it under Archived in the Library.");
-    paperPage(id, stale, tab);
-  });
+  // Archive or restore in place: the page stays as it is (drawing it again made it flash), the menu closes.
+  app.querySelector("#archive").onclick = async (e) => {
+    const b = e.currentTarget;
+    b.closest("details")?.removeAttribute("open");
+    b.blur();
+    try {
+      await api(`/papers/${id}`, { method: "PATCH", json: { archived: !p.archived } });
+      p.archived = !p.archived;
+      b.textContent = p.archived ? "Restore from archive" : "Archive (not relevant)";
+      app.querySelector("#archived-note").hidden = !p.archived;
+      toast(p.archived ? "Archived. Find it under Archived in the Library." : "Restored to your library.");
+    } catch (err) { toast(err.message); }
+  };
   app.querySelector("#delete").onclick = (e) => {
     if (!confirm(`Delete "${p.title}"? Its PDF, notes and explanations are removed too. This can't be undone.`)) return;
     busy(e.currentTarget, "Deleting…", async () => {
@@ -192,7 +200,7 @@ function renderStory(box, p, settings, s, redo, abstractFold) {
         <p>${linkFigures(esc(i.text))}</p></div></li>`).join("")}</ol></section>` : ""}
     ${s.numbers?.length ? `<section class="ov-block"><h3>What it showed</h3><div class="ov-numbers">${s.numbers.map((n) =>
       `<div class="ov-number"><span class="ov-value">${esc(n.value)}</span><span>${esc(n.what)}</span></div>`).join("")}</div></section>` : ""}
-    ${s.figure?.number ? `<section class="ov-block ov-figure" id="ov-figure" data-n="${s.figure.number}"><h3>Look at this first</h3>
+    ${s.figure?.number ? `<section class="ov-block ov-figure" id="ov-figure" data-n="${s.figure.number}"><h3>Start with this figure</h3>
       <div class="ov-figure-body"><span class="ov-figure-img">${loading()}</span>
         <p><strong>Figure ${s.figure.number}.</strong> ${esc(s.figure.why)}</p></div></section>` : ""}
     ${s.caveats?.length ? `<section class="ov-block ov-caveats"><h3>Keep in mind</h3><ul>${s.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}

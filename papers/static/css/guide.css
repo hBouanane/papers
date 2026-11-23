@@ -1,18 +1,18 @@
 /* The overview (paper/overview.js renderStory) and the in-depth guide, a view of the reader (paper/reader/guide.js). */
 
 /* ---------- The overview: short and enjoyable ---------- */
-/* One font (the app's) and three sizes: 20px for the opening line, 16px for the text, 13px for the small labels. */
+/* One font (the app's) and few sizes: 16px for the text (the opening line a little bolder), 13px for the small labels. */
 .ov { display: grid; gap: 28px; font-family: var(--ui); font-size: 16px; line-height: 1.65; color: var(--graphite); }
 .ov p { font-size: 16px; }
 .ov-abstract { border-top: 0; border-bottom: 1px solid var(--line-soft, var(--line)); margin-top: -8px; }
 .ov-abstract > summary { font: 600 14px var(--ui); color: var(--pencil); padding: 10px 0; }
 .ov-abstract .fold-text { font: 16px/1.65 var(--ui); color: var(--graphite); max-width: 70ch; }
-.ov .ov-hook { font: 500 20px/1.55 var(--ui); color: var(--heading); text-wrap: pretty; margin: 0; max-width: 64ch; }
+.ov .ov-hook { font: 600 16px/1.65 var(--ui); color: var(--heading); text-wrap: pretty; margin: 0; max-width: 64ch; }
 .ov-verdict { display: grid; gap: 10px; justify-items: start; }
 .ov-chip { display: inline-block; padding: 10px 16px; border-radius: 12px; background: var(--ink-tint); color: var(--ink);
   font-weight: 600; font-size: 15px; line-height: 1.5; max-width: 64ch; }
 .ov-verdict p { margin: 0; max-width: 70ch; }
-.ov-block h3 { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--pencil); margin: 0 0 10px; }
+.ov-block h3 { font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--pencil); margin: 0 0 10px; }
 .ov-block > p { margin: 0; max-width: 70ch; }
 .ov-idea { padding: 20px 22px; border-radius: 14px; background: var(--ink-tint); }
 .ov-idea h3 { color: var(--ink); }
@@ -35,7 +35,7 @@
   font-weight: 800; font-size: 14px; }
 .ov-numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .ov-number { display: grid; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--sheet); }
-.ov-value { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+.ov-value { font-size: 21px; font-weight: 700; letter-spacing: -.015em; color: var(--ink); line-height: 1.15; font-variant-numeric: tabular-nums; }
 .ov-number span:last-child { color: var(--graphite); font-size: 15px; line-height: 1.5; }
 .ov-figure-body { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px; align-items: center; }
 .ov-figure-body p { margin: 0; color: var(--graphite); line-height: 1.55; }
@@ -51,7 +51,17 @@
 .ov-guide .button:hover { background: #eef2ff; color: #16309a; }
 .ov-guide .hint, .ov-guide .hint a { color: var(--on-ink); opacity: .85; }
 .ov-guide .loading { color: var(--on-ink); }
-@media (max-width: 640px) { .ov-figure-body { grid-template-columns: 1fr; } .ov .ov-hook { font-size: 18px; } }
+@media (max-width: 640px) { .ov-figure-body { grid-template-columns: 1fr; }  }
+
+/* The overview's boxes come alive under the pointer: they rise a little, with a soft shadow and a blue edge. */
+.ov-ideas li, .ov-number, .ov-idea, .ov-figure-open, .ov-guide, .ov-step {
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s ease, border-color .2s ease; }
+.ov-ideas li:hover, .ov-number:hover, .ov-figure-open:hover, .ov-step:hover {
+  transform: translateY(-3px); box-shadow: 0 10px 24px -8px rgb(0 0 0 / .18); border-color: color-mix(in srgb, var(--ink) 45%, var(--line)); }
+.ov-idea:hover, .ov-guide:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -10px rgb(0 0 0 / .2); }
+.ov-ideas li:hover .ov-n { transform: scale(1.12); }
+.ov-n { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { .ov-ideas li, .ov-number, .ov-idea, .ov-figure-open, .ov-guide, .ov-step, .ov-n { transition: none; transform: none !important; } }
 
 /* ---------- The guide: a view of the reader, centred, with a rail instead of a scrollbar ---------- */
 .guide-scroll { padding: 44px 56px 120px; scrollbar-width: none; }
