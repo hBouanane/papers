@@ -69,6 +69,8 @@ def _launcher(port: int, default_port: int) -> tuple[str, list[str]]:
 
 
 def _desktop() -> Path:
+    if env := os.environ.get("PAPERS_DESKTOP"):  # tests and checks: never the real desktop
+        return Path(env)
     if sys.platform == "win32":  # the real Desktop, also when OneDrive moved it
         try:
             out = subprocess.run(["powershell", "-NoProfile", "-Command", "[Environment]::GetFolderPath('Desktop')"],

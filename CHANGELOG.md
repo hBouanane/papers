@@ -2,6 +2,16 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## 0.5.2
+
+- **Papers starts even when its port is taken**: when another program uses port 8000, Papers starts on the next
+  free one instead of not starting at all (which, from the desktop icon, looked like nothing happening). It also
+  finds a Papers it already opened on one of those ports and opens that one, and it's your same library whatever
+  the port.
+- **Releases are planned**: a minor version about every two weeks, tried first as a release candidate; a patch only
+  when people are stuck. Every change is now also checked the way people start Papers, on Windows, macOS and
+  Linux, before it's merged (see docs/RELEASING.md).
+
 ## 0.5.1
 
 - **The desktop icon starts Papers again on Windows**: started without a console window, Papers stopped at once

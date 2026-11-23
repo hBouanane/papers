@@ -106,6 +106,32 @@ def ask_to_quit(host: str, port: int, patience: float = 15) -> bool:
     return False
 
 
+SPAN = 20  # ports looked at from the one asked for: 8000 to 8019
+
+
+def place(host: str, wanted: int) -> tuple[str, int] | None:
+    """Where this Papers goes: ("open", port) when this same version already runs on one of the ports it uses, else
+    ("start", port): the port asked for when it's free (or held by another Papers version that agrees to stop),
+    otherwise the next free one (another program, or a Papers too old to be asked, holds it). None if all are taken.
+    The library is the same whatever the port."""
+    ports = range(wanted, wanted + SPAN)
+    for port in ports:
+        if not port_free(host, port) and (running(host, port) or {}).get("version") == __version__:
+            return "open", port
+    if port_free(host, wanted):
+        return "start", wanted
+    there = running(host, wanted) or {}
+    if there.get("version") and ask_to_quit(host, wanted):
+        print(f"Papers {there['version']} was running; it's replaced by {__version__}.", flush=True)
+        return "start", wanted
+    port = next((p for p in ports if port_free(host, p)), None)
+    if port is None:
+        return None
+    holder = "an older Papers (stop it with Ctrl+C in its terminal)" if there.get("ok") else "another program"
+    print(f"Port {wanted} is used by {holder}, so Papers starts on port {port}.", flush=True)
+    return "start", port
+
+
 def wait_until_up(host: str, port: int, patience: float = 120) -> bool:
     """True once the app answers on its port (False after `patience` seconds)."""
     address = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/api/health"
@@ -168,27 +194,17 @@ def main(argv: list[str] | None = None) -> None:
     elif not args.no_setup and setup.needed():
         setup.run(port=args.port)
 
-    url = desktop.address(args.host, args.port)
-    if not port_free(args.host, args.port):
-        there = running(args.host, args.port)
-        if there and there.get("version") == __version__:  # this Papers is already running: just open it
-            if not args.no_browser:
-                webbrowser.open(url) if args.browser else desktop.open_window(url)
-            return
-        if there and there.get("version") and ask_to_quit(args.host, args.port):
-            print(f"Papers {there['version']} was running; it's replaced by {__version__}.", flush=True)
-        elif there:
-            # An older Papers that can't be asked to stop (before 0.5.1) still runs there, perhaps in a forgotten
-            # terminal: start on the next free port instead of opening a window onto it, which wouldn't work.
-            old = args.port
-            while not port_free(args.host, args.port) and args.port < old + 20:
-                args.port += 1
-            url = desktop.address(args.host, args.port)
-            print(f"An older Papers is still running on port {old} (stop it with Ctrl+C in its terminal). "
-                  f"This one starts on port {args.port}.", flush=True)
-        else:
-            print(f"Port {args.port} is in use by another program. Start Papers with --port 8001.")
-            raise SystemExit(1)
+    found = place(args.host, args.port)
+    if found is None:
+        print(f"Ports {args.port} to {args.port + SPAN - 1} are all in use. Start Papers with --port 9000, for example.")
+        raise SystemExit(1)
+    action, port = found
+    url = desktop.address(args.host, port)
+    if action == "open":  # this Papers is already running: just open it
+        if not args.no_browser:
+            webbrowser.open(url) if args.browser else desktop.open_window(url)
+        return
+    args.port = port
     def announce() -> None:
         """Say where the app is, and open it, once it really answers: a link that leads to an error page is
         worse than a few seconds of "Starting"."""
