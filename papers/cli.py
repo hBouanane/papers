@@ -1,7 +1,8 @@
 """The `papers` command: start the app and open it in your browser.
 
-    papers                     start on http://papers.localhost:8000 and open the browser (the first time, a short setup)
-    papers --app               the same, in a window of its own (Edge or Chrome's app window)
+    papers                     start on http://papers.localhost:8000 and open it in a window of its own (the first
+                               time, a short setup); closing the window stops Papers
+    papers --browser           open it in a tab of your usual browser instead (it keeps running until Ctrl+C)
     papers shortcut            put a Papers icon on the desktop that opens it in its own window
     papers setup               the setup again: where your library is kept, which AI to use
     papers --no-setup          skip the setup (it's also skipped outside a terminal and with --data)
@@ -96,13 +97,18 @@ def wait_until_up(host: str, port: int, patience: float = 120) -> bool:
 
 
 def main(argv: list[str] | None = None) -> None:
+    # Started without a console (the desktop icon on Windows runs pythonw): there's nowhere to print, so nothing is.
+    for name in ("stdout", "stderr"):
+        if getattr(sys, name) is None:
+            setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115  (open for the whole run)
     parser = argparse.ArgumentParser(prog="papers", description="An AI reading companion for research papers.")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PAPERS_PORT", 8000)))
     parser.add_argument("--host", default=os.environ.get("PAPERS_HOST", "127.0.0.1"))
     parser.add_argument("--data", help="folder for the database, PDFs and figures")
     parser.add_argument("--no-browser", action="store_true", help="don't open the browser")
     parser.add_argument("--no-setup", action="store_true", help="don't ask the first-run questions")
-    parser.add_argument("--app", action="store_true", help="open Papers in a window of its own")
+    parser.add_argument("--browser", action="store_true", help="open Papers in a tab of your browser, not its own window")
+    parser.add_argument("--app", action="store_true", help=argparse.SUPPRESS)  # the default now; older shortcuts pass it
     parser.add_argument("command", nargs="?", choices=["setup", "shortcut"],
                         help="setup: ask where to keep things and which AI to use; shortcut: a Papers icon on the desktop")
     parser.add_argument("--version", action="version", version=f"papers {__version__}")
@@ -139,8 +145,8 @@ def main(argv: list[str] | None = None) -> None:
 
     url = desktop.address(args.host, args.port)
     if not port_free(args.host, args.port):
-        if args.app and wait_until_up(args.host, args.port, patience=3):  # already running: just open its window
-            desktop.open_window(url)
+        if not args.no_browser and wait_until_up(args.host, args.port, patience=3):  # already running: just open it
+            webbrowser.open(url) if args.browser else desktop.open_window(url)
             return
         print(f"Port {args.port} is in use. Is Papers already running? Open {url}, or start with --port 8001.")
         raise SystemExit(1)
@@ -156,14 +162,24 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Open {url} (Ctrl+C to stop)", flush=True)
         if not ready:
             print("  It is taking long to start. If the page doesn't open yet, wait a moment and reload it.")
-        if args.app:
-            desktop.open_window(url)
-        elif not args.no_browser:
+        if args.no_browser:
+            return
+        if args.browser:
             webbrowser.open(url)
-    threading.Thread(target=announce, daemon=True).start()
+            return
+        desktop.open_window(url)
+        # In its own window, Papers stops once the window is closed (no Papers page open for a few seconds).
+        from papers import presence
+        while not server.should_exit:
+            time.sleep(1)
+            if presence.all_closed():
+                print("  The Papers window was closed, so Papers stopped. Open it again any time.", flush=True)
+                server.should_exit = True
 
     import uvicorn
-    uvicorn.run("papers.main:app", host=args.host, port=args.port, log_level="warning")
+    server = uvicorn.Server(uvicorn.Config("papers.main:app", host=args.host, port=args.port, log_level="warning"))
+    threading.Thread(target=announce, daemon=True).start()
+    server.run()
 
 
 if __name__ == "__main__":

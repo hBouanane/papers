@@ -20,7 +20,11 @@
   stroke-dasharray: 7 8; stroke-linecap: round; animation: map-line-in .8s ease-out both, map-flow 2.6s linear infinite;
   animation-delay: calc(.5s + var(--i) * .15s), calc(var(--i) * -0.4s); }
 .map-corner-paper { position: absolute; right: -20%; bottom: -26%; width: 46%; transform: rotate(8deg);
-  animation: corner-enter 1.1s cubic-bezier(.2, .8, .2, 1) both, corner-float 9s ease-in-out 1.1s infinite alternate; }
+  animation: corner-enter 1.1s cubic-bezier(.2, .8, .2, 1) both; }
+/* The drift is on the card inside, not the paper itself: two animations taking turns on one element made the paper
+   jump up the moment it arrived. It starts a while after the paper has settled, and moves only a little. */
+.map-corner-paper > * { animation: corner-drift 10s ease-in-out 2.2s infinite alternate both; }
+.map-corner-high > * { animation: corner-drift-high 12s ease-in-out 2.4s infinite alternate both; }
 .map-corner-paper .cover-sheet { display: none; }
 .map-corner-paper { z-index: 2; } /* above its lines, which flow out from under it */
 .map-corner-paper .cover { box-shadow: 0 30px 70px -28px rgb(0 0 0 / .35); }
@@ -32,25 +36,23 @@
    lines, a shade darker and slightly soft, with a closer shadow */
 .map-corner-high { right: -6%; top: -24%; bottom: auto; width: 32%; transform: rotate(-13deg); z-index: 0;
   filter: brightness(.9) blur(.6px);
-  animation: corner-enter-high 1.2s cubic-bezier(.2, .8, .2, 1) .15s both, corner-float-high 11s ease-in-out 1.3s infinite alternate; }
+  animation: corner-enter-high 1.2s cubic-bezier(.2, .8, .2, 1) .15s both; }
 @keyframes map-flow { to { stroke-dashoffset: -30; } }
 @keyframes map-line-in { from { opacity: 0; } to { opacity: var(--ray-o); } }
 @keyframes corner-enter { from { transform: translate(18%, 30%) rotate(18deg); opacity: 0; } to { transform: rotate(8deg); opacity: 1; } }
-@keyframes corner-float {
-  0% { transform: rotate(8deg) translate(0, 0); }
-  50% { transform: rotate(6deg) translate(-10px, -16px); }
-  100% { transform: rotate(9.5deg) translate(-4px, -6px); }
+@keyframes corner-drift {
+  from { transform: none; }
+  to { transform: translate(-6px, -9px) rotate(-1.2deg); }
 }
 @keyframes corner-enter-high { from { transform: translate(16%, -30%) rotate(-24deg); opacity: 0; } to { transform: rotate(-13deg); opacity: 1; } }
-@keyframes corner-float-high {
-  0% { transform: rotate(-13deg) translate(0, 0); }
-  50% { transform: rotate(-11deg) translate(-8px, 12px); }
-  100% { transform: rotate(-14.5deg) translate(-3px, 5px); }
+@keyframes corner-drift-high {
+  from { transform: none; }
+  to { transform: translate(-4px, 7px) rotate(1.2deg); }
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) .map-corner { --ray-o: .38; } }
 :root[data-theme="dark"] .map-corner, :root[data-theme="dim"] .map-corner { --ray-o: .38; }
 @media (max-width: 760px) { .map-corner { width: 110vw; } .map-corner-paper { width: 60%; } .map-corner-high { width: 48%; } }
-@media (prefers-reduced-motion: reduce) { .map-rays path, .map-corner-paper { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .map-rays path, .map-corner-paper, .map-corner-paper > * { animation: none; } }
 
 /* ---------- The network of papers (map-hero) ---------- */
 /* In a wide band at the top, title on the left: the papers spread out and joined like a map. Dashes flow along

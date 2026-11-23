@@ -64,6 +64,8 @@ document.addEventListener("click", (e) => {
   if (url.pathname + url.search !== location.pathname + location.search) go(url.pathname + url.search);
   else if (url.hash) location.hash = url.hash;
 });
+// While this page is open, Papers knows it (papers/presence.py): closing the last Papers window stops Papers.
+try { new EventSource("/api/app/presence"); } catch { /* an old browser: Papers just keeps running */ }
 window.addEventListener("popstate", render);
 window.addEventListener("route", render);
 render();

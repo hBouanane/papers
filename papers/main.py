@@ -11,11 +11,11 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
-from papers import ai, config, db, index, keys, library, scholar
+from papers import ai, config, db, index, keys, library, presence, scholar
 from papers.ai.errors import plain
 from papers.ingest import import_inbox
 from papers.routes import ROUTERS
@@ -93,9 +93,18 @@ def health():
     return {"ok": True}
 
 
+@app.get("/api/app/presence")
+def page_open():
+    """Held open by each open page (presence.py): when the last one closes, Papers in its own window stops."""
+    return StreamingResponse(presence.stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
 for router in ROUTERS:
     app.include_router(router)
 
+# A page closed while connected (a window closed, a reload) makes Windows' event loop log a "connection reset" with
+# a traceback: nothing went wrong, so it isn't shown.
+logging.getLogger("asyncio").addFilter(lambda r: not (r.exc_info and isinstance(r.exc_info[1], ConnectionResetError)))
 mimetypes.add_type("text/javascript", ".js")  # the Windows registry can map .js to text/plain
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 class Pages(StaticFiles):
