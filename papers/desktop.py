@@ -1,6 +1,6 @@
 """Papers as a desktop app: its own window (no tabs, no address bar) and an icon on the desktop.
 
-    papers --app        start Papers if it isn't running, and open it in its own window
+    papers              start Papers if it isn't running, and open it in its own window (closing it stops Papers)
     papers shortcut     put a Papers icon on the desktop (and in the apps menu on Linux) that does the same
 
 The window is Microsoft Edge's or Google Chrome's "app" mode, when one of them is installed; otherwise the usual
@@ -23,20 +23,26 @@ def address(host: str, port: int) -> str:
     return f"http://{name}:{port}" if host in ("127.0.0.1", "localhost", "0.0.0.0", "::", "::1") else f"http://{host}:{port}"
 
 
+# Browsers that can show a page as an app window (--app): Edge, Chrome, Chromium, Brave and Vivaldi, on Windows,
+# macOS and Linux. Firefox and Safari can't; with them Papers opens in a tab (closing the tab stops it the same way).
+COMMANDS = ["msedge", "microsoft-edge", "microsoft-edge-stable", "google-chrome", "google-chrome-stable", "chrome",
+            "chromium", "chromium-browser", "brave-browser", "brave", "vivaldi", "vivaldi-stable"]
+WINDOWS = ["Microsoft/Edge/Application/msedge.exe", "Google/Chrome/Application/chrome.exe",
+           "BraveSoftware/Brave-Browser/Application/brave.exe", "Vivaldi/Application/vivaldi.exe", "Chromium/Application/chrome.exe"]
+MAC = ["Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "Google Chrome.app/Contents/MacOS/Google Chrome",
+       "Chromium.app/Contents/MacOS/Chromium", "Brave Browser.app/Contents/MacOS/Brave Browser", "Vivaldi.app/Contents/MacOS/Vivaldi"]
+
+
 def _app_browser() -> str | None:
-    """Edge or Chrome, which can show a page as an app window."""
-    names = ["msedge", "chrome", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge"]
-    for name in names:
-        if found := shutil.which(name):
-            return found
+    """A browser that can show a page as an app window, or None."""
     places = []
     if sys.platform == "win32":
-        for root in filter(None, [os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")]):
-            places += [Path(root, "Microsoft/Edge/Application/msedge.exe"), Path(root, "Google/Chrome/Application/chrome.exe")]
+        roots = [r for r in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)"), os.environ.get("LOCALAPPDATA")) if r]
+        places = [Path(root, rel) for rel in WINDOWS for root in roots]  # Edge first, wherever it is
     elif sys.platform == "darwin":
-        places += [Path("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
-                   Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")]
-    return next((str(p) for p in places if p.exists()), None)
+        places = [Path(root, rel) for root in ("/Applications", Path.home() / "Applications") for rel in MAC]
+    found = next((str(p) for p in places if p.exists()), None)
+    return found or next((path for name in COMMANDS if (path := shutil.which(name))), None)
 
 
 def open_window(url: str) -> None:
@@ -52,8 +58,12 @@ def open_window(url: str) -> None:
 
 
 def _launcher(port: int, default_port: int) -> tuple[str, list[str]]:
-    """The command the shortcut runs: the `papers` command when it's on PATH, else this Python with -m papers."""
-    args = ["--app"] + ([f"--port={port}"] if port != default_port else [])
+    """The command the shortcut runs. On Windows, this Python without a console window (pythonw): the Papers window is
+    all you see, and closing it stops Papers. Elsewhere the `papers` command when it's on PATH, else this Python."""
+    args = [f"--port={port}"] if port != default_port else []
+    if sys.platform == "win32":
+        quiet = Path(sys.executable).with_name("pythonw.exe")
+        return (str(quiet) if quiet.exists() else sys.executable), ["-m", "papers", *args]
     found = shutil.which("papers")
     return (found, args) if found else (sys.executable, ["-m", "papers", *args])
 

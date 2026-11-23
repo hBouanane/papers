@@ -18,9 +18,21 @@ What changed in each release. Versions follow [semantic versioning](https://semv
   between sections. Guides are kept with the paper, and any long answer in the chat can be opened there too.
 - **Plain addresses**: pages have addresses like `papers.localhost:8000/papers/3/read` (no `#`, and a name of its
   own instead of "localhost"). Old bookmarks still work.
-- **An icon, and Papers as a desktop app**: Papers has its own icon. `papers --app` opens it in a window of its
-  own, and `papers shortcut` puts an icon on the desktop that starts Papers (when it isn't running) and opens that
-  window. In Edge or Chrome you can also install it from the address bar.
+- **Papers as a desktop app, with its own icon**: `papers` now opens Papers in a window of its own instead of a
+  browser tab (Edge, Chrome, Chromium, Brave or Vivaldi, on Windows, macOS and Linux; with only Firefox or Safari, a
+  tab), and closing the window stops Papers; nothing is lost, everything is saved as you go. The first-run setup
+  offers an icon on your desktop, and `papers shortcut` adds one any time: double-click it and Papers starts and
+  opens (on Windows without a console window). `papers --browser` opens a tab that keeps running, as before.
+- **The guide and the chat side by side**: the chat beside the guide reads like a second page (questions as titles,
+  answers in the guide's type), with its own rail of questions and sections; hover a rail and the section names
+  float out beside their marks. The newest guide always opens.
+- **A guide that teaches from scratch**: the in-depth guide now starts with the paper in brief and teaches what you
+  need first (the ideas the paper builds on), then the words, the key idea, each part of the method, the
+  experiments and the limits, in connected paragraphs; every visual says how to read it and what to try.
+- **A calmer overview**: the paper's abstract sits folded at the top, the text uses one font in a few sizes, the
+  boxes respond to the pointer, and "The big picture, in one figure" picks the figure a newcomer can read, with how
+  to read it. Archiving a paper no longer makes the page flash.
+- **The Map's papers settle smoothly** into their corners instead of jumping up as they arrive.
 - **Calmer visuals**: diagrams are drawn in the app's own font with clean shapes (no more handwriting), two things
   compared sit side by side, tables have borders, and every diagram, figure and chart fits on the screen: bar
   charts keep a modest height and never spill below their axis.
