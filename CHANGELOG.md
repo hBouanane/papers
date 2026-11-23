@@ -2,7 +2,7 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.5.0
 
 - **A new overview: the paper in two minutes**: instead of lists (reading plan, questions, contributions), a paper's
   overview is now what a great teacher says first: two sentences on what it does and why it matters, the problem
