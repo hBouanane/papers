@@ -41,8 +41,12 @@ def test_the_desktop_shortcut_starts_papers_in_its_window(tmp_path, monkeypatch)
 
 def test_the_shortcut_command_runs_papers_app(monkeypatch):
     monkeypatch.setattr(desktop.shutil, "which", lambda name: "/usr/bin/papers" if name == "papers" else None)
+    monkeypatch.setattr(desktop.sys, "platform", "linux")
     assert desktop._launcher(8000, 8000) == ("/usr/bin/papers", [])  # its own window is the default
     assert desktop._launcher(9000, 8000) == ("/usr/bin/papers", ["--port=9000"])
+    monkeypatch.setattr(desktop.sys, "platform", "win32")  # on Windows: no console window
+    target, args = desktop._launcher(8000, 8000)
+    assert target.endswith(("pythonw.exe", "python.exe", "python")) and args == ["-m", "papers"]
 
 
 def test_papers_stops_only_once_every_window_has_been_closed_for_a_while(monkeypatch):
