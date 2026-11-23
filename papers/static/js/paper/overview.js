@@ -178,6 +178,7 @@ function renderStory(box, p, settings, s, redo, abstractFold) {
           through with real numbers, the experiments, and what they do and don't show. In a reader of its own.</p></div>
       <div class="ov-guide-actions" id="ov-guide-actions">${loading()}</div></section>`;
   box.innerHTML = `<article class="ov">
+    ${abstractFold}
     ${s.tldr ? `<p class="ov-hook">${esc(s.tldr)}</p>` : ""}
     <div class="ov-verdict">
       <span class="ov-chip">${esc(s.verdict)}</span>
@@ -196,7 +197,6 @@ function renderStory(box, p, settings, s, redo, abstractFold) {
         <p><strong>Figure ${s.figure.number}.</strong> ${esc(s.figure.why)}</p></div></section>` : ""}
     ${s.caveats?.length ? `<section class="ov-block ov-caveats"><h3>Keep in mind</h3><ul>${s.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}
     ${p.text ? guideCard : ""}
-    ${abstractFold}
     ${redo}
   </article>`;
   box.querySelector("#regenerate")?.addEventListener("click", (e) => box.dispatchEvent(new CustomEvent("regenerate", { detail: e.currentTarget })));
