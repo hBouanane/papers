@@ -84,7 +84,15 @@ export function createRail(rail, scroller, { items }) {
 
   // The names come out after a short hover (passing the mouse by doesn't flash them) and stay while you're over them.
   let openTimer = 0, closeTimer = 0;
-  const openTags = () => { placeTags(); paint(); rail.classList.add("is-open"); };
+  // The fade behind the names is the page's own colour (white, grey or dark, whatever is under the rail).
+  const backdrop = () => {
+    for (let el = scroller; el; el = el.parentElement) {
+      const c = getComputedStyle(el).backgroundColor;
+      if (c && c !== "transparent" && !/rgba\(.*,\s*0\)$/.test(c)) return c;
+    }
+    return getComputedStyle(document.body).backgroundColor;
+  };
+  const openTags = () => { rail.style.setProperty("--rail-bg", backdrop()); placeTags(); paint(); rail.classList.add("is-open"); };
   rail.addEventListener("pointerenter", (e) => {
     if (e.pointerType === "touch") return;
     clearTimeout(closeTimer);
@@ -92,7 +100,7 @@ export function createRail(rail, scroller, { items }) {
   });
   rail.addEventListener("pointerleave", () => {
     clearTimeout(openTimer);
-    closeTimer = setTimeout(() => rail.classList.remove("is-open"), 280);
+    closeTimer = setTimeout(() => rail.classList.remove("is-open"), 160);
   });
   rail.addEventListener("pointerover", (e) => { // pointing at a name lights its mark
     const i = e.target.closest?.("[data-rail]")?.dataset.rail;

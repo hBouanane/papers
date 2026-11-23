@@ -93,10 +93,11 @@
 
 /* The names, floating beside their marks: no box, just the names where the parts are, over a soft fade of the page. */
 .rail-float { position: absolute; top: 0; bottom: 0; right: 18px; width: min(380px, 60vw); pointer-events: none; }
-.rail-float::before { content: ""; position: absolute; inset: -40px -18px -40px -60px; background: linear-gradient(to right, transparent, var(--desk) 30%);
+.rail-float::before { content: ""; position: absolute; inset: -40px -18px -40px -60px; background: linear-gradient(to right, transparent, var(--rail-bg, var(--desk)) 30%);
   opacity: 0; transition: opacity .25s ease; }
-.rail.is-open .rail-float { pointer-events: auto; }
-.rail.is-open .rail-float::before { opacity: .98; }
+/* only the names themselves hold the list open: move off them and it goes */
+.rail.is-open .rail-tag { pointer-events: auto; }
+.rail.is-open .rail-float::before { opacity: 1; }
 .rail-leaders { position: absolute; right: 0; top: 0; width: 24px; overflow: visible; }
 .rail-leaders path { fill: none; stroke: var(--pencil); stroke-width: 1; opacity: 0; stroke-dasharray: 40; stroke-dashoffset: 40;
   transition: opacity .2s, stroke-dashoffset .35s ease; transition-delay: calc(var(--i) * 12ms); }
