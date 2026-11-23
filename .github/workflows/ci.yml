@@ -32,3 +32,29 @@ jobs:
           docker run -d --name papers -p 8000:8000 papers
           for i in $(seq 1 20); do curl -fs http://localhost:8000/api/health && exit 0; sleep 1; done
           docker logs papers; exit 1
+
+  installed:
+    # Papers as people get it, started the way they start it: the package is built, installed in a clean
+    # environment, and started without a console (as the desktop icon does) on Windows, macOS and Linux; then asked
+    # to stop, and its desktop icon made. The unit tests can't catch what goes wrong only there (0.5.0's icon).
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install build && python -m build --wheel
+      - name: Install it in a clean environment
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/clean"
+          if [ -f "$RUNNER_TEMP/clean/Scripts/python.exe" ]; then PY="$RUNNER_TEMP/clean/Scripts/python.exe"; else PY="$RUNNER_TEMP/clean/bin/python"; fi
+          "$PY" -m pip install dist/*.whl
+          echo "PY=$PY" >> "$GITHUB_ENV"
+      - name: Start it like people do
+        shell: bash
+        run: python tests/smoke_installed.py "$PY"

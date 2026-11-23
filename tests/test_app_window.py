@@ -88,21 +88,38 @@ def test_a_newer_papers_asks_the_running_one_to_stop(client):
         presence.quit_requested = False
 
 
-def test_an_older_papers_still_running_is_replaced(monkeypatch):
-    asked, started = [], []
-    free = iter([False, True])
-    monkeypatch.setattr(cli, "port_free", lambda host, port: next(free, True))
-    monkeypatch.setattr(cli, "running", lambda host, port: {"ok": True, "version": "0.0.1"})
-    monkeypatch.setattr(cli, "ask_to_quit", lambda host, port: asked.append(port) or True)
-    monkeypatch.setattr(cli, "python_problem", lambda: None)
+def where(monkeypatch, ports: dict) -> list:
+    """Ports in use: {port: health of the Papers there, or {} for another program}. Returns the ports asked to quit."""
+    asked = []
+    monkeypatch.setattr(cli, "port_free", lambda host, port: port not in ports)
+    monkeypatch.setattr(cli, "running", lambda host, port: ports.get(port) or None)
 
-    class Server:  # instead of starting the app
-        def __init__(self, config): self.should_exit = False
-        def run(self): started.append(True)
-    import uvicorn
-    monkeypatch.setattr(uvicorn, "Server", Server)
-    cli.main(["--no-setup", "--no-browser", "--port", "8124"])
-    assert asked == [8124] and started == [True]
+    def quit_(host, port):
+        asked.append(port)
+        ports.pop(port)
+        return True
+    monkeypatch.setattr(cli, "ask_to_quit", quit_)
+    return asked
+
+
+def test_another_version_of_papers_is_replaced(monkeypatch):
+    asked = where(monkeypatch, {8000: {"ok": True, "version": "0.0.1"}})
+    assert cli.place("127.0.0.1", 8000) == ("start", 8000) and asked == [8000]
+
+
+def test_a_busy_port_moves_papers_to_the_next_free_one(monkeypatch):
+    where(monkeypatch, {8000: {}, 8001: {"ok": True}})  # another program, then a Papers too old to be asked
+    assert cli.place("127.0.0.1", 8000) == ("start", 8002)
+
+
+def test_the_papers_already_open_on_another_port_is_found(monkeypatch):
+    where(monkeypatch, {8000: {}, 8001: {"ok": True, "version": cli.__version__}})
+    assert cli.place("127.0.0.1", 8000) == ("open", 8001)
+
+
+def test_all_ports_taken(monkeypatch):
+    where(monkeypatch, {p: {} for p in range(8000, 8000 + cli.SPAN)})
+    assert cli.place("127.0.0.1", 8000) is None
 
 
 def test_papers_starts_without_any_console(monkeypatch):

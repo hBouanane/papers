@@ -127,5 +127,7 @@ Two rules keep it easy to follow:
 
 ## Releasing
 
-Bump `__version__` in `papers/__init__.py` and push a tag like `v0.2.0`. The release workflow publishes to PyPI
-and pushes the Docker image to `ghcr.io`.
+Releases are planned, not made after each pull request: see [docs/RELEASING.md](docs/RELEASING.md) for when (a minor
+version about every two weeks, a patch only when people are stuck), the release candidate and checks before a
+minor version, and the steps. In short: a `Release X.Y.Z` pull request bumps `__version__` and dates the changelog;
+once merged, its tag `vX.Y.Z` makes the release workflow publish to PyPI and `ghcr.io`.

@@ -40,9 +40,11 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
+          # a release candidate (v0.6.0rc1) gets its own tag, never `latest`
           tags: |
             type=semver,pattern={{version}}
-            type=raw,value=latest
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, 'rc') }}
       - uses: docker/build-push-action@v7
         with:
           context: .
