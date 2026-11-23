@@ -81,6 +81,31 @@ def check_python(argv: list[str] | None = None, why: str | None = None) -> None:
     raise SystemExit(1)
 
 
+def running(host: str, port: int) -> dict | None:
+    """What answers on this port: Papers' health ({ok, version} from 0.5.1 on, {ok} before), or None."""
+    import json
+    try:
+        with urllib.request.urlopen(f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/api/health", timeout=2) as r:
+            return json.loads(r.read() or b"{}")
+    except (OSError, ValueError):
+        return None
+
+
+def ask_to_quit(host: str, port: int, patience: float = 15) -> bool:
+    """Ask the Papers on this port to stop, and wait until the port is free. False if it didn't."""
+    try:
+        request = urllib.request.Request(f"http://127.0.0.1:{port}/api/app/quit", method="POST", data=b"")
+        urllib.request.urlopen(request, timeout=3).close()
+    except OSError:
+        return False
+    until = time.monotonic() + patience
+    while time.monotonic() < until:
+        if port_free(host, port):
+            return True
+        time.sleep(0.3)
+    return False
+
+
 def wait_until_up(host: str, port: int, patience: float = 120) -> bool:
     """True once the app answers on its port (False after `patience` seconds)."""
     address = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/api/health"
@@ -98,9 +123,9 @@ def wait_until_up(host: str, port: int, patience: float = 120) -> bool:
 
 def main(argv: list[str] | None = None) -> None:
     # Started without a console (the desktop icon on Windows runs pythonw): there's nowhere to print, so nothing is.
-    for name in ("stdout", "stderr"):
+    for name, mode in (("stdin", "r"), ("stdout", "w"), ("stderr", "w")):
         if getattr(sys, name) is None:
-            setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115  (open for the whole run)
+            setattr(sys, name, open(os.devnull, mode, encoding="utf-8"))  # noqa: SIM115  (open for the whole run)
     parser = argparse.ArgumentParser(prog="papers", description="An AI reading companion for research papers.")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PAPERS_PORT", 8000)))
     parser.add_argument("--host", default=os.environ.get("PAPERS_HOST", "127.0.0.1"))
@@ -145,11 +170,25 @@ def main(argv: list[str] | None = None) -> None:
 
     url = desktop.address(args.host, args.port)
     if not port_free(args.host, args.port):
-        if not args.no_browser and wait_until_up(args.host, args.port, patience=3):  # already running: just open it
-            webbrowser.open(url) if args.browser else desktop.open_window(url)
+        there = running(args.host, args.port)
+        if there and there.get("version") == __version__:  # this Papers is already running: just open it
+            if not args.no_browser:
+                webbrowser.open(url) if args.browser else desktop.open_window(url)
             return
-        print(f"Port {args.port} is in use. Is Papers already running? Open {url}, or start with --port 8001.")
-        raise SystemExit(1)
+        if there and there.get("version") and ask_to_quit(args.host, args.port):
+            print(f"Papers {there['version']} was running; it's replaced by {__version__}.", flush=True)
+        elif there:
+            # An older Papers that can't be asked to stop (before 0.5.1) still runs there, perhaps in a forgotten
+            # terminal: start on the next free port instead of opening a window onto it, which wouldn't work.
+            old = args.port
+            while not port_free(args.host, args.port) and args.port < old + 20:
+                args.port += 1
+            url = desktop.address(args.host, args.port)
+            print(f"An older Papers is still running on port {old} (stop it with Ctrl+C in its terminal). "
+                  f"This one starts on port {args.port}.", flush=True)
+        else:
+            print(f"Port {args.port} is in use by another program. Start Papers with --port 8001.")
+            raise SystemExit(1)
     def announce() -> None:
         """Say where the app is, and open it, once it really answers: a link that leads to an error page is
         worse than a few seconds of "Starting"."""
@@ -162,22 +201,27 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Open {url} (Ctrl+C to stop)", flush=True)
         if not ready:
             print("  It is taking long to start. If the page doesn't open yet, wait a moment and reload it.")
-        if args.no_browser:
-            return
+        own_window = not args.no_browser and not args.browser
         if args.browser:
             webbrowser.open(url)
-            return
-        desktop.open_window(url)
-        # In its own window, Papers stops once the window is closed (no Papers page open for a few seconds).
+        elif own_window:
+            desktop.open_window(url)
+        # In its own window, Papers stops once the window is closed (no Papers page open for a few seconds); and
+        # any Papers stops when a newer one asks it to.
         from papers import presence
         while not server.should_exit:
             time.sleep(1)
-            if presence.all_closed():
+            if presence.quit_requested:
+                print("  A newer Papers is starting, so this one stopped.", flush=True)
+                server.should_exit = True
+            elif own_window and presence.all_closed():
                 print("  The Papers window was closed, so Papers stopped. Open it again any time.", flush=True)
                 server.should_exit = True
 
     import uvicorn
-    server = uvicorn.Server(uvicorn.Config("papers.main:app", host=args.host, port=args.port, log_level="warning"))
+    # timeout_graceful_shutdown: a browser can keep a connection open after its window closes; Papers stops anyway.
+    server = uvicorn.Server(uvicorn.Config("papers.main:app", host=args.host, port=args.port, log_level="warning",
+                                           timeout_graceful_shutdown=3))
     threading.Thread(target=announce, daemon=True).start()
     server.run()
 

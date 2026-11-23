@@ -12,6 +12,7 @@ _lock = threading.Lock()
 _open = 0
 _seen = False  # a page has been open at least once (until then, never stop: the window may still be opening)
 _last_closed = time.monotonic()
+quit_requested = False  # a newer Papers asked this one to stop (POST /api/app/quit)
 
 
 def _change(by: int) -> None:

@@ -2,6 +2,16 @@
 
 What changed in each release. Versions follow [semantic versioning](https://semver.org).
 
+## 0.5.1
+
+- **The desktop icon starts Papers again on Windows**: started without a console window, Papers stopped at once
+  while checking whether it could ask setup questions. If something ever goes wrong there, it's now written to
+  `last-error.txt` next to Papers' settings.
+- **An older Papers left running no longer gets in the way**: starting Papers while an older version still runs
+  (in a forgotten terminal, say) replaces it from now on; one from before this version is left alone and the new
+  one opens on the next free port, instead of a window onto the old one that didn't work.
+- **Papers always stops when its window closes**, even when the browser keeps a connection open.
+
 ## 0.5.0
 
 - **A new overview: the paper in two minutes**: instead of lists (reading plan, questions, contributions), a paper's

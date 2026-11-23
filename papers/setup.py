@@ -38,7 +38,8 @@ BLUE = "#6f8cf0"  # the accent, light enough for dark terminals and dark enough 
 
 
 def interactive() -> bool:
-    return sys.stdin.isatty() and sys.stdout.isatty() and not os.environ.get("CI")
+    streams = (sys.stdin, sys.stdout)  # none at all when started without a console (pythonw)
+    return all(s is not None and s.isatty() for s in streams) and not os.environ.get("CI")
 
 
 def needed() -> bool:
