@@ -65,8 +65,23 @@ export async function readerPage(id, stale, { guide: openOnGuide = null } = {}) 
     }
   };
   const cite = citeHandler(r, views);
-  const panel = setupPanel(r, { notes, cite, allowPages, onLibraryChanged: (kind) => libraryChanged(kind) });
-  const guide = setupGuide(r, { cite, toPaper: () => views.toPaper(), onShown: () => { vocab.refresh(); views.refreshJump(); } });
+  let guide = null;
+  const panel = setupPanel(r, { notes, cite, allowPages, onLibraryChanged: (kind) => libraryChanged(kind), onScreen: () => guide?.shown() });
+  guide = setupGuide(r, {
+    cite, toPaper: () => views.toPaper(), onShown: () => { vocab.refresh(); views.refreshJump(); },
+    onChange: () => panel.chat.redraw(), // the guide on screen isn't repeated in the chat beside it
+  });
+  // Over the guide: a box to ask about it. The answer opens beside the guide, in the guide's own conversation.
+  r.$("#guide-ask").onsubmit = (e) => {
+    e.preventDefault();
+    const input = r.$("#guide-ask-text");
+    const text = input.value.trim();
+    if (!text) return input.focus();
+    input.value = "";
+    panel.setOpen(true, "ask");
+    panel.chat.askIn(guide.shown()?.conversation ?? null, text);
+  };
+  r.$("#guide-ask-new").onclick = () => { panel.setOpen(true, "ask"); panel.chat.newChat(); };
   views.useGuide(guide);
   const notesUi = bindNotesList(r.$("#notes-list"), notes, {
     here: () => ({ position: r.positionNow(), page: r.pdf ? r.pdf.page : null }),

@@ -4,11 +4,12 @@
 // anywhere. ← / → move between sections. A new guide is written while you watch.
 import { api, esc, toast } from "../../core.js";
 import { streamEvents } from "../../chat/stream.js";
+import { createRail } from "../../rail.js";
 import { showFigure } from "../figures.js";
 
 const minutesOf = (text) => Math.max(1, Math.round(text.split(/\s+/).length / 220));
 
-export function setupGuide(r, { cite, toPaper, onShown }) {
+export function setupGuide(r, { cite, toPaper, onShown, onChange }) {
   const { id, paper: p, $ } = r;
   const box = $("#guide-scroll"), doc = $("#guide-doc"), head = $("#guide-head"), rail = $("#guide-rail");
   let loaded = null; // the guide shown: { id, content }
@@ -29,61 +30,20 @@ export function setupGuide(r, { cite, toPaper, onShown }) {
     },
   };
 
-  // ----- The rail: sections as marks, where you are, and a label while you move -----
-  const current = () => {
-    let at = 0;
-    const top = box.getBoundingClientRect().top + box.clientHeight / 3;
-    heads.forEach((h, i) => { if (h.getBoundingClientRect().top < top) at = i; });
-    return at;
+  // ----- The rail (rail.js): the sections as marks; hover it for all of them, with how long each one is -----
+  const words = (h) => {
+    let n = 0;
+    for (let el = h.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) n += (el.textContent || "").split(/\s+/).length;
+    return n;
   };
-  let hideLabel = 0;
-  const paintRail = (moving = false) => {
-    if (box.hidden || !heads.length) { rail.hidden = true; return; }
-    rail.hidden = false;
-    const total = Math.max(1, box.scrollHeight);
-    const thumb = rail.querySelector(".rail-thumb");
-    thumb.style.top = `${(box.scrollTop / total) * 100}%`;
-    thumb.style.height = `${Math.max(2, (box.clientHeight / total) * 100)}%`;
-    const at = current();
-    rail.querySelectorAll(".rail-mark").forEach((m, i) => {
-      m.classList.toggle("is-here", i === at);
-      m.classList.toggle("is-read", i < at);
-    });
-    const label = rail.querySelector(".rail-label");
-    label.textContent = `${at + 1} / ${heads.length} · ${heads[at].textContent}`;
-    label.style.top = thumb.style.top;
-    if (moving) {
-      rail.classList.add("is-moving");
-      clearTimeout(hideLabel);
-      hideLabel = setTimeout(() => rail.classList.remove("is-moving"), 1200);
-    }
-  };
-  const placeMarks = () => {
-    const total = Math.max(1, box.scrollHeight);
-    rail.querySelector(".rail-marks").innerHTML = heads.map((h, i) =>
-      `<button class="rail-mark" data-go="${i}" style="top:${(h.offsetTop / total) * 100}%" aria-label="${esc(h.textContent)}"><span>${esc(h.textContent)}</span></button>`).join("");
-    paintRail();
-  };
-  const go = (i) => {
-    const h = heads[Math.max(0, Math.min(heads.length - 1, i))];
-    if (h) box.scrollTo({ top: h.offsetTop - 24, behavior: "smooth" });
-  };
-  box.addEventListener("scroll", () => requestAnimationFrame(() => paintRail(true)), { passive: true });
-  new ResizeObserver(() => placeMarks()).observe(doc);
-  // Click a mark to go to its section, or anywhere on the rail (and drag) to go there.
-  rail.addEventListener("pointerdown", (e) => {
-    const mark = e.target.closest(".rail-mark");
-    if (mark) { e.preventDefault(); return go(Number(mark.dataset.go)); }
-    const to = (ev) => {
-      const b = rail.getBoundingClientRect();
-      box.scrollTop = ((ev.clientY - b.top) / b.height) * box.scrollHeight - box.clientHeight / 2;
-    };
-    e.preventDefault();
-    rail.setPointerCapture(e.pointerId);
-    to(e);
-    rail.onpointermove = to;
-    rail.onpointerup = () => { rail.onpointermove = null; };
+  const railer = createRail(rail, box, {
+    title: "In this guide",
+    items: () => heads.map((h) => ({ el: h, label: h.textContent, meta: `${Math.max(1, Math.round(words(h) / 220))} min` })),
   });
+  railer.observe(doc);
+  const placeMarks = () => railer.refresh();
+  const paintRail = () => railer.paint();
+  const go = (i) => railer.go(i);
 
   // ----- Showing a guide -----
   const sectionize = () => {
@@ -146,7 +106,8 @@ export function setupGuide(r, { cite, toPaper, onShown }) {
             if (/^## /m.test(text)) show(text, false);
           }
         }, { signal: writing.signal });
-      loaded = { id: done.message.id, content: done.message.content };
+      loaded = { id: done.message.id, content: done.message.content, conversation: done.message.conversation_id };
+      onChange?.();
       header(loaded.content, "just written");
       await show(loaded.content, true);
       if (r.guideOn) history.replaceState(history.state, "", `/papers/${id}/guide/${loaded.id}`);
@@ -168,7 +129,7 @@ export function setupGuide(r, { cite, toPaper, onShown }) {
           <button class="button" data-guide="new">Write it again</button>`;
         return;
       }
-      loaded = { id: m.id, content: m.content };
+      loaded = { id: m.id, content: m.content, conversation: m.conversation_id };
       header(m.content, m.created_at ? `written ${new Date(m.created_at).toLocaleDateString()}` : "");
       await show(m.content, true);
     } catch (e) { doc.innerHTML = `<p class="error">${esc(e.message)}</p>`; }
@@ -186,21 +147,25 @@ export function setupGuide(r, { cite, toPaper, onShown }) {
     async open(mid = null) {
       r.guideOn = true;
       box.hidden = false;
-      $("#scroller").hidden = true;
+      $("#scroller").classList.add("is-covered"); // kept laid out: the PDF viewer measures it
       document.body.classList.add("guide-view");
       if (!loaded || (mid && mid !== loaded.id)) await load(mid);
       else paintRail();
       if (loaded) history.replaceState(history.state, "", `/papers/${id}/guide/${loaded.id}`);
+      onChange?.();
     },
     close() {
       r.guideOn = false;
       box.hidden = true;
       rail.hidden = true;
-      $("#scroller").hidden = false;
+      $("#scroller").classList.remove("is-covered");
       document.body.classList.remove("guide-view");
+      onChange?.();
     },
     sections: () => heads.map((h, i) => ({ label: h.textContent, go: () => go(i) })),
-    step: (d) => go(current() + d),
-    cleanup() { writing?.abort(); },
+    step: (d) => railer.step(d),
+    // The guide on screen ({ id, conversation }), or null over the paper.
+    shown: () => (r.guideOn ? loaded : null),
+    cleanup() { writing?.abort(); railer.destroy(); },
   };
 }

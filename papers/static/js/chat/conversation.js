@@ -6,6 +6,7 @@
 //   const chat = conversationView(root, { paperId, onSaveNote, toast, visuals: { figures(), onCite(kind, ref) } });
 //   chat.start("explain", passage, label)   chat.attach(passage, label)   chat.open(id)   chat.newChat()
 import { api, esc, go, quote } from "../core.js";
+import { createRail } from "../rail.js";
 import { icon, iconButton } from "../icons.js";
 import { canSpeak, speak, speaking, stopSpeaking } from "../speech.js";
 import { answerView, checkedLabel } from "./answer.js";
@@ -23,7 +24,9 @@ const ago = (iso) => {
     : s < 7 * 86400 ? `${Math.round(s / 86400)} d ago` : new Date(`${iso.replace(" ", "T")}Z`).toLocaleDateString();
 };
 
-export function conversationView(root, { paperId, onSaveNote, onLibraryChanged = () => {}, toast = () => {}, visuals = {} }) {
+// `onScreen()`: the guide shown beside the chat ({ id }), if any: it isn't repeated in the conversation, only the
+// questions and answers that follow it are.
+export function conversationView(root, { paperId, onSaveNote, onLibraryChanged = () => {}, toast = () => {}, visuals = {}, onScreen = () => null }) {
   const render = renderAnswer;
   // what visuals and citations need: the paper's figures, where a citation goes, and the canvas to open them large
   const ctx = { ...visuals, onOpen: (kind, spec, title) => openCanvas(kind, spec, ctx, title) };
@@ -36,7 +39,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       ${iconButton("plus", "New conversation", { cls: "chat-new", size: 18 })}
     </div>
     <div class="chat-history" hidden><p class="chat-history-head">Conversations about this paper</p><ul class="chat-history-list"></ul></div>
-    <div class="thread" aria-live="polite"></div>
+    <div class="thread-wrap"><div class="thread" aria-live="polite"></div><nav class="chat-rail" aria-label="Messages"></nav></div>
     <form class="composer">
       <div class="composer-box">
         <div class="composer-chips"></div>
@@ -60,6 +63,17 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     box.setSelectionRange(text.length, text.length);
   };
   const chipsEl = $(".composer-chips");
+  // The rail beside the conversation (rail.js): a mark per question; hover it to see them all and jump to one.
+  const asked = (el) => {
+    const m = el.querySelector(".msg-you");
+    const text = m.querySelector(":scope > p")?.textContent || m.querySelector(".attachment-label")?.textContent || m.textContent;
+    const action = m.querySelector(".msg-action")?.textContent;
+    return `${action ? `${action}: ` : ""}${text.trim().replace(/\s+/g, " ").slice(0, 90)}`;
+  };
+  const rail = createRail($(".chat-rail"), thread, {
+    title: "In this conversation", name: "question",
+    items: () => [...thread.querySelectorAll(":scope > .turn")].filter((t) => t.querySelector(".msg-you")).map((t) => ({ el: t, label: asked(t) })),
+  });
   const historyEl = $(".chat-history");
 
   let current = null; // { id, title, messages }
@@ -75,6 +89,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       <p><strong>Select text in the paper</strong> to explain, simplify or translate it. Each one starts a conversation you can keep going.</p>
       <p>Or ask anything below; the AI has the whole paper in mind. <strong>Add to chat</strong> on a selection attaches it here.</p>
       <div class="followups">${STARTERS.map((q) => `<button type="button" class="followup" data-followup="${esc(q)}">${esc(q)}</button>`).join("")}</div></div>`;
+  const guideEmptyHtml = `<div class="thread-empty"><p><strong>This conversation is the guide.</strong> Ask about it below: your
+      questions and the answers appear here, beside it.</p></div>`;
   const attachmentsHtml = (list) => list.map((a) => `<div class="msg-attachment">${a.label ? `<span class="attachment-label">${esc(a.label)}</span>` : ""}
       ${quote(a.text)}</div>`).join("");
   const userHtml = (m) => `<div class="msg msg-you">
@@ -122,8 +138,12 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   };
   const drawThread = () => {
     thread.innerHTML = "";
-    const ms = current?.messages || [];
-    if (!ms.length) { thread.innerHTML = emptyHtml; return; }
+    const all = current?.messages || [];
+    // The guide on screen isn't drawn again here (nor the request that wrote it): only what follows it.
+    const guide = onScreen();
+    const ms = guide ? all.filter((m, i) => m.id !== guide.id && !(m.role === "user" && m.kind === "guide" && all[i + 1]?.id === guide.id)) : all;
+    if (!ms.length && guide && all.length) { thread.innerHTML = guideEmptyHtml; rail.refresh(); return; }
+    if (!ms.length) { thread.innerHTML = emptyHtml; rail.refresh(); return; }
     if (current.earlier) {
       thread.insertAdjacentHTML("beforeend", `<div class="show-more"><button type="button" class="button secondary small" data-earlier>Show earlier messages</button>
         <span class="faint">${current.earlier} more</span></div>`);
@@ -131,6 +151,7 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     ms.forEach((m, i) => turnEl(m.role === "user" ? userHtml(m) : assistantHtml(m, i === ms.length - 1)));
     draw(thread);
     thread.scrollTop = thread.scrollHeight;
+    rail.refresh();
   };
   const setTitle = () => { $(".chat-title").textContent = current?.title || "New conversation"; };
   const drawChips = () => {
@@ -191,7 +212,8 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
       });
       current.messages.push(done.message);
       turn.innerHTML = assistantHtml(done.message, true);
-      draw(turn);
+      await draw(turn);
+      rail.refresh();
     } catch (err) {
       if (err.data?.message) current.messages.push(err.data.message);
       if (stop.signal.aborted) view.stopped(); else view.error(err.message);
@@ -211,7 +233,9 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   const send = (kind, content, attachments, how = kind === "ask" ? depth : "quick") => {
     if (running) return;
     const message = { kind, content, attachments, depth: how };
+    thread.querySelector(".thread-empty")?.remove();
     turnEl(userHtml({ kind, content, meta: { attachments } }));
+    rail.refresh();
     const path = current ? `/conversations/${current.id}/messages` : `/papers/${paperId}/conversations/start`;
     return stream((signal, on) => streamEvents(path, message, on, { signal }));
   };
@@ -346,6 +370,15 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
   return {
     open,
     newChat,
+    // Draw the conversation again (the guide went on or off the screen).
+    redraw: () => { if (!running) drawThread(); },
+    // Ask in a given conversation (the guide's), opening it first.
+    async askIn(conversationId, text) {
+      if (running) return;
+      if (conversationId == null) newChat();
+      else if (current?.id !== conversationId) await open(conversationId);
+      return send("ask", text, []);
+    },
     // Explain, Simplify or Translate a passage: a new conversation that starts with it.
     start(kind, text, label = "") {
       if (running) running.abort();

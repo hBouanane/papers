@@ -54,7 +54,8 @@ def test_a_guide_is_asked_without_follow_ups_and_titled(client, monkeypatch):
     done = lines[-1]["message"]
     assert lines[-1]["type"] == "done" and done["kind"] == "guide" and done["meta"]["followups"] == []
     prompt = llm._turn(seen[0][-1], "", True)
-    assert "## The problem" in prompt and "```followups" not in prompt and "no title" in prompt
+    assert "## What you need to know first" in prompt and "```followups" not in prompt and "no title" in prompt
+    assert "first principles" in prompt and "what to try" in prompt
     assert client.get(f"/api/conversations/{lines[0]['conversation']['id']}").json()["title"] == "In-depth guide"
     guides = client.get(f"/api/papers/{p['id']}/guides").json()
     assert [g["id"] for g in guides] == [done["id"]] and guides[0]["words"] == 6

@@ -36,8 +36,11 @@ export const readerHtml = (p, id, language) => `
     <div class="reader-scroll" id="scroller"></div>
     <div class="reader-scroll guide-scroll" id="guide-scroll" hidden>
       <div class="guide-wrap"><header class="guide-head" id="guide-head"></header><article class="guide-doc answer answer-body" id="guide-doc"></article></div></div>
-    <nav class="guide-rail" id="guide-rail" aria-label="The guide's sections" hidden>
-      <span class="rail-track"></span><span class="rail-thumb"></span><div class="rail-marks"></div><span class="rail-label" aria-live="polite"></span></nav>
+    <nav class="guide-rail" id="guide-rail" aria-label="The guide's sections" hidden></nav>
+    <form class="guide-ask" id="guide-ask" autocomplete="off">
+      <button type="button" class="guide-ask-new" id="guide-ask-new" title="A new conversation" aria-label="A new conversation">+</button>
+      <input id="guide-ask-text" type="text" placeholder="Ask about the guide…" aria-label="Ask about the guide">
+      <button class="guide-ask-send" aria-label="Ask" title="Ask (Enter)"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
     <nav class="reader-route" id="route" aria-label="Where you are"></nav>
     <aside class="notes" id="notes" aria-label="Ask, words and notes">
       <div class="panel-resize" id="panel-resize" title="Drag to resize" aria-hidden="true"></div>
