@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
-from papers import ai, config, db, index, keys, library, presence, scholar
+from papers import __version__, ai, config, db, index, keys, library, presence, scholar
 from papers.ai.errors import plain
 from papers.ingest import import_inbox
 from papers.routes import ROUTERS
@@ -90,6 +90,16 @@ def upstream_error(_: Request, exc: httpx.HTTPError):
 
 @app.get("/api/health")
 def health():
+    """Papers answers here; a newer Papers starting reads the version to know whether to replace this one."""
+    return {"ok": True, "app": "papers", "version": __version__}
+
+
+@app.post("/api/app/quit")
+def quit_app(request: Request):
+    """Stop this Papers: asked by a newer Papers starting on the same port. Only from this computer."""
+    if (request.client.host if request.client else "") not in ("127.0.0.1", "::1", "localhost"):
+        return JSONResponse({"detail": "Only from this computer."}, status_code=403)
+    presence.quit_requested = True
     return {"ok": True}
 
 

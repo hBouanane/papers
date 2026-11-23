@@ -2,7 +2,7 @@ from papers import db
 
 
 def test_health(client):
-    assert client.get("/api/health").json() == {"ok": True}
+    assert client.get("/api/health").json()["ok"] is True
 
 
 def test_db_creates_tables(client):

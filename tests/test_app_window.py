@@ -25,7 +25,7 @@ def test_papers_has_a_name_of_its_own_on_this_computer():
 def test_the_app_window_opens_what_is_already_running(monkeypatch):
     opened = []
     monkeypatch.setattr(cli, "port_free", lambda host, port: False)
-    monkeypatch.setattr(cli, "wait_until_up", lambda host, port, patience=120: True)
+    monkeypatch.setattr(cli, "running", lambda host, port: {"ok": True, "version": cli.__version__})
     monkeypatch.setattr(desktop, "open_window", opened.append)
     monkeypatch.setattr(cli, "python_problem", lambda: None)
     cli.main(["--no-setup", "--port", "8123"])
@@ -73,3 +73,47 @@ def test_papers_stops_only_once_every_window_has_been_closed_for_a_while(monkeyp
 def test_the_page_tells_papers_it_is_open():
     from pathlib import Path
     assert 'new EventSource("/api/app/presence")' in (Path(__file__).parent.parent / "papers/static/js/main.js").read_text(encoding="utf-8")
+
+
+def test_a_newer_papers_asks_the_running_one_to_stop(client):
+    from papers import presence
+    health = client.get("/api/health").json()
+    assert health["version"] and health["app"] == "papers"
+    assert client.post("/api/app/quit").status_code == 403 and not presence.quit_requested  # not from this computer
+    from starlette.testclient import TestClient
+    local = TestClient(client.app, client=("127.0.0.1", 50000))
+    try:
+        assert local.post("/api/app/quit").status_code == 200 and presence.quit_requested
+    finally:
+        presence.quit_requested = False
+
+
+def test_an_older_papers_still_running_is_replaced(monkeypatch):
+    asked, started = [], []
+    free = iter([False, True])
+    monkeypatch.setattr(cli, "port_free", lambda host, port: next(free, True))
+    monkeypatch.setattr(cli, "running", lambda host, port: {"ok": True, "version": "0.0.1"})
+    monkeypatch.setattr(cli, "ask_to_quit", lambda host, port: asked.append(port) or True)
+    monkeypatch.setattr(cli, "python_problem", lambda: None)
+
+    class Server:  # instead of starting the app
+        def __init__(self, config): self.should_exit = False
+        def run(self): started.append(True)
+    import uvicorn
+    monkeypatch.setattr(uvicorn, "Server", Server)
+    cli.main(["--no-setup", "--no-browser", "--port", "8124"])
+    assert asked == [8124] and started == [True]
+
+
+def test_papers_starts_without_any_console(monkeypatch):
+    """The desktop icon on Windows runs pythonw: no stdin, stdout or stderr at all."""
+    from papers import setup
+    for name in ("stdin", "stdout", "stderr"):
+        monkeypatch.setattr(cli.sys, name, None)
+    assert setup.interactive() is False  # it used to crash here
+    monkeypatch.setattr(cli, "port_free", lambda host, port: False)
+    monkeypatch.setattr(cli, "running", lambda host, port: {"ok": True, "version": cli.__version__})
+    monkeypatch.setattr(desktop, "open_window", lambda url: None)
+    monkeypatch.setattr(cli, "python_problem", lambda: None)
+    cli.main(["--port", "8125"])
+    assert cli.sys.stdin is not None and cli.sys.stdout is not None
