@@ -200,7 +200,7 @@ function renderStory(box, p, settings, s, redo, abstractFold) {
         <p>${linkFigures(esc(i.text))}</p></div></li>`).join("")}</ol></section>` : ""}
     ${s.numbers?.length ? `<section class="ov-block"><h3>What it showed</h3><div class="ov-numbers">${s.numbers.map((n) =>
       `<div class="ov-number"><span class="ov-value">${esc(n.value)}</span><span>${esc(n.what)}</span></div>`).join("")}</div></section>` : ""}
-    ${s.figure?.number ? `<section class="ov-block ov-figure" id="ov-figure" data-n="${s.figure.number}"><h3>Start with this figure</h3>
+    ${s.figure?.number ? `<section class="ov-block ov-figure" id="ov-figure" data-n="${s.figure.number}"><h3>The big picture, in one figure</h3>
       <div class="ov-figure-body"><span class="ov-figure-img">${loading()}</span>
         <p><strong>Figure ${s.figure.number}.</strong> ${esc(s.figure.why)}</p></div></section>` : ""}
     ${s.caveats?.length ? `<section class="ov-block ov-caveats"><h3>Keep in mind</h3><ul>${s.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></section>` : ""}

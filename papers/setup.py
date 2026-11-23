@@ -251,7 +251,21 @@ def check_ai(console) -> None:
 
 
 # ---------- The whole setup ----------
-def run(console=None) -> None:
+def ask_shortcut(console, q, port: int) -> str:
+    """An icon on the desktop that opens Papers in its own window (papers/desktop.py). Returns where it is, or ""."""
+    from papers import desktop
+    look = prompt_look(console)
+    if not q.confirm("Put a Papers icon on your desktop?", default=True, **look).ask():
+        return ""
+    try:
+        made = desktop.create_shortcut(port)
+    except Exception as e:  # PowerShell, a read-only desktop...: the app works without it
+        careful(console, f"Couldn't make it ({e}). Run papers shortcut later to try again.")
+        return ""
+    return str(made[-1])
+
+
+def run(console=None, port: int = 8000) -> None:
     import questionary as q
     from rich import box
     from rich.console import Console
@@ -270,7 +284,7 @@ def run(console=None) -> None:
         from papers import db, keys, library
         db.init()
 
-        step(console, 1, 2, "Your papers as normal files",
+        step(console, 1, 3, "Your papers as normal files",
              "A folder per goal, each paper's PDF under its real title, and a notes file per paper.",
              "Open it in your file manager, any editor, or Obsidian. Papers keeps this copy up to date, "
              "and a PDF dropped into its Inbox gets added.")
@@ -282,13 +296,22 @@ def run(console=None) -> None:
             hang(console, "[dim]Skipped. You can turn this on in Settings.[/]")
         console.print()
 
-        step(console, 2, 2, "The AI model",
+        step(console, 2, 3, "The AI model",
              "It writes key points, explanations, vocabulary and quizzes, and answers your questions.")
         pid = ask_ai(console, q)
         if pid:
             check_ai(console)
         else:
             hang(console, "[dim]Not chosen. Reading, highlights and notes work without it.[/]")
+        console.print()
+
+        step(console, 3, 3, "A Papers icon on your desktop",
+             "Double-click it to open Papers in a window of its own; it starts Papers first when it isn't running.")
+        icon = ask_shortcut(console, q, port)
+        if icon:
+            good(console, icon)
+        else:
+            hang(console, "[dim]No icon. Run[/] [bold]papers shortcut[/] [dim]any time to add one.[/]")
         console.print()
 
         from papers.ai import providers
@@ -298,6 +321,7 @@ def run(console=None) -> None:
         summary.add_column(overflow="fold")
         summary.add_row("Your papers", lib or "no folder yet")
         summary.add_row("AI", ai_line)
+        summary.add_row("Desktop icon", icon or "none (papers shortcut adds one)")
         summary.add_row("API keys", keys.where())
         summary.add_row("App data", str(data.resolve()))
         console.print(Panel.fit(summary, title=f"[bold {BLUE}]{g['tick']} You're set[/]", title_align="left",

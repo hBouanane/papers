@@ -131,11 +131,11 @@ def main(argv: list[str] | None = None) -> None:
         if not setup.interactive():
             print("papers setup needs a terminal to ask its questions.")
             raise SystemExit(1)
-        setup.run()
+        setup.run(port=args.port)
         if input("\n  Start Papers now? [Y/n] ").strip().lower() in ("n", "no"):
             return
     elif not args.no_setup and setup.needed():
-        setup.run()
+        setup.run(port=args.port)
 
     url = desktop.address(args.host, args.port)
     if not port_free(args.host, args.port):
