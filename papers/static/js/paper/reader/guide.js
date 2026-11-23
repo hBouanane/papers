@@ -30,16 +30,8 @@ export function setupGuide(r, { cite, toPaper, onShown, onChange }) {
     },
   };
 
-  // ----- The rail (rail.js): the sections as marks; hover it for all of them, with how long each one is -----
-  const words = (h) => {
-    let n = 0;
-    for (let el = h.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) n += (el.textContent || "").split(/\s+/).length;
-    return n;
-  };
-  const railer = createRail(rail, box, {
-    title: "In this guide",
-    items: () => heads.map((h) => ({ el: h, label: h.textContent, meta: `${Math.max(1, Math.round(words(h) / 220))} min` })),
-  });
+  // ----- The rail (rail.js): the sections as marks; hover it and their names float out beside them -----
+  const railer = createRail(rail, box, { items: () => heads.map((h) => ({ el: h, label: h.textContent })) });
   railer.observe(doc);
   const placeMarks = () => railer.refresh();
   const paintRail = () => railer.paint();
@@ -116,11 +108,12 @@ export function setupGuide(r, { cite, toPaper, onShown, onChange }) {
       if (!writing?.signal.aborted) doc.insertAdjacentHTML("afterbegin", `<p class="error">${esc(err.message)}</p>`);
     } finally { writing = null; }
   };
-  const load = async (mid) => {
+  // The newest guide, unless a given message was asked for exactly (a long answer opened from the chat).
+  const load = async (mid, exact = false) => {
     if (mid === "new") return writeNew();
     try {
-      const guides = mid ? [] : await api(`/papers/${id}/guides`);
-      const want = mid || guides[0]?.id;
+      const guides = exact ? [] : await api(`/papers/${id}/guides`);
+      const want = exact ? mid : guides[0]?.id || mid;
       if (!want) return empty();
       const m = await api(`/papers/${id}/messages/${want}`);
       if (m.status !== "done") {
@@ -144,13 +137,18 @@ export function setupGuide(r, { cite, toPaper, onShown, onChange }) {
 
   return {
     // Open the guide view (a given guide, "new" to write one, or the latest).
-    async open(mid = null) {
+    async open(mid = null, { exact = false } = {}) {
       r.guideOn = true;
       box.hidden = false;
       $("#scroller").classList.add("is-covered"); // kept laid out: the PDF viewer measures it
       document.body.classList.add("guide-view");
-      if (!loaded || (mid && mid !== loaded.id)) await load(mid);
-      else paintRail();
+      if (mid === "new") await load("new");
+      else if (exact) { if (loaded?.id !== mid) await load(mid, true); }
+      else if (!writing) { // the newest guide: loaded again only when there's a newer one than the one shown
+        const newest = (await api(`/papers/${id}/guides`).catch(() => []))[0]?.id;
+        if (newest ? newest !== loaded?.id : !loaded) await load(newest || mid, !!newest);
+      }
+      railer.refresh();
       if (loaded) history.replaceState(history.state, "", `/papers/${id}/guide/${loaded.id}`);
       onChange?.();
     },

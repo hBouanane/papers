@@ -134,8 +134,8 @@ export function createViews(r, { notes, vocab, fitBar }) {
   };
 
   // The guide over the paper, and back to the paper (in the view asked for, or the one it was in).
-  const openGuide = async (mid = null) => {
-    await guide.open(mid);
+  const openGuide = async (mid = null, how = {}) => {
+    await guide.open(mid, how);
     markActive();
     fillJump(guide.sections());
     $("#zoom").hidden = true;

@@ -70,9 +70,11 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     const action = m.querySelector(".msg-action")?.textContent;
     return `${action ? `${action}: ` : ""}${text.trim().replace(/\s+/g, " ").slice(0, 90)}`;
   };
+  // Two kinds of marks: each question you asked, and the sections inside the answers.
   const rail = createRail($(".chat-rail"), thread, {
-    title: "In this conversation", name: "question",
-    items: () => [...thread.querySelectorAll(":scope > .turn")].filter((t) => t.querySelector(".msg-you")).map((t) => ({ el: t, label: asked(t) })),
+    items: () => [...thread.querySelectorAll(":scope > .turn")].flatMap((t) => (t.querySelector(".msg-you")
+      ? [{ el: t, label: asked(t), kind: "question" }]
+      : [...t.querySelectorAll(".answer-body > h2, .answer-body > h3")].map((h) => ({ el: h, label: h.textContent.trim(), kind: "section" })))),
   });
   const historyEl = $(".chat-history");
 
@@ -144,6 +146,9 @@ export function conversationView(root, { paperId, onSaveNote, onLibraryChanged =
     const ms = guide ? all.filter((m, i) => m.id !== guide.id && !(m.role === "user" && m.kind === "guide" && all[i + 1]?.id === guide.id)) : all;
     if (!ms.length && guide && all.length) { thread.innerHTML = guideEmptyHtml; rail.refresh(); return; }
     if (!ms.length) { thread.innerHTML = emptyHtml; rail.refresh(); return; }
+    // A heading like the guide's: the conversation is read as a page of its own.
+    thread.insertAdjacentHTML("beforeend", `<header class="chat-doc-head"><p class="guide-kicker">${guide ? "Questions about the guide" : "Conversation"}</p>
+      <h1 class="guide-title">${esc(current.title || "New conversation")}</h1></header>`);
     if (current.earlier) {
       thread.insertAdjacentHTML("beforeend", `<div class="show-more"><button type="button" class="button secondary small" data-earlier>Show earlier messages</button>
         <span class="faint">${current.earlier} more</span></div>`);

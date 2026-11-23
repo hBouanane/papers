@@ -1,25 +1,26 @@
-// A rail beside a scrolling area, in place of its scrollbar: a mark for each part (a guide's sections, a
-// conversation's questions), the part on screen, and the part's name while you move. Hover it and every part is
-// listed beside it (where you are, what you've passed, how long each one is); click one, or anywhere on the rail
-// (and drag), to go there.
-//   createRail(railEl, scroller, { items: () => [{ el, label, meta? }], name: "section" })
+// A rail beside a scrolling area, in place of its scrollbar: a mark for each part (a guide's sections; in a
+// conversation, its questions and the sections of the answers), the part on screen, and the part's name while you
+// move. Hover it and every part's name floats out beside its own mark, where it really is in the text, so you see how
+// the parts are spread; the one you're in stands out. Click a name or a mark, or anywhere on the rail (and drag).
+//   createRail(railEl, scroller, { items: () => [{ el, label, kind?: "question" | "section" }] })
 import { esc } from "./core.js";
 
-export function createRail(rail, scroller, { items, name = "section", title = "" }) {
+const GAP = 24; // the least room between two names, in px
+
+export function createRail(rail, scroller, { items }) {
   rail.classList.add("rail");
   rail.innerHTML = `<span class="rail-track"></span><span class="rail-thumb"></span><div class="rail-marks"></div>
     <span class="rail-label" aria-live="polite"></span>
-    <div class="rail-toc" role="navigation" aria-label="${esc(title || `All ${name}s`)}">
-      ${title ? `<p class="rail-toc-title">${esc(title)}</p>` : ""}<ol></ol></div>`;
+    <div class="rail-float" aria-hidden="true"><svg class="rail-leaders"></svg><div class="rail-tags"></div></div>`;
   const marks = rail.querySelector(".rail-marks"), thumb = rail.querySelector(".rail-thumb");
-  const label = rail.querySelector(".rail-label"), toc = rail.querySelector(".rail-toc"), list = toc.querySelector("ol");
+  const label = rail.querySelector(".rail-label"), tags = rail.querySelector(".rail-tags"), leaders = rail.querySelector(".rail-leaders");
   let parts = [];
 
   const topOf = (el) => el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-  const current = () => {
-    let at = 0;
+  const current = (kind) => {
+    let at = -1;
     const line = scroller.scrollTop + scroller.clientHeight / 3;
-    parts.forEach((p, i) => { if (topOf(p.el) < line) at = i; });
+    parts.forEach((p, i) => { if ((!kind || (p.kind || "section") === kind) && topOf(p.el) < line) at = i; });
     return at;
   };
   const go = (i) => {
@@ -35,10 +36,15 @@ export function createRail(rail, scroller, { items, name = "section", title = ""
     const total = Math.max(1, scroller.scrollHeight);
     thumb.style.top = `${(scroller.scrollTop / total) * 100}%`;
     thumb.style.height = `${Math.max(2, (scroller.clientHeight / total) * 100)}%`;
-    const at = current();
-    marks.querySelectorAll(".rail-mark").forEach((m, i) => { m.classList.toggle("is-here", i === at); m.classList.toggle("is-read", i < at); });
-    list.querySelectorAll("li").forEach((li, i) => { li.classList.toggle("is-here", i === at); li.classList.toggle("is-read", i < at); });
-    label.textContent = `${at + 1} / ${parts.length} · ${parts[at].label}`;
+    const at = Math.max(0, current());
+    const asked = current("question"); // in a conversation, the question you're under stands out too
+    const mark = (el, i) => {
+      el.classList.toggle("is-here", i === at || i === asked);
+      el.classList.toggle("is-read", i < at);
+    };
+    marks.querySelectorAll("[data-rail]").forEach((m) => mark(m, Number(m.dataset.rail)));
+    tags.querySelectorAll("[data-rail]").forEach((m) => mark(m, Number(m.dataset.rail)));
+    label.textContent = parts[at].label;
     label.style.top = thumb.style.top;
     if (moving) {
       rail.classList.add("is-moving");
@@ -46,34 +52,56 @@ export function createRail(rail, scroller, { items, name = "section", title = ""
       hideLabel = setTimeout(() => rail.classList.remove("is-moving"), 1200);
     }
   };
+
+  // Each name sits at its mark; names too close are pushed apart (down, then back up from the bottom), and a thin
+  // line leads from each name to its mark.
+  const placeTags = () => {
+    const H = rail.clientHeight;
+    if (!H || !parts.length) return;
+    const total = Math.max(1, scroller.scrollHeight);
+    const at = parts.map((p) => (topOf(p.el) / total) * H);
+    const gap = Math.max(15, Math.min(GAP, H / parts.length));
+    const y = [...at];
+    for (let i = 1; i < y.length; i++) y[i] = Math.max(y[i], y[i - 1] + gap);
+    if (y.at(-1) > H) { y[y.length - 1] = H; for (let i = y.length - 2; i >= 0; i--) y[i] = Math.min(y[i], y[i + 1] - gap); }
+    rail.style.setProperty("--tag-size", gap < 20 ? "12px" : "13.5px");
+    tags.querySelectorAll("[data-rail]").forEach((t, i) => { t.style.top = `${y[i]}px`; });
+    leaders.setAttribute("viewBox", `0 0 24 ${H}`);
+    leaders.setAttribute("height", H);
+    leaders.innerHTML = at.map((m, i) => `<path d="M0 ${y[i].toFixed(1)} C 12 ${y[i].toFixed(1)}, 10 ${m.toFixed(1)}, 22 ${m.toFixed(1)}" style="--i:${i}"/>`).join("");
+  };
+
   const refresh = () => {
     parts = items().filter((p) => p.el?.isConnected);
     const total = Math.max(1, scroller.scrollHeight);
-    marks.innerHTML = parts.map((p, i) => `<button type="button" class="rail-mark" data-rail="${i}" style="top:${(topOf(p.el) / total) * 100}%"
-      aria-label="${esc(p.label)}"><span>${esc(p.label)}</span></button>`).join("");
-    list.innerHTML = parts.map((p, i) => `<li style="--i:${i}"><button type="button" data-rail="${i}"><span class="rail-n">${i + 1}</span>
-      <span class="rail-name">${esc(p.label)}</span>${p.meta ? `<span class="rail-meta">${esc(p.meta)}</span>` : ""}</button></li>`).join("");
+    marks.innerHTML = parts.map((p, i) => `<button type="button" class="rail-mark is-${p.kind || "section"}" data-rail="${i}"
+      style="top:${(topOf(p.el) / total) * 100}%" aria-label="${esc(p.label)}"></button>`).join("");
+    tags.innerHTML = parts.map((p, i) => `<button type="button" class="rail-tag is-${p.kind || "section"}" data-rail="${i}" style="--i:${Math.min(i, 30)}"
+      tabindex="-1">${esc(p.label)}</button>`).join("");
+    placeTags();
     paint();
   };
 
-  // The list opens after a short hover (so passing the mouse by doesn't flash it) and stays while you're over it.
+  // The names come out after a short hover (passing the mouse by doesn't flash them) and stay while you're over them.
   let openTimer = 0, closeTimer = 0;
+  const openTags = () => { placeTags(); paint(); rail.classList.add("is-open"); };
   rail.addEventListener("pointerenter", (e) => {
     if (e.pointerType === "touch") return;
     clearTimeout(closeTimer);
-    openTimer = setTimeout(() => {
-      rail.classList.add("is-open");
-      list.querySelector("li.is-here")?.scrollIntoView({ block: "nearest" });
-    }, 160);
+    openTimer = setTimeout(openTags, 150);
   });
   rail.addEventListener("pointerleave", () => {
     clearTimeout(openTimer);
-    closeTimer = setTimeout(() => rail.classList.remove("is-open"), 260);
+    closeTimer = setTimeout(() => rail.classList.remove("is-open"), 280);
+  });
+  rail.addEventListener("pointerover", (e) => { // pointing at a name lights its mark
+    const i = e.target.closest?.("[data-rail]")?.dataset.rail;
+    marks.querySelectorAll(".rail-mark").forEach((m) => m.classList.toggle("is-pointed", m.dataset.rail === i));
   });
   rail.addEventListener("pointerdown", (e) => {
     const pick = e.target.closest("[data-rail]");
     if (pick) { e.preventDefault(); rail.classList.remove("is-open"); return go(Number(pick.dataset.rail)); }
-    if (e.target.closest(".rail-toc")) return;
+    if (e.target.closest(".rail-float")) return;
     const to = (ev) => {
       const b = rail.getBoundingClientRect();
       scroller.scrollTop = ((ev.clientY - b.top) / b.height) * scroller.scrollHeight - scroller.clientHeight / 2;

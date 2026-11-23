@@ -104,7 +104,7 @@ export async function readerPage(id, stale, { guide: openOnGuide = null } = {}) 
   bindReadingPrefs(r.$("#bar"));
   if (openOnGuide) views.openGuide(openOnGuide);
   // A long answer in the chat opens here as the guide view.
-  const onOpenGuide = (e) => { e.preventDefault(); views.openGuide(e.detail); };
+  const onOpenGuide = (e) => { e.preventDefault(); panel.setOpen(false); views.openGuide(e.detail, { exact: true }); };
   addEventListener("open-guide", onOpenGuide);
 
   return () => {

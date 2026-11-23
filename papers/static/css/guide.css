@@ -53,13 +53,13 @@
 .guide-scroll::-webkit-scrollbar { display: none; }
 .guide-wrap { max-width: 820px; margin: 0 auto; }
 .guide-head { margin-bottom: 36px; }
-.guide-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
-.guide-title { margin: 0; font-family: var(--paper); font-size: 30px; line-height: 1.25; color: var(--heading); text-wrap: balance; }
-.guide-meta { margin: 8px 0 0; color: var(--pencil); font-size: 14px; }
+.guide-kicker { margin: 0 0 8px; font-size: 14px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ink); }
+.guide-title { margin: 0; font: 800 38px/1.2 var(--ui); letter-spacing: -.01em; color: var(--heading); text-wrap: balance; }
+.guide-meta { margin: 10px 0 0; color: var(--pencil); font-size: 15px; }
 .guide-doc.answer { padding: 0; border: 0; font-family: var(--paper); font-size: 18px; line-height: 1.75; color: var(--graphite); min-width: 0; }
 .guide-doc > p, .guide-doc li { font-size: 18px; text-wrap: pretty; }
-.guide-doc h2 { font-family: var(--ui); font-size: 26px; line-height: 1.25; color: var(--heading); margin: 60px 0 16px; padding-top: 28px; border-top: 1px solid var(--line); }
-.guide-doc h2::before { content: attr(data-n); display: block; font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--ink); margin-bottom: 4px; }
+.guide-doc h2 { font-family: var(--ui); font-size: 28px; line-height: 1.25; color: var(--heading); margin: 60px 0 16px; padding-top: 28px; border-top: 1px solid var(--line); }
+.guide-doc h2::before { content: attr(data-n); display: block; font-size: 16px; font-weight: 800; letter-spacing: .04em; color: var(--ink); margin-bottom: 6px; }
 .guide-doc h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
 .guide-doc h3 { font-family: var(--ui); font-size: 19px; line-height: 1.35; color: var(--heading); margin: 32px 0 8px; }
 .guide-doc .visual, .guide-doc table, .guide-doc .katex-display { font-family: var(--ui); }
@@ -70,42 +70,49 @@
 .guide-empty p, .guide-writing p { margin: 0; }
 
 /* The rail (rail.js), beside the guide and beside a conversation: marks for the parts, the part on screen, the
-   part's name while you move, and on hover the list of every part. */
+   part's name while you move; on hover, every part's name floats out beside its own mark. */
 .rail { width: 18px; cursor: pointer; touch-action: none; }
 .guide-rail { position: fixed; z-index: 11; top: calc(var(--reader-top, 96px) + 28px); bottom: 76px; right: 14px; transition: right .2s ease; }
 @media (min-width: 1100px) { body.notes-open .guide-rail { right: calc(var(--panel-w, 420px) + 14px); } }
 .rail-track { position: absolute; top: 0; bottom: 0; left: 8px; width: 2px; border-radius: 2px; background: var(--line); }
-.rail-thumb { position: absolute; left: 5px; width: 8px; min-height: 14px; border-radius: 8px; background: var(--ink); opacity: .35; transition: opacity .2s; }
-.rail:hover .rail-thumb, .rail.is-moving .rail-thumb { opacity: .6; }
-.rail-mark { position: absolute; left: 2px; width: 14px; height: 10px; margin-top: -5px; padding: 0; border: 0; background: none; cursor: pointer; }
-.rail-mark::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; border-radius: 2px; background: var(--pencil); opacity: .55; transition: background .15s, opacity .15s, transform .15s; }
-.rail-mark.is-read::before { background: var(--ink); opacity: .55; }
-.rail-mark.is-here::before { background: var(--ink); opacity: 1; transform: scaleX(1.35); }
-.rail-mark span { display: none; }
+.rail-thumb { position: absolute; left: 5px; width: 8px; min-height: 14px; border-radius: 8px; background: var(--ink); opacity: .3; transition: opacity .2s; }
+.rail:hover .rail-thumb, .rail.is-moving .rail-thumb { opacity: .55; }
+.rail-mark { position: absolute; left: 1px; width: 16px; height: 12px; margin-top: -6px; padding: 0; border: 0; background: none; cursor: pointer; }
+.rail-mark::before { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 2px; border-radius: 2px; background: var(--pencil); opacity: .5;
+  transition: background .15s, opacity .15s, transform .2s; }
+.rail-mark.is-read::before { background: var(--ink); opacity: .5; }
+.rail-mark:is(.is-here, .is-pointed)::before { background: var(--ink); opacity: 1; transform: scaleX(1.4); }
+/* In a conversation: a dot for each question, a short thin line for each section of an answer. */
+.rail-mark.is-question::before { left: 4px; right: auto; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--graphite); opacity: .8; }
+.rail-mark.is-question:is(.is-here, .is-pointed)::before { background: var(--ink); transform: scale(1.35); }
+.rail-mark.is-section::before { left: 5px; right: 5px; }
 .rail-label { position: absolute; right: 24px; transform: translateY(-50%); margin-top: 10px; white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;
   padding: 5px 10px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line); box-shadow: 0 4px 14px rgb(0 0 0 / .12);
   font: 600 13px/1.3 var(--ui); color: var(--ink); pointer-events: none; opacity: 0; transition: opacity .15s; }
 .rail.is-moving:not(.is-open) .rail-label { opacity: 1; }
 
-/* Hover the rail: every part, listed beside it. It slides in from the rail; the items follow one after another. */
-.rail-toc { position: absolute; right: 26px; top: 50%; width: min(340px, 70vw); max-height: min(78vh, 100%); overflow-y: auto; overscroll-behavior: contain;
-  padding: 12px 8px; border-radius: 14px; background: var(--raised); border: 1px solid var(--line); box-shadow: 0 18px 48px rgb(0 0 0 / .18);
-  cursor: default; opacity: 0; visibility: hidden; pointer-events: none; transform-origin: right center;
-  transform: translate(14px, -50%) scale(.97); transition: opacity .18s ease, transform .24s cubic-bezier(.2, .8, .2, 1), visibility 0s .24s; }
-.rail.is-open .rail-toc { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(0, -50%) scale(1); transition: opacity .18s ease, transform .24s cubic-bezier(.2, .8, .2, 1); }
-.rail-toc-title { margin: 0 10px 8px; font: 800 11px/1.2 var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--pencil); }
-.rail-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
-.rail.is-open .rail-toc li { animation: rail-in .32s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(min(var(--i), 14) * 18ms); }
-@keyframes rail-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
-.rail-toc button { width: 100%; display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: baseline; padding: 7px 10px; border: 0; border-radius: 9px;
-  background: none; text-align: left; font: 500 14px/1.35 var(--ui); color: var(--graphite); cursor: pointer; transition: background .12s, color .12s; }
-.rail-toc button:hover { background: var(--sheet); color: var(--heading); }
-.rail-n { font-size: 12px; font-weight: 800; color: var(--pencil); text-align: right; }
-.rail-meta { font-size: 12px; color: var(--pencil); white-space: nowrap; }
-.rail-toc li.is-read .rail-name { color: var(--pencil); }
-.rail-toc li.is-read .rail-n { color: var(--ink); }
-.rail-toc li.is-here button { background: var(--ink-tint); color: var(--ink); font-weight: 700; }
-.rail-toc li.is-here .rail-n { color: var(--ink); }
+/* The names, floating beside their marks: no box, just the names where the parts are, over a soft fade of the page. */
+.rail-float { position: absolute; top: 0; bottom: 0; right: 18px; width: min(380px, 60vw); pointer-events: none; }
+.rail-float::before { content: ""; position: absolute; inset: -40px -18px -40px -60px; background: linear-gradient(to right, transparent, var(--desk) 30%);
+  opacity: 0; transition: opacity .25s ease; }
+.rail.is-open .rail-float { pointer-events: auto; }
+.rail.is-open .rail-float::before { opacity: .98; }
+.rail-leaders { position: absolute; right: 0; top: 0; width: 24px; overflow: visible; }
+.rail-leaders path { fill: none; stroke: var(--pencil); stroke-width: 1; opacity: 0; stroke-dasharray: 40; stroke-dashoffset: 40;
+  transition: opacity .2s, stroke-dashoffset .35s ease; transition-delay: calc(var(--i) * 12ms); }
+.rail.is-open .rail-leaders path { opacity: .45; stroke-dashoffset: 0; }
+.rail-tags { position: absolute; top: 0; bottom: 0; right: 24px; left: 0; }
+.rail-tag { position: absolute; right: 0; transform: translate(14px, -50%); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 9px; border: 0; border-radius: 7px; background: none; text-align: right; cursor: pointer;
+  font: 500 var(--tag-size, 13.5px)/1.35 var(--ui); color: var(--graphite); opacity: 0;
+  transition: opacity .22s ease, transform .32s cubic-bezier(.2, .8, .2, 1), color .12s, background .12s; transition-delay: calc(var(--i) * 14ms); }
+.rail.is-open .rail-tag { opacity: 1; transform: translate(0, -50%); }
+.rail-tag:hover { color: var(--heading); background: var(--raised); }
+.rail-tag.is-read { color: var(--pencil); }
+.rail-tag.is-here { color: var(--ink); font-weight: 800; background: var(--ink-tint); }
+.rail-tag.is-question { font-weight: 700; color: var(--heading); }
+.rail-tag.is-section { font-size: calc(var(--tag-size, 13.5px) - 1.5px); padding-right: 16px; }
+.rail-tag.is-question.is-here { color: var(--ink); }
 
 /* Over the guide: a box to ask about it (the answer opens beside the guide). */
 .guide-ask { display: none; position: fixed; z-index: 12; bottom: 18px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 96px));
@@ -120,28 +127,45 @@ body.guide-view .reader-route { display: none; }
 .guide-ask-send { background: var(--ink-fill); color: var(--on-ink); }
 .guide-ask:focus-within { border-color: var(--ink); }
 
-/* The conversation reads like the guide: the same type, and a rail to go from question to question. */
+/* The conversation, beside the guide, reads like a second guide: no bubbles; each question is a numbered heading and
+   its answer the text under it, in the guide's type; a floating box to ask; a rail of questions and sections. */
+.pane-ask { position: relative; }
 .thread-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
-.thread-wrap .thread { flex: 1; scrollbar-width: none; padding-right: 30px; }
+.thread-wrap .thread { flex: 1; scrollbar-width: none; padding: 28px 40px 150px 28px; counter-reset: question; gap: 8px; }
 .thread-wrap .thread::-webkit-scrollbar { display: none; }
-.chat-rail { position: absolute; top: 14px; bottom: 14px; right: 6px; }
-.chat-rail .rail-toc { width: min(320px, calc(var(--panel-w, 420px) - 70px)); }
-.chat .turn { width: 100%; max-width: 780px; margin: 0 auto; }
-.chat .answer-body { font-family: var(--paper); font-size: 17px; line-height: 1.7; color: var(--graphite); }
-.chat .answer-body h1, .chat .answer-body h2 { font: 700 19px/1.3 var(--ui); color: var(--heading); margin: 1.4em 0 .5em; }
+.chat-rail { position: absolute; top: 18px; bottom: 110px; right: 8px; }
+.chat .turn { width: 100%; max-width: 760px; margin: 0 auto; }
+.chat .msg-you { max-width: none; margin: 34px 0 4px; padding: 26px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none;
+  color: var(--heading); font: 700 21px/1.3 var(--ui); }
+.chat :is(.chat-doc-head, .show-more) + .turn .msg-you { margin-top: 0; border-top: 0; padding-top: 0; }
+.chat-doc-head { width: 100%; max-width: 760px; margin: 0 auto 26px; }
+.chat-doc-head .guide-title { font-size: 28px; }
+.chat .msg-you::before { counter-increment: question; content: "Q" counter(question); display: block; margin-bottom: 6px;
+  font-size: 15px; font-weight: 800; letter-spacing: .08em; color: var(--ink); }
+.chat .msg-you p { margin: 0; }
+.chat .msg-you .msg-action { display: inline-block; margin-bottom: 6px; font-size: 12px; }
+.chat .msg-you .msg-attachment { margin: 8px 0 0; font: 400 15px/1.6 var(--paper); color: var(--graphite); }
+.chat .msg-claude { padding: 0; background: none; }
+.chat .answer-body { font-family: var(--paper); font-size: 17px; line-height: 1.75; color: var(--graphite); }
+.chat .answer-body h1, .chat .answer-body h2 { font: 700 18px/1.3 var(--ui); color: var(--heading); margin: 1.5em 0 .5em; }
 .chat .answer-body h3, .chat .answer-body h4 { font: 700 16px/1.35 var(--ui); color: var(--heading); margin: 1.2em 0 .4em; }
 .chat .answer-body :is(table, .visual, .katex-display) { font-family: var(--ui); }
 .chat .answer-body table { font-size: 14px; }
-.chat .msg-you { font-size: 15px; }
+.chat .thread-empty { max-width: 760px; margin: 0 auto; }
+/* The box to ask floats at the bottom, like the one over the guide. */
+.pane-ask .composer { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(640px, calc(100% - 56px)); padding: 0; background: none; z-index: 3; }
+.pane-ask .composer-box { border-radius: 20px; background: var(--raised); box-shadow: 0 10px 30px rgb(0 0 0 / .16); }
+.pane-ask .composer::before { content: ""; position: absolute; inset: -40px -40px -14px; background: linear-gradient(transparent, var(--sheet) 60%); z-index: -1; pointer-events: none; }
 
 /* Over the guide, the paper's own tools step aside. */
 body.guide-view #skim, body.guide-view #hl-tool, body.guide-view #page-tone, body.guide-view #zoom, body.guide-view #pct, body.guide-view #strip,
 body.guide-view #pop .sel-colors, body.guide-view #pop [data-sel="note"], body.guide-view #pop [data-sel="word"] { display: none !important; }
 @media (max-width: 760px) {
   .guide-scroll { padding: 28px 34px 100px 18px; }
-  .guide-title { font-size: 24px; }
+  .guide-title { font-size: 28px; }
   .guide-doc.answer, .guide-doc > p, .guide-doc li { font-size: 17px; }
   .guide-rail { right: 6px; }
 }
 .reader-scroll.is-covered { visibility: hidden; }
+.chat-rail .rail-float { width: min(360px, calc(var(--panel-w, 420px) - 80px)); }
 .chat-rail .rail-label { display: none; }
